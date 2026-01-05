@@ -24,9 +24,11 @@ export interface GradeResult {
 
 export const GradeWiseAPI = {
     // Member C uses this
-    ingestFile: async (file: File) => {
+    ingestFiles: async (files: File[]) => {
         const formData = new FormData();
-        formData.append('files', file);
+        files.forEach(file => {
+            formData.append('files', file);
+        });
         const response = await api.post('/ingest', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });

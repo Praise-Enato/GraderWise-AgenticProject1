@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, CheckCircle, GraduationCap, LayoutDashboard, Shield, Zap, BookOpen, Users, Brain } from "lucide-react";
 import { motion } from "framer-motion";
 import { ModeToggle } from "@/components/ModeToggle";
@@ -41,9 +42,14 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-white/10 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 shadow-md shadow-blue-600/20">
-              <GraduationCap className="w-5 h-5" />
+          <div className="flex items-center gap-0">
+            <div className="relative w-20 h-20 -mr-4">
+              <Image 
+                src="/logo.png" 
+                alt="GradeWise" 
+                fill 
+                className="object-contain" 
+              />
             </div>
             <span className="text-xl font-bold text-slate-900 dark:text-white">GradeWise</span>
           </div>
@@ -284,9 +290,14 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-                  <GraduationCap className="w-5 h-5" />
+              <div className="flex items-center gap-0 mb-4">
+                <div className="relative w-16 h-16 -mr-3">
+                  <Image 
+                    src="/logo.png" 
+                    alt="GradeWise" 
+                    fill 
+                    className="object-contain" 
+                  />
                 </div>
                 <span className="text-xl font-bold text-slate-900 dark:text-white">GradeWise</span>
               </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { GraduationCap, ArrowRight, Github, Mail, Lock, User, Loader2, CheckCircle } from "lucide-react";
@@ -55,9 +56,14 @@ export default function SignupPage() {
 
                 {/* Logo Header */}
                 <div className="text-center mb-8">
-                    <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform">
-                            <GraduationCap className="w-6 h-6" />
+                    <Link href="/" className="inline-flex items-center gap-0 mb-4 group">
+                        <div className="relative w-20 h-20 -mr-4 group-hover:scale-110 transition-transform">
+                            <Image 
+                                src="/logo.png" 
+                                alt="GradeWise" 
+                                fill 
+                                className="object-contain" 
+                            />
                         </div>
                         <span className="text-2xl font-bold text-white tracking-tight">GradeWise</span>
                     </Link>

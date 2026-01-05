@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import {
     LayoutDashboard,
     PlusCircle,
@@ -37,9 +38,15 @@ export default function Sidebar() {
         <aside className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col transition-colors duration-300 h-screen">
             {/* Header */}
             <div className="h-20 flex items-center px-6 border-b border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-blue-400 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-                        <GraduationCap className="w-5 h-5" />
+                <div className="flex items-center gap-0">
+                    <div className="relative w-20 h-20 -mr-4">
+                        <Image
+                            src="/logo.png"
+                            alt="GradeWise"
+                            fill
+                            className="object-contain"
+                            priority
+                        />
                     </div>
                     <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">GradeWise</span>
                 </div>

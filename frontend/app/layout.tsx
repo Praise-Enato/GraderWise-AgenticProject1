@@ -2,6 +2,14 @@
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
+export const metadata = {
+  title: "GradeWise",
+  description: "AI Grading Agent",
+  icons: {
+    icon: "/logo.png",
+  },
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

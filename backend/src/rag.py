@@ -15,7 +15,17 @@ TEMP_UPLOAD_DIR = "./backend/data/temp_uploads"
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 
 # Initialize Embeddings
-embedding_function = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_embedding_function():
+    try:
+        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    except Exception as e:
+        print(f"Error initializing embeddings: {e}")
+        # Return a dummy if network fails, or re-raise if strict.
+        # For now, let's re-raise but at least it won't crash import time.
+        raise e
 
 def ingest_course_material(files: List[UploadFile]) -> int:
     """
@@ -50,14 +60,9 @@ def ingest_course_material(files: List[UploadFile]) -> int:
     splits = text_splitter.split_documents(documents)
 
     # Embed and store in ChromaDB
-    # Persist directory is handled automatically by langchain_chroma.Chroma in newer versions
-    # or requires explicit client settings, but basic usage here typically implies persistence if directory provided.
-    # Note: langchain-chroma 0.1.0+ uses persistent_client automatically if persist_directory is passed?
-    # Providing persist_directory to Chroma constructor.
-    
     Chroma.from_documents(
         documents=splits,
-        embedding=embedding_function,
+        embedding=get_embedding_function(),
         persist_directory=CHROMA_PATH
     )
 
@@ -69,7 +74,7 @@ def retrieve_context(query: str) -> List[str]:
     """
     vector_store = Chroma(
         persist_directory=CHROMA_PATH,
-        embedding_function=embedding_function
+        embedding_function=get_embedding_function()
     )
     
     # Retrieve top 3

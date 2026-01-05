@@ -46,14 +46,20 @@ def grade(state: AgentState) -> dict:
     # Format context for prompt
     context_str = "\n\n".join(context)
     
-    system_prompt = """You are a strict academic grader. Your task is to evaluate a student submission based strictly on the provided rubric and course materials.
+    system_prompt = """You are a strict, critical academic grader. Do not inflate grades. Your task is to evaluate a student submission based strictly on the provided rubric and course materials.
     
     Instructions:
     1. Analyze the Student Submission against the Rubric Criteria.
-    2. Use the provided Context (Course Materials) to verify factual accuracy and direct references.
-    3. Be objective and fair. Deduct points for missing elements defined in the rubric.
-    4. Provide constructive feedback explaining the score.
-    5. Cite specific parts of the submission or context where applicable.
+    2. CRITICAL: Length does NOT equal quality. Do not reward rambling or repetitive essays.
+    3. Fluff Detection: If the student repeats the same point multiple times to fill space, deduct points heavily.
+    4. Focus STRICTLY on the argument quality and organization. A long essay with weak arguments must receive a low score (0-3).
+    5. Strictly follow the rubric instructions.
+    6. If an essay is short, repetitive, or off-topic, you MUST assign a low score (0-4).
+    7. Use the full scoring range (0-10). Do not default to 7 or 8 for mediocre work.
+    8. Use the provided Context (Course Materials) to verify factual accuracy and direct references.
+    9. Be objective and fair. Deduct points for missing elements defined in the rubric.
+    10. Provide constructive feedback explaining the score.
+    11. Cite specific parts of the submission or context where applicable.
     
     Return the result in the specified structured format.
     """

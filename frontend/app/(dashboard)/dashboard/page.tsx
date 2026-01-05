@@ -9,13 +9,17 @@ import {
   Zap,
   Upload,
   FolderOpen,
-  ArrowRight
+  ArrowRight,
+  X,
+  File as FileIcon,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ModeToggle } from "@/components/ModeToggle";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { useState, useEffect } from "react";
+import { GradeWiseAPI } from "@/lib/api";
 
 interface HistoryItem {
   id: string;
@@ -29,6 +33,12 @@ interface HistoryItem {
 export default function Dashboard() {
   const [recentActivity, setRecentActivity] = useState<HistoryItem[]>([]);
   const [mounted, setMounted] = useState(false);
+  
+  // Ingestion Modal State
+  const [showIngestModal, setShowIngestModal] = useState(false);
+  const [ingestFiles, setIngestFiles] = useState<File[]>([]);
+  const [ingestStatus, setIngestStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [ingestMessage, setIngestMessage] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -42,6 +52,31 @@ export default function Dashboard() {
       }
     }
   }, []);
+
+  const handleIngest = async () => {
+    if (ingestFiles.length === 0) return;
+    
+    setIngestStatus('uploading');
+    try {
+      const result = await GradeWiseAPI.ingestFiles(ingestFiles);
+      setIngestStatus('success');
+      setIngestMessage(`Successfully processed ${result.files_processed} files.`);
+      setTimeout(() => {
+        setShowIngestModal(false);
+        setIngestFiles([]);
+        setIngestStatus('idle');
+      }, 2000);
+    } catch (error: any) {
+      setIngestStatus('error');
+      setIngestMessage(error.message || "Failed to upload files");
+    }
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setIngestFiles(Array.from(e.target.files));
+    }
+  };
 
   const container = {
     hidden: { opacity: 0 },
@@ -141,11 +176,13 @@ export default function Dashboard() {
                       icon={<Upload className="w-5 h-5" />}
                       title="Import Rubric"
                       desc="Upload PDF guide"
+                      onClick={() => alert("Rubric Parsing feature is scheduled for Phase 4 (Advanced Logic). For now, please use the Auto-fill button in the Grading page.")}
                     />
                     <ActionButton
                       icon={<FolderOpen className="w-5 h-5" />}
                       title="Course Materials"
                       desc="Manage resources"
+                      onClick={() => setShowIngestModal(true)}
                     />
                   </div>
                 </div>
@@ -210,6 +247,102 @@ export default function Dashboard() {
 
         </motion.div>
       </main>
+
+
+      {/* Ingestion Modal */}
+      <AnimatePresence>
+        {showIngestModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <FolderOpen className="w-5 h-5 text-blue-500" /> Upload Course Materials
+                </h3>
+                <button onClick={() => setShowIngestModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Upload PDF textbooks, lecture slides, or reading materials. The agent will use these to fact-check grading.
+                </p>
+
+                <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center hover:border-blue-500 transition-colors bg-slate-50/50 dark:bg-slate-800/30">
+                  <input 
+                    type="file" 
+                    id="file-upload" 
+                    multiple 
+                    accept=".pdf" 
+                    className="hidden" 
+                    onChange={onFileChange}
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-3">
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-primary hover:underline">Click to upload</span> or drag and drop
+                    </div>
+                    <span className="text-xs text-slate-400">PDF files only (max 10MB)</span>
+                  </label>
+                </div>
+
+                {/* File List */}
+                {ingestFiles.length > 0 && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {ingestFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
+                        <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300 truncate">
+                           <FileIcon className="w-4 h-4 text-slate-400" />
+                           <span className="truncate max-w-[200px]">{file.name}</span>
+                        </div>
+                        <span className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Status Message */}
+                {ingestStatus === 'success' && (
+                   <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2">
+                     <CheckCircle className="w-4 h-4" /> {ingestMessage}
+                   </div>
+                )}
+                {ingestStatus === 'error' && (
+                   <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                     <CheckCircle className="w-4 h-4" /> {ingestMessage}
+                   </div>
+                )}
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                <button onClick={() => setShowIngestModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleIngest} 
+                  disabled={ingestFiles.length === 0 || ingestStatus === 'uploading'}
+                  className="px-4 py-2 bg-primary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-lg shadow-blue-500/20 flex items-center gap-2"
+                >
+                  {ingestStatus === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {ingestStatus === 'uploading' ? 'Processing...' : 'Ingest Materials'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -235,9 +368,9 @@ function StatsCard({ icon, iconBg, badge, badgeColor, value, label, subtext }: a
   );
 }
 
-function ActionButton({ icon, title, desc }: any) {
+function ActionButton({ icon, title, desc, onClick }: any) {
   return (
-    <button className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-600 hover:shadow-md transition-all text-left group">
+    <button onClick={onClick} className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-600 hover:shadow-md transition-all text-left group">
       <div className="p-2.5 bg-white dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 group-hover:text-primary group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors shadow-sm">
         {icon}
       </div>

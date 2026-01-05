@@ -28,3 +28,7 @@ opentelemetry-semantic-conventions<0.47b0
 
 
 
+
+# --- Data & Testing ---
+pandas
+httpx
