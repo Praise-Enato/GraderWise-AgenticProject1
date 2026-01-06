@@ -1,0 +1,166 @@
+essay_id,ai_score,ai_feedback,specificity,actionability,tone,reasoning
+15,2.0,"The submission lacks depth and clarity in its persuasive argument. The argument is repetitive and fails to address potential counterarguments. The organization is also lacking, with abrupt transitions between ideas. Furthermore, the submission relies heavily on general statements without providing concrete evidence. The student's reliance on social media and webchat websites as examples of computer benefits is misguided and may not be relevant to the topic. The overall quality of the submission is low.",1,2,2,"The feedback lacks specificity as it does not quote the student's text, has limited actionability since it does not provide concrete steps for improvement, and has a somewhat discouraging tone, which is not ideal for a teaching assistant's feedback."
+2,2.0,"The submission lacks focus and clarity in its argument. The essay jumps between various points without a clear logical flow and transitions. The student repeats the same point multiple times to fill space, indicating a lack of quality content. The persuasive argument is not clear, and the supporting reasons are weak and lacking in factual accuracy. The student fails to provide direct references to the course materials. Overall, the submission demonstrates a lack of understanding of the course materials and the topic. The score is 2 out of 10.",1,2,2,"The feedback lacks specificity as it does not quote the student's text, has limited actionability since it does not provide concrete steps for improvement, and has a somewhat discouraging tone, but it does attempt to address several key issues with the submission."
+8,5.5,"The submission demonstrates a clear stance on the importance of computers, with supporting reasons such as improved hand-eye coordination, enhanced communication, and access to information about faraway places. However, the essay is repetitive, with the same points being restated multiple times. The organization is also lacking, with abrupt transitions and a lack of logical flow. The submission relies heavily on anecdotal evidence and lacks concrete data to support the arguments. The writing is also marred by simplistic language and a tendency to exaggerate the importance of computers. Overall, the submission demonstrates some understanding of the topic, but fails to provide a well-organized and well-supported argument.",2,3,4,"The feedback provides some general guidance but lacks specific quotes from the student's text and concrete steps for improvement, while maintaining a professional tone."
+2,2.0,"The submission lacks focus and organization. The arguments presented are weak and repetitive. The essay is overly reliant on rhetorical questions and lacks a clear, persuasive stance. Furthermore, the writing is amateurish and lacks proper grammar and spelling. The student fails to engage with the course materials, instead relying on generic statements about the benefits of computers. The submission is overly long and rambles on, with many unnecessary digressions. The student also fails to address potential counterarguments and does not provide sufficient evidence to support their claims. Overall, the submission demonstrates a lack of critical thinking and analytical skills.",1,2,2,"The feedback is overly general and critical, lacking specific quotes from the student's text and concrete steps for improvement, while also being somewhat discouraging in tone."
+21,0.0,"The submission fails to provide a clear and persuasive argument, as the writer does not adequately address the opposing view. Additionally, the essay is poorly organized, with weak transitions and repetitive points. The writer relies heavily on fluff, repeating the same points multiple times to fill space. Furthermore, the essay lacks direct references to the course materials, making it difficult to verify factual accuracy. Overall, the submission requires significant improvement in terms of argument quality, organization, and attention to detail.",1,2,4,"The feedback lacks specificity as it does not quote the student's text, has limited actionability since it only provides general guidance, but maintains a professional tone with constructive criticism."
+22,1.0,"The submission lacks a clear, persuasive argument and fails to address the required complexity of the topic. The organization is also not logical, with a simplistic structure that does not flow well. The student seems to be addressing a different topic, unrelated to the required discussion. The submission is also repetitive, with the same points repeated multiple times without adding any depth or originality. The student fails to support their claims with any evidence or references, and the writing lacks clarity and coherence. Based on the provided context and the student’s submission, I award a score of 1 out of 10.",1,2,2,"The feedback lacks specificity, fails to provide actionable steps for improvement, and has a somewhat discouraging tone, but does attempt to address multiple aspects of the student's submission."
+1,2.0,"The student’s submission lacks a clear and focused persuasive argument, failing to provide coherent supporting reasons. The essay is repetitive, with the same points being made multiple times, and lacks logical flow and transitions. While the student attempts to make a case for the benefits of computers, the argument is weak and lacks depth. The inclusion of unrelated examples and off-topic statements further detracts from the overall quality of the essay. The student would benefit from revising their argument to focus on a clear and concise message, and eliminating unnecessary repetition and tangents.",1,3,4,"The feedback lacks specificity as it does not quote the student's text, but provides somewhat actionable advice and maintains a professional tone, although it could be more encouraging and detailed."
+7,9.0,"**Overall Feedback**
+
+Congratulations on receiving a score of 9.0/10 on your essay! Your clear and coherent argument, strong examples, logical structure, and persuasive language have all contributed to a well-written and engaging piece. Your ability to present multiple distinct points about the negative effects of computer use on safety, education, and social life is impressive, and your use of rhetorical questions effectively encourages the reader to agree with your stance.
+
+**Suggested Improvements**
+
+While your essay is strong overall, there are a few areas where you could tighten up your writing for better clarity and concision. Here are some specific suggestions:
+
+1. **Sentence Clarity**: In the sentence ""To begin, when someone is talking to another on a computer, they @MONTH1 never know who is at the other end of it,"" consider removing the phrase ""To begin"" as it's not necessary. Also, replace ""@MONTH1"" with a specific month or example to make the sentence more concrete. For example: ""When someone is talking to another on a computer, they never know who is at the other end of it, as seen in cases where predators have been known to pose as children online.""
+
+Original sentence: ""To begin, when someone is talking to another on a computer, they @MONTH1 never know who is at the other end of it.""
+Revised sentence: ""When someone is talking to another on a computer, they never know who is at the other end of it, as seen in cases where predators have been known to pose as children online.""
+
+2. **Sentence Clarity**: In the sentence ""Moreover, studies show that @PERCENT1 of people's information is more widely exposed in the last @NUM1 years due to the new chat websites,"" consider specifying what kind of information is being exposed and what kind of studies are being referred to. For example: ""According to a recent study, a significant percentage of people's personal information has been more widely exposed in the last few years due to the rise of social media platforms like Facebook and Myspace.""
+
+Original sentence: ""Moreover, studies show that @PERCENT1 of people's information is more widely exposed in the last @NUM1 years due to the new chat websites.""
+Revised sentence: ""According to a recent study, a significant percentage of people's personal information has been more widely exposed in the last few years due to the rise of social media platforms like Facebook and Myspace.""
+
+3. **Sentence Clarity**: In the sentence ""A recent study shows that people who actually went to the grand canyon could write a @NUM1 page essay on what they had learned,"" consider specifying what the study found and why it's significant. For example: ""Research has shown that people who experience nature firsthand, such as by visiting the Grand Canyon, develop a deeper understanding of the world and are able to write more comprehensive essays about their experiences.""
+
+Original sentence: ""A recent study shows that people who actually went to the grand canyon could write a @NUM1 page essay on what they had learned.""
+Revised sentence: ""Research has shown that people who experience nature firsthand, such as by visiting the Grand Canyon, develop a deeper understanding of the world and are able to write more comprehensive essays about their experiences.""
+
+4. **Transitions**: In the paragraph about social life, consider adding a transition phrase to connect the ideas between sentences. For example: ""One reason people's social lives can be ruined by computer use is that they spend all their time online, rather than interacting with family and friends in person. This is evident in cases where people have been embarrassed by photos or videos shared online.""
+
+Original paragraph:
+""One reasons for this could be that a person spends all their time on their computer instead of spending time with their family and friends. Sure, you can chat with people online, but that's nothing like chatting in person. There is no need to talk to a friend or family member online, when you could do it in person. Finally, @CAPS1 someone takes an embarrasing picture of you and puts it on their computer, it is there forever. Thus, you can lose friends, whether you're the person in the picture or the addict who put the picture on.""
+Revised paragraph:
+""One reason people's social lives can be ruined by computer use is that they spend all their time online, rather than interacting with family and friends in person. This is evident in cases where people have been embarrassed by photos or videos shared online. For example, if someone takes an embarrassing picture of you and posts it online, it can be difficult to recover from the damage to your reputation.""
+
+By implementing these suggestions, you can further refine your writing and make your essay even more effective in conveying your argument. Keep up the great work!",5,5,5,"The feedback receives perfect scores because it thoroughly quotes the student's text, provides explicit instructions on how to improve, and maintains a professional and encouraging tone throughout."
+16,8.5,"**Excellent Work!**
+
+Overall, your essay presents a clear and well-structured argument in favor of computers and technology. Your ideas are well-supported, and you've effectively addressed the potential benefits of computer use. 
+
+However, there are a few areas where you can improve to take your writing to the next level. 
+
+**Spelling and Grammar:**
+In the sentence ""Computers are a nessessity of life if soceity wishes to grow and expand,"" you used the word ""nessessity"" instead of ""necessity."" To fix this, simply replace ""nessessity"" with ""necessity."" Make sure to proofread your text thoroughly to catch any similar errors.
+
+In the sentence ""When on the computer, you automatically process what the eyes see into a command for your hands,"" you used the word ""automatically"" which is correct, but you could also consider rephrasing the sentence for better clarity. Perhaps something like: ""When using a computer, your eyes and hands work together to process information and execute commands.""
+
+**Transitions:**
+While your essay flows logically, there are moments where the transition between paragraphs feels a bit abrupt. To smooth out these transitions, try using transitional phrases or words to connect your ideas. For example, in the paragraph that begins ""Additionaly,"" you could start with a sentence like: ""Furthermore, computers also provide us with the ability to access information about faraway places and people..."" This will help the reader see the connection between ideas more clearly.
+
+**Minor Suggestions:**
+In the sentence ""@CAPS4 hand eye coordination can improve people in sports such as baseball and basketball,"" you used the symbol ""@"" in a way that's not typical in written text. To fix this, simply remove the ""@"" symbol and write out the name instead. 
+
+Lastly, consider using more precise language in your conclusion. Instead of saying ""Is that the kind of palce you want people to live in?"" try rephrasing it to something like: ""Is that a world we want to live in?"" This will make your conclusion more concise and effective.
+
+**Final Tips:**
+Keep up the great work on developing your persuasive argument! Remember to proofread carefully, use transitional phrases to connect your ideas, and be mindful of minor details like spelling and grammar. With practice and attention to these areas, you'll continue to improve your writing and make a strong case for your ideas.
+
+**Grade Breakdown:**
+You received a 5 out of 5 on Persuasive Argument, which is excellent. For Organization, you received a 4 out of 5, which indicates that your essay has a logical flow, but could benefit from smoother transitions between paragraphs. Keep working on these areas to take your writing to the next level!
+
+**Next Steps:**
+Consider revising your essay based on the feedback provided, and use the suggestions above to enhance your writing. Continue to practice writing and developing your ideas, and you'll see continued improvement in your work.",4,5,5,"The feedback is highly actionable and professional, with a supportive tone, but loses a point in specificity due to not consistently quoting the student's text throughout the critique."
+5,8.0,"**Student Feedback:**
+
+Dear Student,
+
+I'm pleased to see that you've made a strong effort to present a clear and persuasive argument for the benefits of computers. Your use of multiple distinct points supported by examples is a great way to engage your readers and make your argument more compelling.
+
+**Strengths:**
+
+* Your essay has a clear and logical structure, with smooth transitions between paragraphs. This helps to guide the reader through your argument and makes it easier to follow your points.
+* Your use of personal anecdotes, such as your family's experience with email, adds a relatable touch to your essay and helps to make your argument more convincing.
+* You've done a great job of highlighting the various ways in which computers can benefit society, including education, family connections, and convenience.
+
+**Areas for Improvement:**
+
+* **Sentence Structure:** In the sentence ""Computors are a step into the future and we should take advantage of it,"" you used a very simple sentence structure. Consider varying your sentence structure by using compound or complex sentences to create more interest and variety. For example, you could rephrase this sentence to ""Computers are a step into the future, and by taking advantage of them, we can unlock new opportunities for growth and development.""
+* **Informal Language:** In the sentence ""An other reason why the computers are good for society is educations,"" you used informal language (""an other"" instead of ""another""). This can make your writing seem less polished and less professional. Consider revising this sentence to ""Another reason why computers are good for society is education.""
+* **Spelling Errors:** In the sentence ""With all the tools on the computers mae people get the education,"" you made a spelling error (""mae"" instead of ""make""). Make sure to proofread your work carefully to catch any spelling or grammar errors.
+* **Transitions:** In the sentence ""The last reason why a computer would help a family is if a family wants to get in to any kinds of activities and they need the number they could just go online,"" you didn't use a smooth transition to connect this idea to the previous one. Consider using transitional phrases or words to connect your ideas and make your writing flow more smoothly.
+
+**Action Plan:**
+
+To improve your writing, try the following:
+
+* Practice varying your sentence structure by using compound or complex sentences.
+* Edit your work carefully to catch any spelling or grammar errors.
+* Use transitional phrases or words to connect your ideas and make your writing flow more smoothly.
+* Consider revising your essay to make your language more formal and polished.
+
+Keep up the good work, and don't hesitate to reach out if you have any questions or need further guidance.
+
+Best regards,
+[Your Name]",4,5,5,"The feedback is highly actionable and professional, with a supportive tone, but could be even more specific by quoting the student's text more frequently and analyzing it in greater depth."
+9,8.0,"**Student Feedback and Review**
+
+Congratulations on your submission! I'm pleased to see that you've taken a clear stance on the benefits of computers and presented your argument in a concise manner. However, there are areas where you can improve to take your writing to the next level.
+
+**Persuasive Argument**
+
+While you've taken a clear stance on the benefits of computers, I noticed that some of your examples could be more specific and nuanced to support your argument. For instance, in the sentence, ""You can communicate with anyone just by using your email address. Now friends and families can talk to each other over the ease of the computer."" (emphasis added), you mention that email addresses can be used for communication. To make this example more convincing, you could provide a specific scenario where email has made a significant difference in someone's life.
+
+To take this example to the next level, consider asking yourself questions like: ""What specific benefits has email brought to people who live far away from each other?"" or ""Can you think of a time when email helped someone overcome a communication barrier?""
+
+**Organization**
+
+Your writing is generally well-organized, but I noticed that some transitions between paragraphs could be smoother and more logical. For instance, in the transition from paragraph 2 to paragraph 3, the sentence ""Well at the easy access of internet on a computer, you can buy all those items and more."" feels a bit disconnected from the previous paragraph. To improve this transition, you could use a more logical connection between the two ideas. For example, you could rephrase the sentence to connect it to the previous idea, like this: ""In addition to buying food online, you can also purchase many other products through the computer.""
+
+To make your writing flow more smoothly, consider using transitional phrases or sentences to connect your ideas. Ask yourself: ""How can I connect this idea to the previous one?"" or ""What transitional phrase can I use to link these two ideas?""
+
+**Actionable Tips**
+
+* To improve your persuasive argument, try to provide more specific and nuanced examples to support your claims.
+* Use transitional phrases or sentences to connect your ideas and make your writing flow more smoothly.
+* Consider asking yourself questions like ""What specific benefits has [idea] brought to people?"" or ""Can you think of a time when [idea] helped someone overcome a challenge?""
+
+I'm confident that with some revisions, you can take your writing to the next level. Keep up the good work!",2,4,5,"The feedback lacks specificity as it does not directly quote the student's text to support its claims, but provides actionable tips and maintains a professional and encouraging tone throughout."
+10,7.2,"Dear student,
+
+I'm impressed with the clarity of your argument and the creativity you've brought to the topic. Your use of metaphors and exclamations effectively engages the reader and makes the text more enjoyable to read. However, there are a few areas where you can improve to elevate your writing to the next level.
+
+Firstly, let's work on the structure and organization of your text. You've presented four distinct reasons against the benefits of computers, but they feel somewhat disconnected from each other. To improve this, consider using transitional phrases to link your ideas together. For example, you could use phrases like ""Another reason computers are bad for society is..."" or ""Furthermore, computers also lead to..."" to create a smoother flow of ideas.
+
+Let me quote the specific sentence that could benefit from this:
+
+""Some of the reasons are obesity, cramps, more sexual harassment and even cyber bullying.""
+
+Consider rephrasing this sentence to something like:
+
+""One of the main concerns I have about computers is the impact they have on our physical and mental health, which includes obesity, cramps, sexual harassment, and cyberbullying.""
+
+This will help to create a clearer connection between the reasons you're presenting.
+
+Regarding the tone, while it's great that you're trying to engage the reader, some of the language you've used may not be suitable for a formal essay. For instance, the use of phrases like ""tip-top-tip-top"" and ""all big and bad"" may come across as informal or even childish. Consider using more formal language to convey your message. Here's a specific sentence that could benefit from this:
+
+""Next, tip-top-tip-top, that's all you hear when a kid is on the computer, @CAPS1 teens come home from school and go straight to the computer and don't get off about on a school night.""
+
+Consider rephrasing this sentence to something like:
+
+""Furthermore, many teenagers come home from school and spend excessive amounts of time on the computer, often neglecting their physical health and academic responsibilities.""
+
+This will help to create a more formal tone that's suitable for a persuasive essay.
+
+Finally, let's work on the typos and grammatical errors that detract from the overall score. I've included a few specific examples below:
+
+* ""the technology of a computer"" should be ""the technology of computers"" (subject-verb agreement)
+* ""Some say that the computers are good for the society"" should be ""Some people say that computers are good for society"" (idiomatic expression)
+* ""I disagree, I believe that it is bad for a few reasons"" should be ""I disagree, I believe that computers are bad for society for several reasons"" (clearer structure and organization)
+
+Here are the corrected sentences:
+
+* Original: ""In the @LOCATION1 we have the technology of a computer.""
+Corrected: ""In many countries, we have the technology of computers.""
+* Original: ""Some say that the computers are good for the society.""
+Corrected: ""Some people say that computers are good for society.""
+* Original: ""I disagree, I believe that it is bad for a few reasons.""
+Corrected: ""I disagree, I believe that computers are bad for society for several reasons.""
+
+I hope this feedback is helpful in improving your writing skills. Keep up the good work!
+
+Best regards,
+[Your Name]",5,5,4,"The feedback is highly specific and actionable, providing detailed quotes and corrections, but the tone, while generally professional, occasionally comes across as slightly condescending, preventing a perfect score."

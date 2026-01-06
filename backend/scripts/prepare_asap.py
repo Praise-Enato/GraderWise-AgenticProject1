@@ -15,12 +15,12 @@ def prepare_asap_data():
     # Filter for Essay Set 1 (Comparisons/Computers)
     df_set1 = df[df['essay_set'] == 1].copy()
     
-    # Take the first 10 essays
-    benchmark_df = df_set1.head(10).copy()
+    # Take the first 20 essays
+    benchmark_df = df_set1.head(20).copy()
     
-    # Normalize Score: Original 2-12 -> 0-10
-    # Formula: Score - 2
-    benchmark_df['human_score_normalized'] = benchmark_df['rater1_domain1'] - 2
+    # Normalize Score: Original 1-6 (Rater 1) -> 0-10
+    # Formula: (Score - 1) * 2
+    benchmark_df['human_score_normalized'] = (benchmark_df['rater1_domain1'] - 1) * 2
     
     # Hardcode the Rubric
     rubric_json = json.dumps([

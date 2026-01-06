@@ -23,7 +23,9 @@ async def grade_essay(client, essay_id, text, rubric):
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        print(f"Error grading essay {essay_id}: {e}")
+        import traceback
+        print(f"Error grading essay {essay_id}: {e!r}")
+        traceback.print_exc()
         return None
 
 async def run_benchmark():
@@ -40,7 +42,7 @@ async def run_benchmark():
     
     print(f"Starting benchmark on {len(df)} essays...")
     
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
         for index, row in df.iterrows():
             essay_id = row['essay_id']
             human_score = row['human_score_normalized']
@@ -59,6 +61,9 @@ async def run_benchmark():
                     "AI Score": ai_score,
                     "Abs Error": error
                 })
+
+                if ai_score < 2:
+                    print(f"DEBUG Essay {essay_id} Low Score: {ai_result}")
                 
                 total_error += error
                 valid_count += 1
