@@ -1,0 +1,188 @@
+W01 Project: Tire Volume
+Purpose
+Prove that you can write a Python program that gets input from a user, performs math, displays and logs the results to a file.
+
+AI-assisted Software Development
+Artificial Intelligence (AI) is a powerful tool that helps experienced software engineers work faster and do more. Because of this, companies need fewer low-skill developers, since skilled ones with AI can do the same work more easily.
+
+With this in mind, it is critical that you become a high-skilled developer that knows how to solve problems and use AI as a tool. To develop these skills, you need to practice writing lots of code on your own and working through problems. In future courses, once you have mastered the fundamentals from this course, you will learn to use AI to generate all or part of your programs.
+
+On the other hand, if you use AI to generate the programs in this course, you will not develop the skills you need and you will not be prepared to get a job in the current market.
+
+Do not use AI to generate the code for your programs in this course.
+
+Using AI to generate your programs is a violation of the course AI policy and may result in receiving a 0 on the assignment, failing the course, or being removed from the program.
+
+If you use AI to generate your code for you, you will not learn how to program, which will prevent you from being able to be successful in later courses and in your career.
+
+If you need help on the assignment or have questions about AI use, please ask your instructor.
+
+Acceptable use of AI in CSE 111
+While you should not use AI to generate code, it can be a powerful tutor to help you learn and understand the concepts. Experienced software engineers use AI all the time to help them learn to do things they haven't done before.
+
+You are strongly encouraged to ask AI questions about the topics and the problems you are facing. Then, once you understand the concept better, set the tool aside and write the code yourself.
+
+The following defines the acceptable use of AI in CSE 111:
+
+✅ Use AI as a learning assistant. Converse with it like a tutor who is helping you understand a concept, but not giving you the answer.
+❌ Do not use AI to generate any code that you use in your projects. You should type every word of these projects yourself.
+❌ Do not use AI to give you the answers to quiz questions. You may ask AI about the concepts of the quiz, but you should not directly ask AI the question of the quiz.
+✅ Use AI for suggestions and feedback. After you finish a program, ask about things you could do to make it even better.
+Project
+Background
+This week you will write a small program to ensure your system is setup correctly and provide a bit of a review of principles learned in CSE111.
+
+User Requirements
+Write a program that will accept user input that describes a tire then calculate and display the tire's volume. Record the tire information in a log file.
+
+Have the user enter a tire width in mm.
+Have the user enter the aspect ratio.
+Have the user enter the diameter of the wheel in inches.
+Calculate and display the tire's volume.
+Log the information in a text file.
+current date (Do NOT include time)
+width of the tire
+aspect ratio of the tire
+diameter of the wheel
+volume of the tire (rounded to two decimal places)
+Design
+Tire description and calculation
+The size of a car tire in the United States is represented with three numbers like this: 205/60R15. The first number is the width of the tire in millimeters. The second number is the aspect ratio. The third number is the diameter in inches of the wheel that the tire fits. The volume of space inside a tire can be approximated with this formula:
+
+v = 
+π w2 aw a + 2,540 d
+10,000,000,000
+v is the volume in liters,
+π is the constant PI, which is the ratio of the circumference of a circle divided by its diameter (use math.pi),
+w is the width of the tire in millimeters,
+a is the aspect ratio of the tire, and
+d is the diameter of the wheel in inches.
+Helpful information.
+The preparation content for this lesson explains how to write code to do the following:
+Get input from a user
+Convert user input from a string to a number
+Calculate results
+Display results for the user to see
+The Python math module contains mathematical constants and functions, including math.pi, and is described in the Math Module Reference.
+The video titled Writing a Small Python Program (10 minutes), shows a BYU-Idaho faculty member solving a problem that is similar to this prove assignment.
+As a BYU-Pathway student you can get help from a tutor to help you complete your CSE 111 assignments. Each tutor is a current student employee. Meeting with a tutor is free. It will not cost you any money to meet with a tutor. To get help from a tutor, you simply make an appointment and then meet with the tutor. Tutors typically use Zoom to meet with students. To make an appointment, use the tutoring link on the course home page.
+
+Milestone
+Write a Python program named tire_volume.py that reads from the keyboard the three numbers for a tire and computes and outputs the volume of space inside that tire.
+
+Create a folder for this week's project, name it whatever you want.
+Open the folder you just created in VSCode.
+Create a file named tire_volume.py.
+
+Name files as instructed! For all assignments in CSE 111, please write your program in a file named as the assignment states. Also, if an assignment requires your program to read from a file or write to a file, please use the filename stated in the assignment. If you name your program or a data file differently than stated in an assignment, it will be harder for the graders to score your submitted assignment.
+Write the program to ask the user for the 3 items in the requirements and output the tire volume.
+Testing Procedure
+Verify that your program works correctly by following each step in this testing procedure:
+
+Run your program and enter the inputs shown below. Ensure that your program’s output matches the output below.
+> python tire_volume.py
+Enter the width of the tire in mm (ex 205): 185
+Enter the aspect ratio of the tire (ex 60): 50
+Enter the diameter of the wheel in inches (ex 15): 14
+The approximate volume is 24.09 liters
+> python tire_volume.py
+Enter the width of the tire in mm (ex 205): 205
+Enter the aspect ratio of the tire (ex 60): 60
+Enter the diameter of the wheel in inches (ex 15): 15
+The approximate volume is 39.92 liters
+Milestone Submission
+On or before the due date, return to Canvas and report your progress on this milestone.
+
+Project Completion
+Many companies wish to understand the needs and wants of their customers more deeply so the company can create products that fill those needs and wants. One way to understand customers more deeply is to record the values entered by customers while they are using a program and then to analyze those values. One common way to record values is for a program to store them in a file.
+
+Complete your program by adding the following features:
+Get the current date from the computer’s operating system.
+Open a text file named volumes.txt for appending.
+Append to the end of the volumes.txt file one line of text that contains the following five values:
+current date (Do NOT include time)
+width of the tire
+aspect ratio of the tire
+diameter of the wheel
+volume of the tire (rounded to two decimal places)
+Helpful information
+The preparation content for this lesson explains how to call a function and a method.
+The datetime.now() method from the standard Python datetime module will get the current date and time from your computer’s operating system. Here is an excerpt from the official reference for the datetime.now method:
+
+datetime.now(tz=None)
+Return the current local date and time.
+tz is optional, but if it is not None, it must be a tzinfo (time zone information) object
+
+This video Python Basics - DateTime explains how to use methods from the standard datetime module.
+
+The following Python code imports the datetime class from the datetime module and calls the datetime.now method to get the current date and time from a computer’s operating system. Then it uses an f-string to format and print the current date.
+
+# Import the datetime class from the datetime
+# module so that it can be used in this program.
+from datetime import datetime
+# Call the now() method to get the current
+# date and time as a datetime object from
+# the computer's operating system.
+current_date_and_time = datetime.now()
+# Use an f-string to print only the date
+# part of the current date and time.
+print(f"{current_date_and_time:%Y-%m-%d}")
+> python date_example.py
+2020-07-24
+After the computer executes line 7 in the above code, the variable current_date_and_time will hold the current date and time. Within the f-string at line 10, the string sequences that begin with the percent symbol (%) are called format codes. The format codes and their meaning are listed in the official Python datetime reference. As shown in the terminal window above, the previous example code will print the current date and time to the terminal window with four digits for the year, two digits for the month, and two digits for the day of the month.
+
+The built-in open() function opens a file for reading or writing. Here is an excerpt from the official documentation for the open function:
+open(filename, mode="rt")
+Open a file and return a corresponding file object.
+filename is the name of the file to be opened.
+
+mode is an optional string that specifies the mode in which the file will be opened. It defaults to "rt" which means open for reading in text mode. Other common values are "wt" for writing a text file (truncating the file if it already exists), and "at" for appending to the end of a text file that already exists (and creating and writing to a text file that doesn’t exist).
+
+The built-in print() function prints text to a terminal window or to a text file. Here is an excerpt from the official documentation for the print function:
+print(*objects, sep=" ", end="\n", file=sys.stdout, flush=False)
+
+              
+Print objects to the text stream file, separated by sep and followed by end. sep, end, file and flush, if present, must be given as named arguments.
+You may want to review the lesson on reading text files from PCCSE 110 which includes several examples for opening and reading from a text file.
+
+The following example code calls the open function at line 5 to open a file named cities.txt for appending text ("at"). The code then calls the print function two times at lines 7 and 8 to print two lines of text to the cities.txt file.
+
+city_name = "Accra"
+elevation = 61
+population = 4200000
+# Open a text file named cities.txt in append mode.
+with open("cities.txt", "at") as cities_file:
+  # Print a city's name and information to the file.
+  print(city_name, file=cities_file)
+  print(f"{elevation}, {population}", file=cities_file)
+Notice in the previous example at line 5 that the call to the open function is inside a with statement. Opening a file in a with statement, ensures that the computer will automatically close the file when the computer finishes executing the code inside the with block.
+
+The variable cities_file, which is created at line 5, is a reference to the open cities.txt file. At both lines lines 7 and 8, the cities_file is a named argument that causes the print function to print to the cities.txt file insted of printing to the terminal window.
+
+Testing Procedure
+Verify that your program works correctly by following each step in this testing procedure:
+
+Run your program using the inputs shown below. Ensure that your program’s output matches the output shown below.
+> python tire_volume.py
+Enter the width of the tire in mm (ex 205): 185
+Enter the aspect ratio of the tire (ex 60): 50
+Enter the diameter of the wheel in inches (ex 15): 14
+The approximate volume is 24.09 liters
+Use VS Code to open the volumes.txt file and verify that the last line of text in the file looks like this, except the date will be different:
+2020-03-18, 185, 50, 14, 24.09
+Run your program using the inputs shown below. Ensure that your program’s output matches the output shown below.
+> python tire_volume.py
+Enter the width of the tire in mm (ex 205): 205
+Enter the aspect ratio of the tire (ex 60): 60
+Enter the diameter of the wheel in inches (ex 15): 15
+The approximate volume is 39.92 liters
+Use VS Code to open the volumes.txt file and verify that the last two lines of text in the file look like this, except the dates will be different:
+2020-03-18, 185, 50, 14, 24.09
+2020-04-16, 205, 60, 15, 39.92
+Exceeding the Requirements
+If your program fulfills the requirements for this assignment as described above, your program will earn 93% of the possible points. In order to earn the remaining 7% of points, you will need to add one or more features to your program so that it exceeds the requirements. Use your creativity to add features. Add a comment to the top of your code that explains your enhancement(s). Here are a few ideas.
+
+Find tire prices for four or more tire sizes online. Add a set of if … elif … else statements in your program that use the tire width, tire aspect ratio, and wheel diameter that the user enters to find a price and then print the price.
+After your program prints the tire volume to the terminal window, your program should ask the user if she wants to buy tires with the dimensions that she entered. If the user answers “yes”, your program should ask for her phone number and store her phone number in the volumes.txt file.
+Document your enhancements:
+If you choose to "exceed requirements" place a comment at the top of your code file that describes what you did to enhance your program.

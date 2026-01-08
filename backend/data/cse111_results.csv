@@ -1,0 +1,28 @@
+submission_file,score,specificity,actionability,tone,feedback,audit_reasoning
+tire_volume.py,97.0,4,5,5,"✅ **Rubric Strengths**:
+- The program prompts the user for three numbers (Max 10.0)
+- The program converts all three numbers (Max 10.0)
+- The program calculates the correct tire volume (Max 10.0)
+- The program prints the tire volume to the terminal window with no more than two digits after the decimal point (Max 10.0)
+- The program imports datetime (Max 3.0)
+- The program gets the current date from the computer's operating system (Max 10.0)
+- The program opens the volumes.txt file for appending text (Max 10.0)
+- The program prints the current date to the volumes.txt file in the exact format: YYYY-MM-DD (Max 10.0)
+- The program prints width, aspect ratio, diameter, and volume, properly formatted, to the volumes.txt file (Max 20.0)
+- Additional features were added to the program, such as the ability to purchase tires (Max 7.0)
+
+⚠️ **Areas for Improvement**:
+- The program does not handle invalid user input.
+- The file 'volumes.txt' is not properly closed after use in the 'purchase_tire' section.
+
+💡 **Guidance**:
+
+1. **Concept Explanation**: Handling invalid user input is crucial in making your program robust. Think about how you can validate the input provided by the user. In this case, what if the user enters a non-numeric value when prompted to enter a number?
+
+2. **Socratic Guidance**: How do you plan to check if the user's input is a valid integer? Can you think of any built-in functions that can help you with this?
+
+3. **Tone**: This is a great opportunity to improve your program's user experience. By handling invalid input, you'll make your program more user-friendly and reduce the likelihood of unexpected errors.
+
+4. **Concept Explanation**: When working with files, it's essential to close them properly to avoid any potential issues. In the 'purchase_tire' section, you're opening the file but not closing it. Think about how you can fix this.
+
+5. **Socratic Guidance**: Why do you think it's essential to close the file after use? Can you think of any potential consequences of not closing the file?","The feedback is highly specific, pointing out exact areas for improvement such as handling invalid user input and closing files properly. It provides clear guidance and Socratic questions to help the student improve, and the tone is supportive and encouraging."

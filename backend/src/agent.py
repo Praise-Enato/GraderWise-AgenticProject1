@@ -4,13 +4,14 @@ import os
 # Load environment variables from the .env file
 load_dotenv()
 
-from typing import List, TypedDict, Any
+from typing import List, TypedDict, Any, Dict
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from backend.src.models import RubricItem, GradeResult
 from backend.src import rag
+import json
 
 # Define Agent State
 class AgentState(TypedDict):
@@ -23,12 +24,12 @@ class AgentState(TypedDict):
 
 # Internal model for the grader node
 class InternalGrade(BaseModel):
-    score: float = Field(..., description="The score awarded (0-10)")
-    critique_points: List[str] = Field(..., description="List of specific weaknesses found in the submission. Be specific.")
-    citations: List[str] = Field(default_factory=list, description="Relevant citations from context or submission.")
+    score: float = Field(..., description="The score awarded (based on the total points available in the rubric)")
+    critique_points: List[str] = Field(..., description="List of specific weaknesses found in the submission.")
+    rubric_performance: Dict[str, str] = Field(..., description="Dictionary mapping rubric criteria to specific performance feedback.")
 
 # Initialize LLM
-llm = ChatGroq(model_name="llama-3.1-8b-instant") # Switched to 3.1-8b-instant
+llm = ChatGroq(model_name="llama-3.3-70b-versatile")
 
 def retrieve(state: AgentState) -> dict:
     """
@@ -41,7 +42,8 @@ def retrieve(state: AgentState) -> dict:
 
 def grade_submission(state: AgentState) -> dict:
     """
-    Node 1: The Grader - Holistic Evaluator (Calibrated)
+    Node 1: The Universal Evaluator
+    Analytic grader that adapts to the subject (STEM vs Humanities).
     """
     print("---GRADING SUBMISSION (NODE 1)---")
     submission_text = state["submission_text"]
@@ -51,45 +53,45 @@ def grade_submission(state: AgentState) -> dict:
     # Format rubric
     rubric_str = "\n".join([f"- {item.criteria} (Max Points: {item.max_points}): {item.description}" for item in rubric])
     
-    # Truncate context to safe limit (prevent 500 Errors / Rate Limits)
-    context_str = "\n\n".join(context)[:1500] 
+    # Truncate context to safe limit
+    context_str = "\n\n".join(context)[:3000]
     
     # Truncate submission if absurdly long
-    if len(submission_text) > 8000:
-        submission_text = submission_text[:8000] + "... [TRUNCATED]"
+    if len(submission_text) > 15000:
+        submission_text = submission_text[:15000] + "... [TRUNCATED]"
 
-    # --- THE SECRET SAUCE: FEW-SHOT EXAMPLES ---
-    # We teach the AI what humans consider a "6" and an "8"
-    reference_anchors = """
-    EXAMPLE 1 (Human Score: 6/10):
-    "Dear local newspaper, I think effects computers have on people are great learning skills/affects because they give us time to chat with friends/new people... (Essay about chatting and safety)... Thank you for listening."
-    REASONING: Argument is clear, but structure is loose. Many typos ("troble", "buisness"). Tone is conversational. THIS IS A PASSING SCORE (6).
+    system_prompt = """You are a Universal Academic Grader. Your task is to grade the STUDENT SUBMISSION based STRICTLY on the provided RUBRIC and CONTEXT.
 
-    EXAMPLE 2 (Human Score: 8/10):
-    "Dear @CAPS1 @CAPS2, I believe that using computers will benefit us in many ways like talking and becoming friends... Using computers can help us find coordibates... (Essay about maps and jobs)..."
-    REASONING: Strong arguments (Jobs, Maps, Social). Clear structure. Despite spelling errors ("coordibates", "mysace"), the LOGIC is strong. THIS IS A HIGH SCORE (8).
-    """
-    
-    system_prompt = """You are a Holistic Essay Grader. You are grading real student essays (likely middle/high school).
-    
-    CRITICAL CALIBRATION RULES:
-    1. **IGNORE SPELLING/GRAMMAR:** Do NOT deduct points for typos ("troble", "coordibates") or informal tone unless it makes the text unreadable.
-    2. **FOCUS ON ARGUMENT:** If the student makes valid points supported by reasons, they deserve a high score (6-9), even if the writing style is messy.
-    3. **USE THE ANCHORS:** Compare the submission to the REFERENCE ANCHORS below. If it is similar in quality to Example 2, give it an 8.
-    
-    SCORING SCALE:
-    - 0-2: Off-topic or incoherent.
-    - 3-5: Weak argument, very short, or very confusing.
-    - 6-7: (Proficient) Clear argument, understandable, decent length. (See Example 1).
-    - 8-10: (Strong) Multiple distinct arguments, good examples, persuasive. (See Example 2).
-    
-    Output strictly in JSON format with "score" (float), "critique_points" (list), and "citations" (list).
+    1. **ANALYZE SUBJECT**: First, determine the subject matter (e.g., Computer Science, Math, History, Literature) based on the Rubric and Context.
+    2. **ADOPT PERSONA**: Adopt the persona of a strict, expert professor in that field.
+
+    3. **SUBJECT-SPECIFIC GRADING LOGIC**:
+       - **IF STEM (Math, Science, Coding)**: 
+         - **CHECK THE ANSWER FIRST**: Solve the problem yourself. If the student's final answer is wrong, award partial credit only for correct steps.
+         - Prioritize objective accuracy. "Close" is not enough in Math.
+         - Code must be syntactically correct.
+         - A polite but wrong answer is a FAIL.
+       - **IF HUMANITIES (History, English, Philosophy)**:
+         - Prioritize argument structure, evidence usage, thesis clarity, and persuasion.
+         - Fact-checking is still required, but nuance is valued.
+
+    4. **SCORING**:
+       - Score strictly based on the **Max Points** defined in the Rubric.
+       - If the rubric items sum to 100, your score should be out of 100.
+       - If the rubric items sum to 10, your score should be out of 10.
+       - Deduct points for factual errors, hallucinations, or unmet criteria.
+       
+    Output strictly in JSON format matching the following structure:
+    {{
+        "score": <float>,
+        "critique_points": ["<specific point 1>", "<specific point 2>"],
+        "rubric_performance": {{
+            "<Criteria Name>": "<Specific comment on how this criteria was met or missed>"
+        }}
+    }}
     """
     
     human_prompt = """
-    REFERENCE ANCHORS:
-    {reference_anchors}
-    
     RUBRIC:
     {rubric_str}
     
@@ -107,63 +109,76 @@ def grade_submission(state: AgentState) -> dict:
     
     # Bind JSON mode
     json_llm = llm.bind(response_format={"type": "json_object"})
-    start_chain = prompt | json_llm
+    chain = prompt | json_llm
     
     try:
-        result = start_chain.invoke({
+        result = chain.invoke({
             "rubric_str": rubric_str,
             "context_str": context_str,
-            "submission_text": submission_text,
-            "reference_anchors": reference_anchors
+            "submission_text": submission_text
         })
-        import json
         parsed = json.loads(result.content)
         
-        # Robust Score Parsing
-        score_raw = parsed.get("score", 0)
-        if isinstance(score_raw, dict):
-             score = float(score_raw.get("score", score_raw.get("value", 0)))
-        else:
-             score = float(score_raw)
-             
-        critique = parsed.get("critique_points", [])
-        if isinstance(critique, str): critique = [critique]
-        
-        # Validate citations
-        citations_raw = parsed.get("citations", [])
-        citations = []
-        for c in citations_raw:
-            if isinstance(c, dict):
-                citations.append(str(c)) # Convert dict to string representation
-            else:
-                citations.append(str(c))
+        # Robust Parsing
+        grade_data = {
+            "score": float(parsed.get("score", 0)),
+            "critique_points": parsed.get("critique_points", []),
+            "rubric_performance": parsed.get("rubric_performance", {})
+        }
         
     except Exception as e:
         print(f"JSON Parsing Error in Node 1: {e}")
-        score = 0
-        critique = ["Error parsing grader output."]
-        citations = []
+        grade_data = {
+            "score": 0.0,
+            "critique_points": ["Error parsing grader output."],
+            "rubric_performance": {}
+        }
     
-    return {"grade_data": {"score": score, "critique_points": critique, "citations": citations}}
+    return {"grade_data": grade_data}
+
 def generate_feedback(state: AgentState) -> dict:
     """
-    Node 2: The Mentor - Expert Writing Coach
+    Node 2: The Socratic Mentor
+    Provides help without giving the answer.
     """
     print("---GENERATING FEEDBACK (NODE 2)---")
     submission_text = state["submission_text"]
     grade_data = state["grade_data"]
     score = grade_data["score"]
-    critique_points = "\n".join(f"- {point}" for point in grade_data["critique_points"])
     
-    system_prompt = """You are a helpful Mentor and Expert Writing Coach. 
-    Your goal is to take the harsh critique from the Grader and turn it into actionable, supportive, but professional feedback for the student.
+    rubric_performance_str = json.dumps(grade_data.get("rubric_performance", {}), indent=2)
+    critique_points_str = "\n".join(f"- {p}" for p in grade_data.get("critique_points", []))
     
-    Instructions:
-    1. Do not simply list the errors. Explain *how* to fix them.
-    2. FIND THE SPECIFIC SENTENCES in the student's text that correspond to the critique and quote them.
-    3. Be specific. Instead of "Improve grammar", say "In the sentence '...', you used..."
-    4. Maintain a supportive tone, even if the score is low.
-    5. Do not argue with the score. Accept it as fact.
+    system_prompt = """You are a supportive Academic Mentor and Socratic Tutor.
+    
+    Your goal is to guide the student to improve their work based on the Grader's feedback, WITHOUT doing the work for them.
+
+    **CRITICAL RULE (NO EXPO):**
+    - You are forbidden from stating the correct answer.
+    - Do NOT say "The correct answer is X".
+    - Do NOT perform the calculation for them (e.g., do NOT say "10 divided by 2 is 5").
+    - Do NOT show the corrected code.
+    - If they calculated wrong, ask: "Check your division step. What is 10 / 2?" (Allowed)
+    - UNACCEPTABLE: "You got 4, but it should be 5."
+    - ACCEPTABLE: "You got 4. Let's verify that. Is 2 * 4 + 5 equal to 15?"
+    
+    **INSTRUCTIONS:**
+    1. **Concept Explanation**: Explain the underlying concept they missed (e.g., "In recursions, you need a base case...").
+    2. **Socratic Guidance**: Provide a HINT or a LEADING QUESTION to help them find the answer themselves.
+    3. **Tone**: Encouraging, constructive, but firm on standards.
+
+    **OUTPUT FORMAT**:
+    You MUST output the final feedback in the following Markdown format:
+
+    ✅ **Rubric Strengths**:
+    [List specific criteria where they performed well based on grade_data]
+
+    ⚠️ **Areas for Improvement**:
+    [List specific criteria where they lost points]
+
+    💡 **Guidance**:
+    [Your Socratic hints, conceptual explanations, and leading questions. NO ANSWERS.]
+    
     """
     
     human_prompt = """
@@ -173,9 +188,12 @@ def generate_feedback(state: AgentState) -> dict:
     GRADER SCORE: {score}/10
     
     GRADER CRITIQUE:
-    {critique_points}
+    {critique_points_str}
     
-    Generate the student-facing feedback response now.
+    RUBRIC PERFORMANCE:
+    {rubric_performance_str}
+    
+    Generate the student-facing Socratic feedback now.
     """
     
     prompt = ChatPromptTemplate.from_messages([
@@ -184,18 +202,21 @@ def generate_feedback(state: AgentState) -> dict:
     ])
     
     chain = prompt | llm
+    
     feedback_response = chain.invoke({
         "submission_text": submission_text,
         "score": score,
-        "critique_points": critique_points
+        "critique_points_str": critique_points_str,
+        "rubric_performance_str": rubric_performance_str
     })
+    
     final_feedback = feedback_response.content
     
     # Construct final GradeResult
     final_result = GradeResult(
         score=score,
         feedback=final_feedback,
-        citations=grade_data.get("citations", [])
+        citations=[] # Citations currently not focused on in this iteration, can be added back if needed
     )
     
     return {"final_feedback": final_feedback, "grade_result": final_result}

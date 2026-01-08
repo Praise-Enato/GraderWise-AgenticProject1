@@ -2,10 +2,12 @@ import os
 import shutil
 from typing import List
 from fastapi import UploadFile
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
+from functools import lru_cache
 
 # Constants
 CHROMA_PATH = "./backend/data/chroma"
@@ -14,39 +16,47 @@ TEMP_UPLOAD_DIR = "./backend/data/temp_uploads"
 # Ensure temp directory exists
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 
-# Initialize Embeddings
-from functools import lru_cache
-
 @lru_cache(maxsize=1)
 def get_embedding_function():
     try:
         return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     except Exception as e:
         print(f"Error initializing embeddings: {e}")
-        # Return a dummy if network fails, or re-raise if strict.
-        # For now, let's re-raise but at least it won't crash import time.
         raise e
 
 def ingest_course_material(files: List[UploadFile]) -> int:
     """
-    Ingests uploaded PDF files into the vector store.
+    Ingests uploaded PDF, DOCX, and TXT files into the vector store.
     """
     documents = []
     files_processed = 0
 
     for file in files:
         file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
+        filename_lower = file.filename.lower()
         
         # Save uploaded file temporarily
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
         try:
-            # Load PDF
-            loader = PyPDFLoader(file_path)
-            loaded_docs = loader.load()
-            documents.extend(loaded_docs)
-            files_processed += 1
+            loader = None
+            if filename_lower.endswith(".pdf"):
+                loader = PyPDFLoader(file_path)
+            elif filename_lower.endswith(".docx"):
+                loader = Docx2txtLoader(file_path)
+            elif filename_lower.endswith(".txt"):
+                loader = TextLoader(file_path)
+            else:
+                print(f"Unsupported file type: {file.filename}")
+                continue
+                
+            if loader:
+                loaded_docs = loader.load()
+                documents.extend(loaded_docs)
+                files_processed += 1
+        except Exception as e:
+            print(f"Error loading {file.filename}: {e}")
         finally:
             # Clean up temp file
             if os.path.exists(file_path):
