@@ -115,6 +115,21 @@ export default function GradingPage() {
         ]);
     };
 
+    // State: Grading Status
+    const [gradingStatusIndex, setGradingStatusIndex] = useState(0);
+    const GRADING_MESSAGES = [
+        "Analyzing submission context...",
+        "Analyzing submission context...",
+        "Checking rubric criteria...",
+        "Checking rubric criteria...",
+        "Checking rubric criteria...",
+        "Validating initial score...",
+        "Validating initial score...",
+        "Generating constructive feedback...",
+        "Generating constructive feedback...",
+        "Finalizing assessment..."
+    ];
+
     const handleGrade = async () => {
         if (!submissionText) {
             setError("Please enter submission text first.");
@@ -122,13 +137,22 @@ export default function GradingPage() {
         }
         setIsGrading(true);
         setError(null);
+        setGradingStatusIndex(0);
+
+        // Cycle status messages
+        const intervalId = setInterval(() => {
+            setGradingStatusIndex(prev => (prev + 1) % GRADING_MESSAGES.length);
+        }, 3000);
+
         try {
             const data = await GradeWiseAPI.gradeSubmission(submissionText, "student-123", rubric);
             setResult(data);
         } catch (err: any) {
             setError(err.message || "Grading failed");
         } finally {
+            clearInterval(intervalId);
             setIsGrading(false);
+            setGradingStatusIndex(0);
         }
     };
 
@@ -180,7 +204,7 @@ export default function GradingPage() {
                                 <label className="cursor-pointer px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                                     <Upload className="w-3 h-3" />
                                     {fileName ? "Change File" : "Upload File"}
-                                    <input type="file" className="hidden" accept=".txt,.pdf,.docx,.csv,.xlsx" onChange={handleFileUpload} />
+                                    <input type="file" className="hidden" accept=".txt,.pdf,.docx,.csv,.xlsx,.py,.js,.ts,.jsx,.tsx,.java,.cpp,.c,.h,.cs,.go,.rs,.php,.rb,.swift,.kt,.scala,.html,.css,.sql,.sh,.bat,.json,.xml,.yaml,.yml,.md" onChange={handleFileUpload} />
                                 </label>
                             </div>
                             <div className="flex-1 p-0 relative">
@@ -194,7 +218,7 @@ export default function GradingPage() {
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <div className="text-center text-slate-400">
                                             <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                            <p className="text-sm">Drop file here (PDF, DOCX, excel, TXT)</p>
+                                            <p className="text-sm">Drop file here (PDF, DOCX, Code, TXT)</p>
                                         </div>
                                     </div>
                                 )}
@@ -232,7 +256,7 @@ export default function GradingPage() {
                             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                                 {error && <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {error}</div>}
                                 <button onClick={handleGrade} disabled={isGrading} className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold hover:shadow-lg transform active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
-                                    {isGrading ? <><Sparkles className="w-4 h-4 animate-spin" /> Grading...</> : <><Sparkles className="w-4 h-4" /> Run Grading Agent</>}
+                                    {isGrading ? <><Sparkles className="w-4 h-4 animate-spin" /> {GRADING_MESSAGES[gradingStatusIndex]}</> : <><Sparkles className="w-4 h-4" /> Run Grading Agent</>}
                                 </button>
                             </div>
                         </div>

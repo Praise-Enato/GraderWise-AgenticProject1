@@ -40,6 +40,13 @@ def extract_text_from_file(file: UploadFile) -> str:
         shutil.copyfileobj(file.file, buffer)
         
     text = ""
+    # Supported Code Extensions
+    CODE_EXTENSIONS = {
+        ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".cpp", ".c", ".h", ".cs", 
+        ".go", ".rs", ".php", ".rb", ".swift", ".kt", ".scala", ".html", ".css", 
+        ".sql", ".sh", ".bat", ".json", ".xml", ".yaml", ".yml", ".md"
+    }
+    
     try:
         loader = None
         if filename_lower.endswith(".pdf"):
@@ -52,7 +59,8 @@ def extract_text_from_file(file: UploadFile) -> str:
             if loader:
                 loaded_docs = loader.load()
                 text = "\n".join([doc.page_content for doc in loaded_docs])
-        elif filename_lower.endswith(".txt"):
+        elif filename_lower.endswith(".txt") or any(filename_lower.endswith(ext) for ext in CODE_EXTENSIONS):
+            # Treat code files as text
             loader = TextLoader(file_path)
             if loader:
                 loaded_docs = loader.load()
