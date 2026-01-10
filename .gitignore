@@ -37,3 +37,7 @@ build/
 
 # Project Specific
 proposal_text.txt
+
+# Generated Data
+backend/data/chroma/
+backend/data/temp_uploads/

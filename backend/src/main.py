@@ -5,6 +5,7 @@ from typing import List
 from backend.src.models import RubricItem, GradeResult, IngestResponse
 from backend.src import rag
 from backend.src import agent
+from backend.src import rubric_parser
 
 app = FastAPI(title="GradeWise API")
 
@@ -28,8 +29,30 @@ async def ingest(files: List[UploadFile] = File(...)):
     Ingests PDF course materials.
     """
     try:
-        count = rag.ingest_course_material(files)
+        count = rag.ingest_documents(files)
         return IngestResponse(status="success", files_processed=count)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/parse-rubric", response_model=List[RubricItem])
+async def parse_rubric_endpoint(files: List[UploadFile] = File(...)):
+    """
+    Parses uploaded rubric files (PDF, DOCX, TXT, CSV, XLSX) into structured RubricItems.
+    """
+    try:
+        rubric_items = rubric_parser.parse_rubric(files)
+        return rubric_items
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/extract-text")
+async def extract_text_endpoint(file: UploadFile = File(...)):
+    """
+    Extracts text from a single file (PDF, DOCX, TXT, CSV, XLSX) for student submission.
+    """
+    try:
+        text = rag.extract_text_from_file(file)
+        return {"text": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

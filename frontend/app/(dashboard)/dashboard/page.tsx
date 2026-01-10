@@ -28,6 +28,7 @@ interface HistoryItem {
   studentId: string;
   subject: string;
   score: number;
+  maxScore?: number;
 }
 
 export default function Dashboard() {
@@ -40,6 +41,14 @@ export default function Dashboard() {
   const [ingestStatus, setIngestStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [ingestMessage, setIngestMessage] = useState('');
 
+  // Rubric Import Modal State
+  const [showRubricModal, setShowRubricModal] = useState(false);
+  const [rubricFiles, setRubricFiles] = useState<File[]>([]);
+  const [rubricStatus, setRubricStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [rubricMessage, setRubricMessage] = useState('');
+
+  const [savedMaterials, setSavedMaterials] = useState<string[]>([]);
+
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem('gradingHistory');
@@ -49,6 +58,16 @@ export default function Dashboard() {
         setRecentActivity(parsed.slice(0, 5));
       } catch (e) {
         console.error("Failed to parse history", e);
+      }
+    }
+    
+    // Load saved materials
+    const materials = localStorage.getItem('courseMaterials');
+    if (materials) {
+      try {
+        setSavedMaterials(JSON.parse(materials));
+      } catch (e) {
+        console.error("Failed to parse course materials", e);
       }
     }
   }, []);
@@ -61,6 +80,14 @@ export default function Dashboard() {
       const result = await GradeWiseAPI.ingestFiles(ingestFiles);
       setIngestStatus('success');
       setIngestMessage(`Successfully processed ${result.files_processed} files.`);
+      
+      // Save file names to localStorage
+      const fileNames = ingestFiles.map(f => f.name);
+      localStorage.setItem('courseMaterials', JSON.stringify(fileNames));
+      // Trigger local state update if I add one, or force reload/event
+      // For now, I'll update a local state to show it immediately
+      setSavedMaterials(fileNames);
+
       setTimeout(() => {
         setShowIngestModal(false);
         setIngestFiles([]);
@@ -75,6 +102,35 @@ export default function Dashboard() {
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setIngestFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleRubricImport = async () => {
+    if (rubricFiles.length === 0) return;
+    
+    setRubricStatus('uploading');
+    try {
+      const result = await GradeWiseAPI.parseRubric(rubricFiles);
+      setRubricStatus('success');
+      setRubricMessage(`Successfully parsed rubric with ${result.length} criteria.`);
+      
+      // Save to localStorage
+      localStorage.setItem('importedRubric', JSON.stringify(result));
+      
+      setTimeout(() => {
+        setShowRubricModal(false);
+        setRubricFiles([]);
+        setRubricStatus('idle');
+      }, 2000);
+    } catch (error: any) {
+      setRubricStatus('error');
+      setRubricMessage(error.message || "Failed to parse rubric");
+    }
+  };
+
+  const onRubricFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setRubricFiles(Array.from(e.target.files));
     }
   };
 
@@ -175,8 +231,8 @@ export default function Dashboard() {
                     <ActionButton
                       icon={<Upload className="w-5 h-5" />}
                       title="Import Rubric"
-                      desc="Upload PDF guide"
-                      onClick={() => alert("Rubric Parsing feature is scheduled for Phase 4 (Advanced Logic). For now, please use the Auto-fill button in the Grading page.")}
+                      desc="Upload PDF or Table"
+                      onClick={() => setShowRubricModal(true)}
                     />
                     <ActionButton
                       icon={<FolderOpen className="w-5 h-5" />}
@@ -185,6 +241,23 @@ export default function Dashboard() {
                       onClick={() => setShowIngestModal(true)}
                     />
                   </div>
+                  
+                  {savedMaterials.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-between items-center mb-2">
+                         <h3 className="text-xs font-bold uppercase text-slate-500">Active Context</h3>
+                         <button onClick={() => {localStorage.removeItem('courseMaterials'); setSavedMaterials([])}} className="text-xs text-red-400 hover:text-red-500">Clear</button>
+                      </div>
+                      <div className="space-y-2">
+                        {savedMaterials.map((name, i) => (
+                           <div key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                              <CheckCircle className="w-3 h-3 text-green-500" />
+                              <span className="truncate">{name}</span>
+                           </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Link href="/grading" className="mt-6 w-full">
@@ -234,7 +307,7 @@ export default function Dashboard() {
                             assignment={item.subject} // Using subject as assignment for now
                             status="Graded"
                             statusColor="green"
-                            score={item.score + "%"}
+                            score={item.maxScore ? `${item.score}/${item.maxScore}` : item.score + "%"}
                           />
                         ))
                       )}
@@ -283,7 +356,7 @@ export default function Dashboard() {
                     type="file" 
                     id="file-upload" 
                     multiple 
-                    accept=".pdf" 
+                    accept=".pdf,.docx,.txt" 
                     className="hidden" 
                     onChange={onFileChange}
                   />
@@ -294,7 +367,7 @@ export default function Dashboard() {
                     <div>
                       <span className="font-semibold text-primary hover:underline">Click to upload</span> or drag and drop
                     </div>
-                    <span className="text-xs text-slate-400">PDF files only (max 10MB)</span>
+                    <span className="text-xs text-slate-400">PDF, DOCX, TXT (max 10MB)</span>
                   </label>
                 </div>
 
@@ -337,6 +410,100 @@ export default function Dashboard() {
                 >
                   {ingestStatus === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
                   {ingestStatus === 'uploading' ? 'Processing...' : 'Ingest Materials'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Rubric Import Modal */}
+      <AnimatePresence>
+        {showRubricModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-blue-500" /> Import Grading Rubric
+                </h3>
+                <button onClick={() => setShowRubricModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Upload your rubric (PDF, DOCX, TXT, CSV, or Excel). The system will auto-parse criteria and points.
+                </p>
+
+                <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center hover:border-blue-500 transition-colors bg-slate-50/50 dark:bg-slate-800/30">
+                  <input 
+                    type="file" 
+                    id="rubric-upload" 
+                    accept=".pdf,.docx,.txt,.csv,.xlsx,.xls" 
+                    className="hidden" 
+                    onChange={onRubricFileChange}
+                  />
+                  <label htmlFor="rubric-upload" className="cursor-pointer flex flex-col items-center gap-3">
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-primary hover:underline">Click to upload</span> or drag and drop
+                    </div>
+                    <span className="text-xs text-slate-400">Supports PDF, DOCX, TXT, CSV, Excel</span>
+                  </label>
+                </div>
+
+                {/* File List */}
+                {rubricFiles.length > 0 && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {rubricFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
+                        <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300 truncate">
+                           <FileIcon className="w-4 h-4 text-slate-400" />
+                           <span className="truncate max-w-[200px]">{file.name}</span>
+                        </div>
+                        <span className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Status Message */}
+                {rubricStatus === 'success' && (
+                   <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2">
+                     <CheckCircle className="w-4 h-4" /> {rubricMessage}
+                   </div>
+                )}
+                {rubricStatus === 'error' && (
+                   <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                     <CheckCircle className="w-4 h-4" /> {rubricMessage}
+                   </div>
+                )}
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                <button onClick={() => setShowRubricModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleRubricImport} 
+                  disabled={rubricFiles.length === 0 || rubricStatus === 'uploading'}
+                  className="px-4 py-2 bg-primary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-lg shadow-blue-500/20 flex items-center gap-2"
+                >
+                  {rubricStatus === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {rubricStatus === 'uploading' ? 'Scanning...' : 'Parse Rubric'}
                 </button>
               </div>
             </motion.div>

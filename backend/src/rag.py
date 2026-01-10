@@ -3,6 +3,8 @@ import shutil
 from typing import List
 from fastapi import UploadFile
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+import pandas as pd
+from langchain_core.documents import Document
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -24,43 +26,74 @@ def get_embedding_function():
         print(f"Error initializing embeddings: {e}")
         raise e
 
-def ingest_course_material(files: List[UploadFile]) -> int:
+def extract_text_from_file(file: UploadFile) -> str:
     """
-    Ingests uploaded PDF, DOCX, and TXT files into the vector store.
+    Extracts text from an uploaded file (PDF, DOCX, TXT, CSV, XLSX).
+    For tabular data (CSV, XLSX), converts to Markdown table.
+    """
+    file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
+    filename_lower = file.filename.lower()
+    
+    # Save uploaded file temporarily
+    file.file.seek(0)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    text = ""
+    try:
+        loader = None
+        if filename_lower.endswith(".pdf"):
+            loader = PyPDFLoader(file_path)
+            if loader:
+                loaded_docs = loader.load()
+                text = "\n".join([doc.page_content for doc in loaded_docs])
+        elif filename_lower.endswith(".docx"):
+            loader = Docx2txtLoader(file_path)
+            if loader:
+                loaded_docs = loader.load()
+                text = "\n".join([doc.page_content for doc in loaded_docs])
+        elif filename_lower.endswith(".txt"):
+            loader = TextLoader(file_path)
+            if loader:
+                loaded_docs = loader.load()
+                text = "\n".join([doc.page_content for doc in loaded_docs])
+        elif filename_lower.endswith(".csv"):
+            df = pd.read_csv(file_path)
+            text = df.to_csv(index=False)
+        elif filename_lower.endswith(".xlsx") or filename_lower.endswith(".xls"):
+            df = pd.read_excel(file_path)
+            text = df.to_csv(index=False)
+        else:
+            raise ValueError(f"Unsupported file type: {file.filename}")
+            
+    except Exception as e:
+        print(f"Error loading {file.filename}: {e}")
+        raise e
+    finally:
+        # Clean up temp file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+    return text
+
+def ingest_documents(files: List[UploadFile]) -> int:
+    """
+    Ingests uploaded files (PDF, DOCX, TXT, CSV, XLSX) into the vector store.
     """
     documents = []
     files_processed = 0
 
     for file in files:
-        file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
-        filename_lower = file.filename.lower()
-        
-        # Save uploaded file temporarily
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
         try:
-            loader = None
-            if filename_lower.endswith(".pdf"):
-                loader = PyPDFLoader(file_path)
-            elif filename_lower.endswith(".docx"):
-                loader = Docx2txtLoader(file_path)
-            elif filename_lower.endswith(".txt"):
-                loader = TextLoader(file_path)
-            else:
-                print(f"Unsupported file type: {file.filename}")
-                continue
-                
-            if loader:
-                loaded_docs = loader.load()
-                documents.extend(loaded_docs)
+            extracted_text = extract_text_from_file(file)
+            if extracted_text:
+                # Create a Document object. Metadata can be added here if needed.
+                documents.append(Document(page_content=extracted_text, metadata={"source": file.filename}))
                 files_processed += 1
+            else:
+                print(f"Warning: Extracted text was empty for {file.filename}")
         except Exception as e:
-            print(f"Error loading {file.filename}: {e}")
-        finally:
-            # Clean up temp file
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            print(f"Skipping {file.filename} due to error: {e}")
 
     if not documents:
         return 0

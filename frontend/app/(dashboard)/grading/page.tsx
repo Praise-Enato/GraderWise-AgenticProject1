@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { GradeWiseAPI, RubricItem, GradeResult } from "@/lib/api";
 import {
     Upload, FileText, Plus, Trash2, ArrowRight, CheckCircle,
@@ -13,11 +13,38 @@ export default function GradingPage() {
     const [studentName, setStudentName] = useState("John Doe");
     const [submissionText, setSubmissionText] = useState("");
     const [fileName, setFileName] = useState<string | null>(null);
+    const [rubricLoaded, setRubricLoaded] = useState(false);
 
     // State: Rubric
     const [rubric, setRubric] = useState<RubricItem[]>([
         { criteria: "Clarity", max_points: 10, description: "Is the argument clear?" }
     ]);
+
+    const [courseMaterials, setCourseMaterials] = useState<string[]>([]);
+    
+    useEffect(() => {
+        const imported = localStorage.getItem('importedRubric');
+        if (imported) {
+            try {
+                const parsed = JSON.parse(imported);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setRubric(parsed);
+                    setRubricLoaded(true);
+                }
+            } catch (e) {
+                console.error("Failed to load imported rubric", e);
+            }
+        }
+        
+        const materials = localStorage.getItem('courseMaterials');
+        if (materials) {
+            try {
+                setCourseMaterials(JSON.parse(materials));
+            } catch (e) {
+                console.error("Failed to load course materials", e);
+            }
+        }
+    }, []);
 
     // State: Grading
     const [isGrading, setIsGrading] = useState(false);
@@ -29,11 +56,13 @@ export default function GradingPage() {
     const [isSaved, setIsSaved] = useState(false);
 
     const handleSave = () => {
+        const totalPoints = rubric.reduce((sum, item) => sum + item.max_points, 0);
         const historyItem = {
             id: Date.now().toString(),
             date: new Date().toISOString(),
             ...saveMeta,
             score: result?.score,
+            maxScore: totalPoints,
             feedback: result?.feedback,
             citations: result?.citations
         };
@@ -51,14 +80,15 @@ export default function GradingPage() {
         if (!file) return;
 
         setFileName(file.name);
-        // Simple text extraction for MVP. 
-        // Real app would use pdf.js for PDFs, but explicit requirements stick to text for API.
-        if (file.type === "text/plain") {
-            const text = await file.text();
-            setSubmissionText(text);
-        } else {
-            // For now, warn about PDF support in client-only mode
-            setError("For this demo, please upload .txt files or copy-paste text. PDF parsing requires additional setup.");
+        setSubmissionText("Extracting text..."); // Loading state
+        
+        try {
+            const result = await GradeWiseAPI.extractText(file);
+            setSubmissionText(result.text);
+        } catch (err: any) {
+            setSubmissionText("");
+            setError(err.message || "Failed to extract text from file");
+            setFileName(null);
         }
     };
 
@@ -119,6 +149,12 @@ export default function GradingPage() {
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-200px)] min-h-[600px]">
+                    {rubricLoaded && (
+                        <div className="lg:col-span-2 mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-xl flex items-center justify-between">
+                            <span className="flex items-center gap-2"><CheckCircle className="w-5 h-5" /> Imported rubric loaded successfully.</span>
+                            <button onClick={() => { localStorage.removeItem('importedRubric'); setRubricLoaded(false); }} className="text-sm underline hover:text-blue-800">Clear</button>
+                        </div>
+                    )}
                     {/* INPUT and RUBRIC sections remain same. I will assume they are unchanged if I use replace_file carefully. 
                         Wait, I must provide StartLine/EndLine. 
                         I'll use a large chunk replacement for the Modal logic.
@@ -127,6 +163,14 @@ export default function GradingPage() {
 
                     {/* LEFT COLUMN: Input */}
                     <section className="flex flex-col gap-6">
+                        {courseMaterials.length > 0 && (
+                            <div className="flex justify-end">
+                                <span className="text-xs font-medium text-slate-500 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                                    <BookOpen className="w-3 h-3 text-blue-500" />
+                                    Context: {courseMaterials.join(", ")}
+                                </span>
+                            </div>
+                        )}
                         {/* 1. Student Submission Card */}
                         <div className="flex-1 bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col overflow-hidden">
                             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
@@ -135,8 +179,8 @@ export default function GradingPage() {
                                 </h3>
                                 <label className="cursor-pointer px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                                     <Upload className="w-3 h-3" />
-                                    {fileName ? "Change File" : "Upload .txt"}
-                                    <input type="file" className="hidden" accept=".txt" onChange={handleFileUpload} />
+                                    {fileName ? "Change File" : "Upload File"}
+                                    <input type="file" className="hidden" accept=".txt,.pdf,.docx,.csv,.xlsx" onChange={handleFileUpload} />
                                 </label>
                             </div>
                             <div className="flex-1 p-0 relative">
@@ -150,7 +194,7 @@ export default function GradingPage() {
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <div className="text-center text-slate-400">
                                             <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                            <p className="text-sm">Drop text file here</p>
+                                            <p className="text-sm">Drop file here (PDF, DOCX, excel, TXT)</p>
                                         </div>
                                     </div>
                                 )}
@@ -223,7 +267,9 @@ export default function GradingPage() {
                                             <p className="text-slate-500">Calculated Score</p>
                                         </div>
                                         <div className="ml-auto text-right">
-                                            <div className="text-4xl font-black text-slate-900 dark:text-white">{result.score}%</div>
+                                            <div className="text-4xl font-black text-slate-900 dark:text-white">
+                                                {result.score} <span className="text-2xl text-slate-400">/ {rubric.reduce((sum, item) => sum + item.max_points, 0)}</span>
+                                            </div>
                                         </div>
                                     </div>
 

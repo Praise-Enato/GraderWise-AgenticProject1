@@ -2,28 +2,26 @@
 PYTHON = python
 UV = uv
 VENV = .venv
-VENV_PYTHON = $(VENV)\Scripts\python
-VENV_ACTIVATE = $(VENV)\Scripts\activate
+VENV_PYTHON = $(VENV)/bin/python
+VENV_ACTIVATE = $(VENV)/bin/activate
 
 .PHONY: install run clean venv
 
 # Step 0: Create virtual environment
 venv:
-	@if not exist "$(VENV)\Scripts\python.exe" ( \
-		echo Creating virtual environment... && \
-		$(UV) venv $(VENV) && \
-		echo Virtual environment created at $(VENV) \
-	) else ( \
-		echo Virtual environment already exists at $(VENV) \
-	)
+	@if [ ! -f "$(VENV)/bin/python" ]; then \
+		echo "Creating virtual environment..."; \
+		$(UV) venv $(VENV); \
+		echo "Virtual environment created at $(VENV)"; \
+	else \
+		echo "Virtual environment already exists at $(VENV)"; \
+	fi
 
 # Step 1: Create venv and install dependencies
 install-backend: venv
-	@echo "Cleaning up unstable dependencies..."
-	-$(UV) pip uninstall opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation opentelemetry-semantic-conventions chromadb
 	@echo "Installing stable dependencies..."
-	$(UV) pip install --upgrade pip
-	$(UV) pip install -r requirements.txt
+	$(VENV_PYTHON) -m pip install --upgrade pip
+	$(VENV_PYTHON) -m pip install -r requirements.txt
 	@echo "Backend installation complete."
 
 install-frontend:
@@ -45,15 +43,26 @@ run-frontend:
 # Default run command (starts backend)
 run: run-backend
 
+# Run both backend and frontend concurrently
+dev:
+	$(MAKE) -j 2 run-backend run-frontend
+
 # Optional: Cleanup cache
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
 # Git commit helper
 commit:
-	@if "$(msg)"=="" ( \
-		echo Error: Please provide a commit message. Usage: make commit msg="your message" && \
-		exit 1 \
-	)
+	@if [ -z "$(msg)" ]; then \
+		echo "Error: Please provide a commit message. Usage: make commit msg=\"your message\""; \
+		exit 1; \
+	fi
 	git add .
 	git commit -m "$(msg)"
+
+# Stop development servers
+stop:
+	@echo "Stopping servers..."
+	-lsof -ti :8000 | xargs kill -9
+	-lsof -ti :3000 | xargs kill -9
+	@echo "Servers stopped."

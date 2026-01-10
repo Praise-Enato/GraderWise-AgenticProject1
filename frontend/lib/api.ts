@@ -43,5 +43,25 @@ export const GradeWiseAPI = {
             rubric: rubric
         };
         return (await api.post<GradeResult>('/grade', payload)).data;
+    },
+
+    parseRubric: async (files: File[]): Promise<RubricItem[]> => {
+        const formData = new FormData();
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+        const response = await api.post<RubricItem[]>('/parse-rubric', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+
+    extractText: async (file: File): Promise<{ text: string }> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post<{ text: string }>('/extract-text', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
     }
 };

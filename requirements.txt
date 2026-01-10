@@ -31,4 +31,7 @@ opentelemetry-semantic-conventions<0.47b0
 
 # --- Data & Testing ---
 pandas
+openpyxl
 httpx
+pypdf
+docx2txt

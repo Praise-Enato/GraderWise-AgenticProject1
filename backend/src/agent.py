@@ -60,7 +60,10 @@ def grade_submission(state: AgentState) -> dict:
     if len(submission_text) > 15000:
         submission_text = submission_text[:15000] + "... [TRUNCATED]"
 
-    system_prompt = """You are a Universal Academic Grader. Your task is to grade the STUDENT SUBMISSION based STRICTLY on the provided RUBRIC and CONTEXT.
+    # Calculate total max points
+    total_points = sum(item.max_points for item in rubric)
+
+    system_prompt = f"""You are a Universal Academic Grader. Your task is to grade the STUDENT SUBMISSION based STRICTLY on the provided RUBRIC and CONTEXT.
 
     1. **ANALYZE SUBJECT**: First, determine the subject matter (e.g., Computer Science, Math, History, Literature) based on the Rubric and Context.
     2. **ADOPT PERSONA**: Adopt the persona of a strict, expert professor in that field.
@@ -76,19 +79,20 @@ def grade_submission(state: AgentState) -> dict:
          - Fact-checking is still required, but nuance is valued.
 
     4. **SCORING**:
-       - Score strictly based on the **Max Points** defined in the Rubric.
-       - If the rubric items sum to 100, your score should be out of 100.
-       - If the rubric items sum to 10, your score should be out of 10.
+       - **TOTAL POINTS AVAILABLE: {total_points}**
+       - Step 1: Score each rubric item individually based on its max points.
+       - Step 2: Sum the scores of all items to get the final score.
+       - The final score MUST NOT exceed {total_points}.
        - Deduct points for factual errors, hallucinations, or unmet criteria.
        
     Output strictly in JSON format matching the following structure:
-    {{
+    {{{{
         "score": <float>,
         "critique_points": ["<specific point 1>", "<specific point 2>"],
-        "rubric_performance": {{
+        "rubric_performance": {{{{
             "<Criteria Name>": "<Specific comment on how this criteria was met or missed>"
-        }}
-    }}
+        }}}}
+    }}}}
     """
     
     human_prompt = """
@@ -181,17 +185,22 @@ def generate_feedback(state: AgentState) -> dict:
     
     """
     
-    human_prompt = """
-    STUDENT SUBMISSION:
-    {submission_text}
+    # Calculate total max points again (or pass it in state if preferred, but recalculation is cheap)
+    # We need to access rubric from state if not passed, but state["rubric"] is available
+    rubric = state["rubric"]
+    total_points = sum(item.max_points for item in rubric)
     
-    GRADER SCORE: {score}/10
+    human_prompt = f"""
+    STUDENT SUBMISSION:
+    {{submission_text}}
+    
+    GRADER SCORE: {{score}}/{total_points}
     
     GRADER CRITIQUE:
-    {critique_points_str}
+    {{critique_points_str}}
     
     RUBRIC PERFORMANCE:
-    {rubric_performance_str}
+    {{rubric_performance_str}}
     
     Generate the student-facing Socratic feedback now.
     """
