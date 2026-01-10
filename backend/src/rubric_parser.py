@@ -1,13 +1,28 @@
 from typing import List
 from fastapi import UploadFile
-from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+import os
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from backend.src.models import RubricItem
 from backend.src import rag
 import json
 
-# Initialize LLM (reuse the same model as agent)
-llm = ChatGroq(model_name="llama-3.3-70b-versatile")
+# WORKAROUND: Remove NO_PROXY if it causes DNS issues
+if "NO_PROXY" in os.environ:
+    if "api.deepseek.com" not in os.environ.get("NO_PROXY", ""):
+        # print(f"DEBUG: Removing NO_PROXY to fix DNS...")
+        del os.environ["NO_PROXY"]
+
+# Initialize LLM (DeepSeek-V3)
+api_key = os.getenv("DEEPSEEK_API_KEY")
+
+llm = ChatOpenAI(
+    model="deepseek-chat",
+    openai_api_key=api_key,
+    openai_api_base="https://api.deepseek.com",
+    temperature=0
+)
 
 def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     """

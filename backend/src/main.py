@@ -1,3 +1,10 @@
+import os
+
+# Disable ChromaDB/PostHog Telemetry
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_SERVER_NO_INTERACTIVE_MODE"] = "True"
+os.environ["OTEL_PYTHON_DISABLED"] = "True"
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel

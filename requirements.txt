@@ -6,11 +6,15 @@ pydantic
 langgraph
 
 # --- AI & RAG ---
-langchain-groq
+
 langchain-community
 langchain-huggingface
+langchain-groq
+langchain-openai
 langchain-chroma
 sentence-transformers
+python-dotenv
+posthog<3
 
 # --- Fixes for Compatibility ---
 # Pin Numpy to 1.x to prevent the "np.float_" error
