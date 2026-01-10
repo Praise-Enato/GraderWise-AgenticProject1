@@ -20,6 +20,8 @@ export interface GradeResult {
     score: number;
     feedback: string;
     citations: string[];
+    thinking_process: string[];
+    confidence_score: number;
 }
 
 export const GradeWiseAPI = {

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { Logo } from './Logo';
 import {
     LayoutDashboard,
     PlusCircle,
@@ -9,7 +9,8 @@ import {
     Users,
     Settings,
     HelpCircle,
-    GraduationCap
+    GraduationCap,
+    LogOut
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -38,17 +39,8 @@ export default function Sidebar() {
         <aside className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col transition-colors duration-300 h-screen">
             {/* Header */}
             <div className="h-20 flex items-center px-6 border-b border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-0">
-                    <div className="relative w-20 h-20 -mr-4">
-                        <Image
-                            src="/logo.png"
-                            alt="GradeWise"
-                            fill
-                            className="object-contain"
-                            priority
-                        />
-                    </div>
-                    <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">GradeWise</span>
+                <div className="w-full flex justify-center md:justify-start">
+                    <Logo className="w-10 h-10" textClassName="text-xl font-bold text-slate-900 dark:text-white ml-1" />
                 </div>
             </div>
 
@@ -106,6 +98,20 @@ export default function Sidebar() {
                             </Link>
                         );
                     })}
+
+                    <button
+                        onClick={() => {
+                            if (confirm("Are you sure you want to log out?")) {
+                                localStorage.removeItem('userProfile');
+                                // localStorage.removeItem('courseMaterials'); // Optional: keep context or clear it
+                                window.location.replace('/signup');
+                            }
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
+                    >
+                        <LogOut className="w-5 h-5 transition-colors text-slate-400 group-hover:text-red-500" />
+                        <span className="font-medium">Log Out</span>
+                    </button>
                 </div>
             </nav>
 

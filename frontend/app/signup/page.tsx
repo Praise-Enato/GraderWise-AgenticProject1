@@ -1,26 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { GraduationCap, ArrowRight, Github, Mail, Lock, User, Loader2, CheckCircle } from "lucide-react";
+import { Logo } from "@/components/Logo";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 import { ModeToggle } from "@/components/ModeToggle";
 
 export default function SignupPage() {
     const router = useRouter();
     const [isLogin, setIsLogin] = useState(false);
+    const [formData, setFormData] = useState({ name: "", email: "", password: "", subject: "" });
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    // Form State
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        password: ""
-    });
+    // Auth Guard: Redirect if already logged in
+    useEffect(() => {
+        const profile = localStorage.getItem('userProfile');
+        if (profile) {
+            router.replace('/dashboard'); // Use replace to prevent back-button loops
+        }
+    }, [router]);
+
+    // Mock Context Data for Pre-loading
+    const MOCK_CONTEXTS: Record<string, string> = {
+        "English Literature": "Shakespeare_Hamlet_Annotated.pdf",
+        "Psychology": "Intro_Psych_101_Textbook_Ch1-5.pdf",
+        "Computer Science": "Data_Structures_Algorithms_Java.txt",
+        "History": "European_History_Renaissance_Lectures.docx"
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -29,13 +42,32 @@ export default function SignupPage() {
         // Mock API call
         await new Promise(resolve => setTimeout(resolve, 1500));
 
+        if (!isLogin) {
+            // Simulate User Creation & Context Pre-loading
+            const nameParts = formData.name.split(" ");
+            const firstName = nameParts[0] || "User";
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+            localStorage.setItem('userProfile', JSON.stringify({ firstName, lastName, email: formData.email, plan: 'Pro' }));
+
+            // PRE-LOAD CONTEXT (Idea 3)
+            const contextFile = MOCK_CONTEXTS[formData.subject];
+            localStorage.setItem('courseMaterials', JSON.stringify([contextFile]));
+        } else {
+            // Login Logic
+            const existingProfile = localStorage.getItem('userProfile');
+            if (!existingProfile) {
+                localStorage.setItem('userProfile', JSON.stringify({ firstName: "Instructor", lastName: "Demo", email: formData.email, plan: 'Enterprise' }));
+            }
+
+            if (!localStorage.getItem('courseMaterials')) {
+                localStorage.setItem('courseMaterials', JSON.stringify(["Existing_Course_Material.pdf"]));
+            }
+        }
+
         setIsLoading(false);
         setIsSuccess(true);
-
-        // Redirect after success animation
-        setTimeout(() => {
-            router.push("/dashboard");
-        }, 1000);
+        setTimeout(() => router.push('/dashboard'), 1500);
     };
 
     return (
@@ -56,15 +88,8 @@ export default function SignupPage() {
 
                 {/* Logo Header */}
                 <div className="text-center mb-8">
-                    <Link href="/" className="inline-flex items-center gap-0 mb-4 group">
-                        <div className="relative w-20 h-20 -mr-4 group-hover:scale-110 transition-transform">
-                            <Image 
-                                src="/logo.png" 
-                                alt="GradeWise" 
-                                fill 
-                                className="object-contain" 
-                            />
-                        </div>
+                    <Link href="/" className="inline-flex items-center gap-3 mb-4 group justify-center">
+                        <Logo className="w-12 h-12" showText={false} />
                         <span className="text-2xl font-bold text-white tracking-tight">GradeWise</span>
                     </Link>
                     <h1 className="text-3xl font-bold text-white mb-2">
@@ -104,6 +129,17 @@ export default function SignupPage() {
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <AnimatePresence mode="popLayout">
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-xl text-sm font-medium flex items-center gap-2"
+                                    >
+                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                        {error}
+                                    </motion.div>
+                                )}
                                 {!isLogin && (
                                     <motion.div
                                         initial={{ opacity: 0, height: 0 }}
@@ -143,6 +179,40 @@ export default function SignupPage() {
                                     />
                                 </div>
                             </div>
+
+                            {!isLogin && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    className="pt-4"
+                                >
+                                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1.5 ml-1 flex items-center gap-1">
+                                        Primary Subject <span className="text-slate-400 font-normal normal-case">(Optional)</span> <InfoTooltip content="We will pre-load your workspace with a demo textbook for this subject so you can start testing immediately." />
+                                    </label>
+                                    <div className="relative group">
+                                        <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                                        <select
+                                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-10 py-3 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none"
+                                            value={formData.subject}
+                                            onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                                        >
+                                            <option value="">Select a subject...</option>
+                                            <option value="English Literature">English Literature</option>
+                                            <option value="Psychology">Psychology</option>
+                                            <option value="Computer Science">Computer Science</option>
+                                            <option value="History">History</option>
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                            <ArrowRight className="w-4 h-4 rotate-90" />
+                                        </div>
+                                    </div>
+                                    {formData.subject && (
+                                        <p className="text-[10px] text-blue-500 mt-1 pl-1 flex items-center gap-1">
+                                            <CheckCircle className="w-3 h-3" /> We'll preload a demo textbook for you
+                                        </p>
+                                    )}
+                                </motion.div>
+                            )}
 
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1.5 ml-1">Password</label>

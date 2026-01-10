@@ -15,9 +15,12 @@ interface HistoryItem {
     citations: string[];
 }
 
+import { GradeDetailsModal } from "@/components/GradeDetailsModal"; // Import
+
 export default function HistoryPage() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null); // State
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -86,7 +89,8 @@ export default function HistoryPage() {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.05 }}
-                                    className="bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 transition-all group cursor-pointer overflow-hidden flex flex-col"
+                                    onClick={() => setSelectedItem(item)}
+                                    className="bg-white dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 transition-all group cursor-pointer overflow-hidden flex flex-col scale-[1] active:scale-[0.98]"
                                 >
                                     <div className="p-6 flex-1">
                                         <div className="flex justify-between items-start mb-4">
@@ -95,9 +99,9 @@ export default function HistoryPage() {
                                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white">{item.studentName}</h3>
                                             </div>
                                             <div className={`px-3 py-1 rounded-full text-sm font-bold ${item.score >= 90 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                    item.score >= 80 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                                        item.score >= 70 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                                                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                item.score >= 80 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                                    item.score >= 70 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                                        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                                 }`}>
                                                 {item.score}%
                                             </div>
@@ -127,6 +131,12 @@ export default function HistoryPage() {
                     </div>
                 )}
             </div>
+
+            <GradeDetailsModal
+                isOpen={!!selectedItem}
+                onClose={() => setSelectedItem(null)}
+                item={selectedItem}
+            />
         </div>
     );
 }

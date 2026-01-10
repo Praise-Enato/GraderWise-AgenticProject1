@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, CheckCircle, GraduationCap, LayoutDashboard, Shield, Zap, BookOpen, Users, Brain } from "lucide-react";
 import { motion } from "framer-motion";
 import { ModeToggle } from "@/components/ModeToggle";
+import { Logo } from "@/components/Logo";
+import { RubricParserDemo } from "@/components/landing/RubricParserDemo";
+import { InfoTooltip } from "@/components/InfoTooltip";
+import { FileCode, FileSpreadsheet, FileText } from "lucide-react"; // Import new icons for Hero
 
 export default function LandingPage() {
   const features = [
@@ -42,16 +45,8 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-white/10 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-0">
-            <div className="relative w-20 h-20 -mr-4">
-              <Image 
-                src="/logo.png" 
-                alt="GradeWise" 
-                fill 
-                className="object-contain" 
-              />
-            </div>
-            <span className="text-xl font-bold text-slate-900 dark:text-white">GradeWise</span>
+          <div className="flex items-center gap-2">
+            <Logo className="w-10 h-10" />
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600 dark:text-slate-300">
             <a href="#features" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Features</a>
@@ -153,13 +148,18 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { label: "AI Model", value: "Llama 3 70B" },
-              { label: "Architecture", value: "RAG + LangGraph" },
-              { label: "Processing", value: "Local/Edge" },
-              { label: "Target Latency", value: "< 5s/Essay" }
+              { label: "AI Model", value: "DeepSeek V3", tooltip: "State-of-the-art coding and reasoning model." },
+              { label: "Architecture", value: "RAG + LangGraph", tooltip: "Retrieval Augmented Generation with agentic workflow control." },
+              { label: "Infra", value: "Secure Cloud" },
+              { label: "Target Latency", value: "< 2s/Essay" }
             ].map((stat, i) => (
               <div key={i} className="text-center group cursor-default">
-                <div className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-blue-800 to-slate-700 dark:from-white dark:via-blue-200 dark:to-slate-300 group-hover:from-blue-600 group-hover:via-indigo-600 group-hover:to-violet-600 transition-all duration-300">{stat.value}</div>
+                <div className="flex items-center gap-2 justify-center">
+                  <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-blue-800 to-slate-700 dark:from-white dark:via-blue-200 dark:to-slate-300 group-hover:from-blue-600 group-hover:via-indigo-600 group-hover:to-violet-600 transition-all duration-300">
+                    {stat.value}
+                  </span>
+                  {stat.tooltip && <InfoTooltip content={stat.tooltip} side="bottom" />}
+                </div>
                 <div className="text-sm font-medium text-slate-500 dark:text-slate-500 uppercase tracking-wide mt-1">{stat.label}</div>
               </div>
             ))}
@@ -195,6 +195,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Live Demo Section - NEW */}
+      <RubricParserDemo />
 
       {/* How It Works Section */}
       <section id="how-it-works" className="py-24 bg-white dark:bg-slate-950 border-y border-slate-200 dark:border-white/5 transition-colors">
@@ -290,16 +293,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center gap-0 mb-4">
-                <div className="relative w-16 h-16 -mr-3">
-                  <Image 
-                    src="/logo.png" 
-                    alt="GradeWise" 
-                    fill 
-                    className="object-contain" 
-                  />
-                </div>
-                <span className="text-xl font-bold text-slate-900 dark:text-white">GradeWise</span>
+              <div className="flex items-center gap-2 mb-4">
+                <Logo className="w-8 h-8" textClassName="text-xl font-bold text-slate-900 dark:text-white ml-2" />
               </div>
               <p className="text-slate-500 dark:text-slate-400 max-w-sm">Empowering educators with AI-powered tools to automate admin tasks, track student progress, and focus on inspiring the next generation.</p>
             </div>

@@ -38,6 +38,7 @@ class AgentState(TypedDict):
     grader_feedback: str       # Rejection reason from the Judge (default: "")
     is_valid: bool             # Flag for conditional edge (default: False)
     skip_rag: bool             # Optional flag to skip RAG (default: False)
+    thinking_process: List[str] # Log of agent's thoughts
 
 
 # --- 3. NODE IMPLEMENTATIONS ---
@@ -68,7 +69,8 @@ def retrieve(state: AgentState) -> dict:
         "context": context,
         "revision_number": revision_number,
         "grader_feedback": grader_feedback,
-        "is_valid": is_valid
+        "is_valid": is_valid,
+        "thinking_process": ["Agent initializing...", "Retrieving context from knowledge base..."] + ([f"Found {len(context)} context chunks."] if context else ["No relevant context found."])
     }
 
 def grade_submission(state: AgentState) -> dict:
@@ -178,7 +180,14 @@ def grade_submission(state: AgentState) -> dict:
             "rubric_performance": {}
         }
 
-    return {"grade_data": grade_data}
+    log_msg = f"Grading Attempt {state.get('revision_number', 0) + 1}..."
+    if grader_feedback:
+        log_msg += f" (Correcting previous error: {grader_feedback})"
+
+    return {
+        "grade_data": grade_data,
+        "thinking_process": state.get("thinking_process", []) + [log_msg, "Analyzing submission against rubric..."]
+    }
 
 
 def validate_grade(state: AgentState) -> dict:
@@ -238,14 +247,16 @@ def validate_grade(state: AgentState) -> dict:
         return {
             "is_valid": False,
             "grader_feedback": reason,
-            "revision_number": current_revision + 1
+            "revision_number": current_revision + 1,
+            "thinking_process": state.get("thinking_process", []) + [f"Judge: Grade Rejected. {reason}", "Looping back to Grader..."]
         }
     else:
         print("✅ Grade Validated.")
         return {
             "is_valid": True,
             "grader_feedback": "",
-            "revision_number": current_revision # No increment validation passed
+            "revision_number": current_revision, # No increment validation passed
+            "thinking_process": state.get("thinking_process", []) + ["Judge: Grade Validated. QA Passed.", "Moving to final feedback generation..."]
         }
 
 
@@ -328,14 +339,33 @@ def generate_feedback(state: AgentState) -> dict:
     })
     final_feedback = feedback_response.content
     
+
+    # Calculate confidence based on revision count
+    # 0 retries = 0.95 (High)
+    # 1 retry = 0.98 (Very High - Self-Correction worked)
+    # 2 retries = 0.90 (Good)
+    # 3+ retries = 0.75 (Uncertain)
+    revisions = state.get("revision_number", 0)
+    confidence = 0.95
+    if revisions == 1:
+        confidence = 0.99
+    elif revisions == 2:
+        confidence = 0.90
+    elif revisions >= 3:
+        confidence = 0.75
+
+    final_logs = state.get("thinking_process", []) + ["Finalizing feedback in Socratic style...", f"Confidence Score: {int(confidence * 100)}%"]
+
     # Construct final GradeResult
     final_result = GradeResult(
         score=score,
         feedback=final_feedback,
-        citations=[]
+        citations=[],
+        thinking_process=final_logs,
+        confidence_score=confidence
     )
     
-    return {"final_feedback": final_feedback, "grade_result": final_result}
+    return {"final_feedback": final_feedback, "grade_result": final_result, "thinking_process": final_logs}
 
 
 # --- 4. CONDITIONAL EDGES ---

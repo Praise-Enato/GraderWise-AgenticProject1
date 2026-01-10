@@ -7,6 +7,8 @@ import {
     AlertCircle, Sparkles, BookOpen, ChevronRight, Calculator
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { GradingLoader } from "@/components/GradingLoader"; // Import
+
 
 export default function GradingPage() {
     // State: Submission
@@ -21,7 +23,7 @@ export default function GradingPage() {
     ]);
 
     const [courseMaterials, setCourseMaterials] = useState<string[]>([]);
-    
+
     useEffect(() => {
         const imported = localStorage.getItem('importedRubric');
         if (imported) {
@@ -35,7 +37,7 @@ export default function GradingPage() {
                 console.error("Failed to load imported rubric", e);
             }
         }
-        
+
         const materials = localStorage.getItem('courseMaterials');
         if (materials) {
             try {
@@ -81,7 +83,7 @@ export default function GradingPage() {
 
         setFileName(file.name);
         setSubmissionText("Extracting text..."); // Loading state
-        
+
         try {
             const result = await GradeWiseAPI.extractText(file);
             setSubmissionText(result.text);
@@ -89,6 +91,22 @@ export default function GradingPage() {
             setSubmissionText("");
             setError(err.message || "Failed to extract text from file");
             setFileName(null);
+        }
+    };
+
+    const handleRubricUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Optimistic UI update or loading state could go here
+        try {
+            const parsedRubric = await GradeWiseAPI.parseRubric([file]);
+            if (parsedRubric && parsedRubric.length > 0) {
+                setRubric(parsedRubric);
+                setRubricLoaded(true);
+            }
+        } catch (err: any) {
+            setError(err.message || "Failed to parse rubric file");
         }
     };
 
@@ -233,7 +251,13 @@ export default function GradingPage() {
                                 <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                                     <BookOpen className="w-4 h-4 text-indigo-500" /> Grading Rubric
                                 </h3>
-                                <button className="text-xs text-primary font-medium hover:text-blue-600 transition-colors" onClick={handleAutoFillRubric}>Auto-fill Template</button>
+                                <div className="flex items-center gap-3">
+                                    <label className="cursor-pointer text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors flex items-center gap-1">
+                                        <Upload className="w-3 h-3" /> Upload
+                                        <input type="file" className="hidden" accept=".txt,.pdf,.docx,.csv,.xlsx,.md" onChange={handleRubricUpload} />
+                                    </label>
+                                    <button className="text-xs text-primary font-medium hover:text-blue-600 transition-colors" onClick={handleAutoFillRubric}>Auto-fill</button>
+                                </div>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -255,9 +279,29 @@ export default function GradingPage() {
 
                             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                                 {error && <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {error}</div>}
-                                <button onClick={handleGrade} disabled={isGrading} className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold hover:shadow-lg transform active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
-                                    {isGrading ? <><Sparkles className="w-4 h-4 animate-spin" /> {GRADING_MESSAGES[gradingStatusIndex]}</> : <><Sparkles className="w-4 h-4" /> Run Grading Agent</>}
-                                </button>
+
+                                <AnimatePresence mode="wait">
+                                    {isGrading ? (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="py-4"
+                                        >
+                                            <GradingLoader />
+                                        </motion.div>
+                                    ) : (
+                                        <motion.button
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            onClick={handleGrade}
+                                            disabled={isGrading}
+                                            className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold hover:shadow-lg transform active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                        >
+                                            <Sparkles className="w-4 h-4" /> Run Grading Agent
+                                        </motion.button>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </div>
                     </section>
@@ -288,7 +332,17 @@ export default function GradingPage() {
                                         </div>
                                         <div>
                                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Grading Complete</h2>
-                                            <p className="text-slate-500">Calculated Score</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-slate-500 text-sm">Calculated Score</p>
+                                                {result.confidence_score && (
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${result.confidence_score >= 0.9 ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800' :
+                                                        result.confidence_score >= 0.75 ? 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800' :
+                                                            'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
+                                                        }`}>
+                                                        {Math.round((result.confidence_score || 0) * 100)}% Confidence
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="ml-auto text-right">
                                             <div className="text-4xl font-black text-slate-900 dark:text-white">
@@ -298,6 +352,31 @@ export default function GradingPage() {
                                     </div>
 
                                     <div className="space-y-6">
+                                        {/* Agent Thinking Process Log */}
+                                        {result.thinking_process && result.thinking_process.length > 0 && (
+                                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                                                <details className="group">
+                                                    <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                                        <div className="flex items-center gap-2 font-semibold text-sm text-slate-700 dark:text-slate-300">
+                                                            <Sparkles className="w-4 h-4 text-purple-500" />
+                                                            Agent Thinking Process
+                                                        </div>
+                                                        <ChevronRight className="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" />
+                                                    </summary>
+                                                    <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/50">
+                                                        <div className="mt-3 space-y-2">
+                                                            {result.thinking_process.map((log, i) => (
+                                                                <div key={i} className="flex items-start gap-2 text-xs font-mono text-slate-600 dark:text-slate-400">
+                                                                    <span className="text-slate-300 select-none">{(i + 1).toString().padStart(2, '0')}</span>
+                                                                    <span>{log}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </details>
+                                            </div>
+                                        )}
+
                                         <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
                                             <h3 className="font-bold text-slate-900 dark:text-white mb-3">Feedback</h3>
                                             <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">

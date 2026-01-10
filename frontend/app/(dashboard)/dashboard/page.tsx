@@ -20,6 +20,8 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { useState, useEffect } from "react";
 import { GradeWiseAPI } from "@/lib/api";
+import { GradeDetailsModal } from "@/components/GradeDetailsModal";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 interface HistoryItem {
   id: string;
@@ -34,7 +36,8 @@ interface HistoryItem {
 export default function Dashboard() {
   const [recentActivity, setRecentActivity] = useState<HistoryItem[]>([]);
   const [mounted, setMounted] = useState(false);
-  
+  const [selectedActivity, setSelectedActivity] = useState<any>(null); // State for modal
+
   // Ingestion Modal State
   const [showIngestModal, setShowIngestModal] = useState(false);
   const [ingestFiles, setIngestFiles] = useState<File[]>([]);
@@ -60,7 +63,7 @@ export default function Dashboard() {
         console.error("Failed to parse history", e);
       }
     }
-    
+
     // Load saved materials
     const materials = localStorage.getItem('courseMaterials');
     if (materials) {
@@ -74,13 +77,13 @@ export default function Dashboard() {
 
   const handleIngest = async () => {
     if (ingestFiles.length === 0) return;
-    
+
     setIngestStatus('uploading');
     try {
       const result = await GradeWiseAPI.ingestFiles(ingestFiles);
       setIngestStatus('success');
       setIngestMessage(`Successfully processed ${result.files_processed} files.`);
-      
+
       // Save file names to localStorage
       const fileNames = ingestFiles.map(f => f.name);
       localStorage.setItem('courseMaterials', JSON.stringify(fileNames));
@@ -107,16 +110,16 @@ export default function Dashboard() {
 
   const handleRubricImport = async () => {
     if (rubricFiles.length === 0) return;
-    
+
     setRubricStatus('uploading');
     try {
       const result = await GradeWiseAPI.parseRubric(rubricFiles);
       setRubricStatus('success');
       setRubricMessage(`Successfully parsed rubric with ${result.length} criteria.`);
-      
+
       // Save to localStorage
       localStorage.setItem('importedRubric', JSON.stringify(result));
-      
+
       setTimeout(() => {
         setShowRubricModal(false);
         setRubricFiles([]);
@@ -201,7 +204,7 @@ export default function Dashboard() {
               badge="-5% avg. time"
               badgeColor="text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
               value="4.2m"
-              label="Avg. Grading Time"
+              label={<span className="flex items-center gap-1">Avg. Grading Time <InfoTooltip content="Average time taken by the AI to grade one submission." /></span>}
               subtext="Per Submission"
             />
             <StatsCard
@@ -241,19 +244,19 @@ export default function Dashboard() {
                       onClick={() => setShowIngestModal(true)}
                     />
                   </div>
-                  
+
                   {savedMaterials.length > 0 && (
                     <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex justify-between items-center mb-2">
-                         <h3 className="text-xs font-bold uppercase text-slate-500">Active Context</h3>
-                         <button onClick={() => {localStorage.removeItem('courseMaterials'); setSavedMaterials([])}} className="text-xs text-red-400 hover:text-red-500">Clear</button>
+                        <h3 className="text-xs font-bold uppercase text-slate-500">Active Context</h3>
+                        <button onClick={() => { localStorage.removeItem('courseMaterials'); setSavedMaterials([]) }} className="text-xs text-red-400 hover:text-red-500">Clear</button>
                       </div>
                       <div className="space-y-2">
                         {savedMaterials.map((name, i) => (
-                           <div key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                              <CheckCircle className="w-3 h-3 text-green-500" />
-                              <span className="truncate">{name}</span>
-                           </div>
+                          <div key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                            <CheckCircle className="w-3 h-3 text-green-500" />
+                            <span className="truncate">{name}</span>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -308,6 +311,10 @@ export default function Dashboard() {
                             status="Graded"
                             statusColor="green"
                             score={item.maxScore ? `${item.score}/${item.maxScore}` : item.score + "%"}
+                            onClick={() => setSelectedActivity({
+                              ...item,
+                              feedback: "Detailed feedback would be loaded here from the backend..."
+                            })}
                           />
                         ))
                       )}
@@ -345,19 +352,19 @@ export default function Dashboard() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-4">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Upload PDF textbooks, lecture slides, or reading materials. The agent will use these to fact-check grading.
                 </p>
 
                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center hover:border-blue-500 transition-colors bg-slate-50/50 dark:bg-slate-800/30">
-                  <input 
-                    type="file" 
-                    id="file-upload" 
-                    multiple 
-                    accept=".pdf,.docx,.txt" 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    id="file-upload"
+                    multiple
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
                     onChange={onFileChange}
                   />
                   <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-3">
@@ -377,8 +384,8 @@ export default function Dashboard() {
                     {ingestFiles.map((file, idx) => (
                       <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
                         <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300 truncate">
-                           <FileIcon className="w-4 h-4 text-slate-400" />
-                           <span className="truncate max-w-[200px]">{file.name}</span>
+                          <FileIcon className="w-4 h-4 text-slate-400" />
+                          <span className="truncate max-w-[200px]">{file.name}</span>
                         </div>
                         <span className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
                       </div>
@@ -388,14 +395,14 @@ export default function Dashboard() {
 
                 {/* Status Message */}
                 {ingestStatus === 'success' && (
-                   <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2">
-                     <CheckCircle className="w-4 h-4" /> {ingestMessage}
-                   </div>
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> {ingestMessage}
+                  </div>
                 )}
                 {ingestStatus === 'error' && (
-                   <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
-                     <CheckCircle className="w-4 h-4" /> {ingestMessage}
-                   </div>
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> {ingestMessage}
+                  </div>
                 )}
               </div>
 
@@ -403,8 +410,8 @@ export default function Dashboard() {
                 <button onClick={() => setShowIngestModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                   Cancel
                 </button>
-                <button 
-                  onClick={handleIngest} 
+                <button
+                  onClick={handleIngest}
                   disabled={ingestFiles.length === 0 || ingestStatus === 'uploading'}
                   className="px-4 py-2 bg-primary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-lg shadow-blue-500/20 flex items-center gap-2"
                 >
@@ -440,18 +447,18 @@ export default function Dashboard() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-4">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Upload your rubric (PDF, DOCX, TXT, CSV, or Excel). The system will auto-parse criteria and points.
                 </p>
 
                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center hover:border-blue-500 transition-colors bg-slate-50/50 dark:bg-slate-800/30">
-                  <input 
-                    type="file" 
-                    id="rubric-upload" 
-                    accept=".pdf,.docx,.txt,.csv,.xlsx,.xls" 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    id="rubric-upload"
+                    accept=".pdf,.docx,.txt,.csv,.xlsx,.xls"
+                    className="hidden"
                     onChange={onRubricFileChange}
                   />
                   <label htmlFor="rubric-upload" className="cursor-pointer flex flex-col items-center gap-3">
@@ -471,8 +478,8 @@ export default function Dashboard() {
                     {rubricFiles.map((file, idx) => (
                       <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
                         <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300 truncate">
-                           <FileIcon className="w-4 h-4 text-slate-400" />
-                           <span className="truncate max-w-[200px]">{file.name}</span>
+                          <FileIcon className="w-4 h-4 text-slate-400" />
+                          <span className="truncate max-w-[200px]">{file.name}</span>
                         </div>
                         <span className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
                       </div>
@@ -482,14 +489,14 @@ export default function Dashboard() {
 
                 {/* Status Message */}
                 {rubricStatus === 'success' && (
-                   <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2">
-                     <CheckCircle className="w-4 h-4" /> {rubricMessage}
-                   </div>
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> {rubricMessage}
+                  </div>
                 )}
                 {rubricStatus === 'error' && (
-                   <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
-                     <CheckCircle className="w-4 h-4" /> {rubricMessage}
-                   </div>
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> {rubricMessage}
+                  </div>
                 )}
               </div>
 
@@ -497,8 +504,8 @@ export default function Dashboard() {
                 <button onClick={() => setShowRubricModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
                   Cancel
                 </button>
-                <button 
-                  onClick={handleRubricImport} 
+                <button
+                  onClick={handleRubricImport}
                   disabled={rubricFiles.length === 0 || rubricStatus === 'uploading'}
                   className="px-4 py-2 bg-primary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-lg shadow-blue-500/20 flex items-center gap-2"
                 >
@@ -510,6 +517,12 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <GradeDetailsModal
+        isOpen={!!selectedActivity}
+        onClose={() => setSelectedActivity(null)}
+        item={selectedActivity}
+      />
     </div>
   );
 }
@@ -550,7 +563,7 @@ function ActionButton({ icon, title, desc, onClick }: any) {
   )
 }
 
-function TableRow({ initials, color, name, assignment, status, statusColor, score, processing }: any) {
+function TableRow({ initials, color, name, assignment, status, statusColor, score, processing, onClick }: any) {
   const statusConfig: Record<string, string> = {
     green: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -558,7 +571,7 @@ function TableRow({ initials, color, name, assignment, status, statusColor, scor
   };
 
   return (
-    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+    <tr onClick={onClick} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer">
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold shadow-sm ring-2 ring-white dark:ring-slate-800`}>
