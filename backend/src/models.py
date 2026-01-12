@@ -3,7 +3,7 @@ from typing import List, Optional
 
 class RubricItem(BaseModel):
     criteria: str = Field(..., description="The criteria for evaluating the submission")
-    max_points: int = Field(..., description="Maximum points available for this criteria")
+    max_points: float = Field(..., description="Maximum points available for this criteria")
     description: str = Field(..., description="Detailed description of the criteria")
 
 class GradeResult(BaseModel):

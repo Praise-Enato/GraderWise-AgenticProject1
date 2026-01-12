@@ -7,7 +7,9 @@ import {
     AlertCircle, Sparkles, BookOpen, ChevronRight, Calculator
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GradingLoader } from "@/components/GradingLoader"; // Import
+import { GradingLoader } from "@/components/GradingLoader";
+import ReactMarkdown from 'react-markdown';
+
 
 
 export default function GradingPage() {
@@ -267,7 +269,13 @@ export default function GradingPage() {
                                             <input type="text" placeholder="Criteria Name" className="flex-1 bg-transparent border-none p-0 font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:ring-0" value={item.criteria} onChange={(e) => updateRubricItem(index, 'criteria', e.target.value)} />
                                             <div className="flex items-center gap-1 bg-white dark:bg-slate-900 px-2 rounded border border-slate-200 dark:border-slate-700">
                                                 <span className="text-xs text-slate-400">Pts</span>
-                                                <input type="number" className="w-10 bg-transparent border-none p-0 text-right font-mono text-sm focus:ring-0" value={item.max_points} onChange={(e) => updateRubricItem(index, 'max_points', parseInt(e.target.value) || 0)} />
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    className="w-10 bg-transparent border-none p-0 text-right font-mono text-sm focus:ring-0"
+                                                    value={item.max_points}
+                                                    onChange={(e) => updateRubricItem(index, 'max_points', parseFloat(e.target.value) || 0)}
+                                                />
                                             </div>
                                             <button onClick={() => removeRubricItem(index)} className="text-slate-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
                                         </div>
@@ -379,9 +387,20 @@ export default function GradingPage() {
 
                                         <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
                                             <h3 className="font-bold text-slate-900 dark:text-white mb-3">Feedback</h3>
-                                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                                                {result.feedback}
-                                            </p>
+                                            <div className="text-slate-700 dark:text-slate-300 leading-relaxed text-sm">
+                                                <ReactMarkdown components={{
+                                                    p: ({ node, ...props }) => <p className="mb-4 leading-loose" {...props} />,
+                                                    h1: ({ node, ...props }) => <h1 className="text-xl font-bold mt-6 mb-3 text-slate-900 dark:text-white" {...props} />,
+                                                    h2: ({ node, ...props }) => <h2 className="text-lg font-bold mt-5 mb-2 text-slate-900 dark:text-white" {...props} />,
+                                                    h3: ({ node, ...props }) => <h3 className="text-base font-bold mt-4 mb-2 text-slate-900 dark:text-white" {...props} />,
+                                                    ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 space-y-2" {...props} />,
+                                                    ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-2" {...props} />,
+                                                    li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+                                                    strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900 dark:text-white" {...props} />,
+                                                }}>
+                                                    {result.feedback}
+                                                </ReactMarkdown>
+                                            </div>
                                         </div>
                                     </div>
 

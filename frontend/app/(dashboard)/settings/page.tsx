@@ -160,7 +160,7 @@ function EducationSettings() {
 }
 
 function ProfileSettings() {
-    const [profile, setProfile] = useState({ firstName: "Wilson", lastName: "Admin", email: "wilson@gradewise.ai" });
+    const [profile, setProfile] = useState({ firstName: "John", lastName: "Doe", email: "john.doe@gradewise.ai" });
 
     const handleSave = () => {
         localStorage.setItem('userProfile', JSON.stringify(profile));
