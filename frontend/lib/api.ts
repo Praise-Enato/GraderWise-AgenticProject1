@@ -44,7 +44,9 @@ export const GradeWiseAPI = {
             student_id: studentId,
             rubric: rubric
         };
-        return (await api.post<GradeResult>('/grade', payload)).data;
+        const response = await api.post('/grade', payload);
+        // Backend now returns { messages: [], grade_result: {...} }
+        return response.data.grade_result || response.data;
     },
 
     parseRubric: async (files: File[]): Promise<RubricItem[]> => {

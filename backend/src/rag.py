@@ -26,20 +26,13 @@ def get_embedding_function():
         print(f"Error initializing embeddings: {e}")
         raise e
 
-def extract_text_from_file(file: UploadFile) -> str:
+def extract_text_from_path(file_path: str, original_filename: str) -> str:
     """
-    Extracts text from an uploaded file (PDF, DOCX, TXT, CSV, XLSX).
-    For tabular data (CSV, XLSX), converts to Markdown table.
+    Extracts text from a local file path.
     """
-    file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
-    filename_lower = file.filename.lower()
-    
-    # Save uploaded file temporarily
-    file.file.seek(0)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
+    filename_lower = original_filename.lower()
     text = ""
+    
     # Supported Code Extensions
     CODE_EXTENSIONS = {
         ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".cpp", ".c", ".h", ".cs", 
@@ -72,11 +65,28 @@ def extract_text_from_file(file: UploadFile) -> str:
             df = pd.read_excel(file_path)
             text = df.to_csv(index=False)
         else:
-            raise ValueError(f"Unsupported file type: {file.filename}")
+            raise ValueError(f"Unsupported file type: {original_filename}")
             
     except Exception as e:
-        print(f"Error loading {file.filename}: {e}")
+        print(f"Error loading {original_filename}: {e}")
         raise e
+        
+    return text
+
+def extract_text_from_file(file: UploadFile) -> str:
+    """
+    Extracts text from an uploaded file (PDF, DOCX, TXT, CSV, XLSX).
+    For tabular data (CSV, XLSX), converts to Markdown table.
+    """
+    file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
+    
+    # Save uploaded file temporarily
+    file.file.seek(0)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    try:
+        text = extract_text_from_path(file_path, file.filename)
     finally:
         # Clean up temp file
         if os.path.exists(file_path):

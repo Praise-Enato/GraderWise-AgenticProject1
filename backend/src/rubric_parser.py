@@ -41,7 +41,10 @@ def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     if not aggregated_text.strip():
         raise ValueError("No text could be extracted from the uploaded files.")
 
-    # LLM Extraction Logic
+def parse_rubric_text(text: str) -> List[RubricItem]:
+    """
+    Parses a raw string acting as a Rubric.
+    """
     system_prompt = """You are an expert Rubric Creator and Data Parser.
     Your task is to extract a structured Grading Rubric from the provided raw text or markdown table.
     
@@ -61,6 +64,7 @@ def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     
     Output strictly in JSON format matching the following structure:
     Example:
+
     {{
         "items": [
             {{"criteria": "Thesis", "max_points": 10, "description": "Clear thesis statement."}},
@@ -69,7 +73,7 @@ def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     }}
     """
     
-    human_prompt = f"RUBRIC CONTENT:\n{aggregated_text}"
+    human_prompt = f"RUBRIC CONTENT:\n{text}"
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
@@ -89,3 +93,23 @@ def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
         print(f"Error parsing rubric with LLM: {e}")
         # Return detailed error for debugging
         raise ValueError(f"Failed to parse rubric structure. Error: {str(e)}")
+
+def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
+    """
+    Parses uploaded files (Rubric) into structured RubricItems using an LLM.
+    Supports PDF, DOCX, TXT, CSV, XLSX.
+    """
+    aggregated_text = ""
+    
+    for file in files:
+        try:
+            text = rag.extract_text_from_file(file)
+            aggregated_text += f"\n--- File: {file.filename} ---\n{text}\n"
+        except Exception as e:
+            print(f"Error extracting text from {file.filename}: {e}")
+
+    if not aggregated_text.strip():
+        raise ValueError("No text could be extracted from the uploaded files.")
+
+    return parse_rubric_text(aggregated_text)
+
