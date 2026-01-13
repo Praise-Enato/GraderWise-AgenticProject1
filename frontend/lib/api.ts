@@ -65,5 +65,15 @@ export const GradeWiseAPI = {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
         return response.data;
+    },
+
+    chatWithFeedback: async (question: string, feedback: string, submissionText: string = ""): Promise<{ response: string, sources: string[] }> => {
+        const payload = {
+            question,
+            feedback,
+            submission_text: submissionText,
+            context_files: []
+        };
+        return (await api.post<{ response: string, sources: string[] }>('/chat', payload)).data;
     }
 };

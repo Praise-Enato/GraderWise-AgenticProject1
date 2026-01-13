@@ -12,7 +12,12 @@ import ReactMarkdown from 'react-markdown';
 
 
 
+import { useSearchParams } from "next/navigation";
+
 export default function GradingPage() {
+    const searchParams = useSearchParams();
+    const submissionId = searchParams.get('id');
+
     // State: Submission
     const [studentName, setStudentName] = useState("John Doe");
     const [submissionText, setSubmissionText] = useState("");
@@ -27,6 +32,20 @@ export default function GradingPage() {
     const [courseMaterials, setCourseMaterials] = useState<string[]>([]);
 
     useEffect(() => {
+        // Fetch submission if ID exists
+        if (submissionId) {
+            fetch('/api/student/submissions')
+                .then(res => res.json())
+                .then((data: any[]) => {
+                    const sub = data.find((s: any) => s.id === submissionId);
+                    if (sub) {
+                        setSubmissionText(sub.title + "\n\n(File content would be loaded here)"); // Mock content
+                        setFileName(sub.fileName || "submission.pdf");
+                        // If already graded, load result? (Skipping for now to allow re-grade)
+                    }
+                });
+        }
+
         const imported = localStorage.getItem('importedRubric');
         if (imported) {
             try {
@@ -48,7 +67,7 @@ export default function GradingPage() {
                 console.error("Failed to load course materials", e);
             }
         }
-    }, []);
+    }, [submissionId]);
 
     // State: Grading
     const [isGrading, setIsGrading] = useState(false);
@@ -59,23 +78,34 @@ export default function GradingPage() {
     const [saveMeta, setSaveMeta] = useState({ studentName: "", studentId: "", subject: "English 101" });
     const [isSaved, setIsSaved] = useState(false);
 
-    const handleSave = () => {
-        const totalPoints = rubric.reduce((sum, item) => sum + item.max_points, 0);
-        const historyItem = {
-            id: Date.now().toString(),
-            date: new Date().toISOString(),
-            ...saveMeta,
-            score: result?.score,
-            maxScore: totalPoints,
-            feedback: result?.feedback,
-            citations: result?.citations
-        };
+    const handleSave = async () => {
+        if (!result || !submissionId) return;
 
-        const existing = JSON.parse(localStorage.getItem('gradingHistory') || '[]');
-        localStorage.setItem('gradingHistory', JSON.stringify([historyItem, ...existing]));
+        try {
+            const totalPoints = rubric.reduce((sum, item) => sum + item.max_points, 0);
+            const scoreString = `${result.score} / ${totalPoints}`;
 
-        setIsSaved(true);
-        setTimeout(() => setResult(null), 1500); // Close after success
+            await fetch('/api/student/grade', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: submissionId,
+                    manualGrade: {
+                        score: scoreString,
+                        feedback: result.feedback,
+                        thinkingProcess: result.thinking_process
+                    }
+                })
+            });
+
+            setIsSaved(true);
+            setTimeout(() => {
+                setResult(null);
+                window.location.href = '/submissions'; // Redirect back to list
+            }, 1000);
+        } catch (e) {
+            console.error("Failed to save grade", e);
+        }
     };
 
     // Handlers

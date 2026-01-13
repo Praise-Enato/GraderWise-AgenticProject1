@@ -196,6 +196,197 @@ export default function LandingPage() {
         </div>
       </section>
 
+
+      {/* Dual Dashboard Ecosystem Section - NEW */}
+      <section className="py-24 bg-white dark:bg-slate-950 transition-colors border-t border-slate-100 dark:border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Two Powerful Dashboards, One Seamless Platform</h2>
+            <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+              GradeWise provides dedicated experiences for both sides of the classroom.
+            </p>
+          </div>
+
+          {/* Student Dashboard Block */}
+          <div className="flex flex-col md:flex-row items-center gap-16 mb-32">
+            <div className="w-full md:w-1/2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-6">
+                <span className="flex h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
+                For Students
+              </div>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
+                A Portal Built for <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Growth</span>
+              </h3>
+              <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+                Simplify the submission process and turn grading into a learning opportunity with instant, explainable feedback.
+              </p>
+
+              <div className="space-y-8">
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Effortless Submission</h4>
+                    <p className="text-slate-600 dark:text-slate-400">Drag-and-drop support for PDF, DOCX, and TXT files. Students get instant confirmation and can track their status in real-time.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                    <Brain className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">AI Grading & Feedback</h4>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Click-to-reveal implementation gives students detailed, actionable feedback.
+                      <span className="block mt-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                        <Zap className="w-4 h-4" /> Includes RAG Chatbot to explain grades
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-10">
+                <Link href="/signup" className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold hover:gap-3 transition-all">
+                  View Student Portal <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="w-full md:w-1/2 relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 rounded-3xl blur-3xl -z-10" />
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden transform md:rotate-1 hover:rotate-0 transition-transform duration-500">
+                {/* Mock UI for Student Dashboard */}
+                <div className="flex items-center justify-between mb-8 border-b border-slate-200 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-400" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                    <div className="w-3 h-3 rounded-full bg-green-400" />
+                  </div>
+                  <div className="text-xs text-slate-400 font-mono">student.graderwise.com</div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white">History_Essay_Final.pdf</div>
+                        <div className="text-xs text-slate-500">Submitted 2 mins ago</div>
+                      </div>
+                    </div>
+                    <div className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs rounded-full font-medium">
+                      Graded
+                    </div>
+                  </div>
+                  <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
+                    <div className="flex gap-3 mb-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0">
+                        <Brain className="w-4 h-4" />
+                      </div>
+                      <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-600 dark:text-slate-300 shadow-sm">
+                        Your thesis statement is strong, but you need more evidence in paragraph 2.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Educator Dashboard Block */}
+          <div className="flex flex-col md:flex-row-reverse items-center gap-16">
+            <div className="w-full md:w-1/2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-6">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-400"></span>
+                For Educators
+              </div>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
+                Total Control at <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">Scale</span>
+              </h3>
+              <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+                Manage rubrics, review AI grades, and track class performance from a single command center.
+              </p>
+
+              <div className="space-y-8">
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                    <LayoutDashboard className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Class Overview</h4>
+                    <p className="text-slate-600 dark:text-slate-400">See all submissions, active grading sessions, and class distribution stats at a glance.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">One-Click Approval</h4>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Review the AI's reasoning chain and approve grades instantly, or step in to make manual adjustments.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-10">
+                <Link href="/signup" className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold hover:gap-3 transition-all">
+                  View Educator Portal <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="w-full md:w-1/2 relative">
+              <div className="absolute inset-0 bg-gradient-to-tl from-emerald-500/20 to-teal-500/20 rounded-3xl blur-3xl -z-10" />
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden transform md:-rotate-1 hover:rotate-0 transition-transform duration-500">
+                {/* Mock UI for Educator Dashboard */}
+                <div className="flex items-center justify-between mb-8 border-b border-slate-200 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-400" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                    <div className="w-3 h-3 rounded-full bg-green-400" />
+                  </div>
+                  <div className="text-xs text-slate-400 font-mono">educator.graderwise.com</div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Stats Row Mock */}
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                      <div className="text-xs text-slate-500 uppercase">To Review</div>
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white">12</div>
+                    </div>
+                    <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                      <div className="text-xs text-slate-500 uppercase">Graded</div>
+                      <div className="text-2xl font-bold text-emerald-600">85%</div>
+                    </div>
+                  </div>
+
+                  {/* List Item Mock */}
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-between shadow-sm border-l-4 border-l-yellow-500">
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-white">Wilson G. - Physics 101</div>
+                      <div className="text-xs text-slate-500">Needs Review • Confidence: Low</div>
+                    </div>
+                    <button className="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs rounded-lg font-medium">
+                      Review
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
       {/* Live Demo Section - NEW */}
       <RubricParserDemo />
 

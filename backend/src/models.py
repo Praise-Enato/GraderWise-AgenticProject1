@@ -20,3 +20,14 @@ class StudentSubmission(BaseModel):
 class IngestResponse(BaseModel):
     status: str = Field(..., description="Status of the ingestion process")
     files_processed: int = Field(..., description="Number of files successfully processed")
+
+class ChatRequest(BaseModel):
+    question: str
+    feedback: str
+    submission_text: str = ""
+    rubric: str = ""  # New field for explicit rubric context
+    context_files: List[str] = []
+
+class ChatResponse(BaseModel):
+    response: str
+    sources: List[str] = []

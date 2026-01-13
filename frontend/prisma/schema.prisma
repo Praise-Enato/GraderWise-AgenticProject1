@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  password  String   // In a real app, hash this!
+  role      String   // "STUDENT" | "EDUCATOR"
+  createdAt DateTime @default(now())
+
+  submissions Submission[]
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+  
+  // For now, simpler relation
+  submissions Submission[]
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  title       String
+  status      String   // "pending" | "graded"
+  fileName    String?
+  fileUrl     String?
+  content     String?  // The actual text content
+  submittedAt DateTime @default(now())
+
+  // Relations
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id])
+  
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+
+  grade       Grade?
+}
+
+model Grade {
+  id              String   @id @default(cuid())
+  score           String   // "A-", "92/100", etc.
+  numericScore    Float?
+  maxScore        Float?
+  feedback        String   // Markdown feedback
+  thinkingProcess String?  // JSON string of thinking steps
+  confidenceScore Float?
+  gradedAt        DateTime @default(now())
+
+  submissionId    String      @unique
+  submission      Submission  @relation(fields: [submissionId], references: [id])
+}

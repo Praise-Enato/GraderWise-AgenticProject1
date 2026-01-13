@@ -1,149 +1,170 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Logo } from './Logo';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-    LayoutDashboard,
-    PlusCircle,
-    History,
-    Users,
-    Settings,
-    HelpCircle,
-    GraduationCap,
-    LogOut
-} from 'lucide-react';
-import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+    LayoutDashboard, History, Settings, LogOut, ChevronLeft, ChevronRight, User,
+    BookOpen, PenTool, BarChart3, Brain, Layers
+} from "lucide-react";
+import { Logo } from "@/components/Logo";
+import { UnsavedChangesModal } from "@/components/UnsavedChangesModal";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
 
-export default function Sidebar() {
+// Props definition
+interface SidebarProps {
+    collapsed?: boolean;
+    setCollapsed?: (v: boolean) => void;
+}
+
+export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     const pathname = usePathname();
-    const [userName, setUserName] = useState("Instructor");
+    const [isInternalCollapsed, setIsInternalCollapsed] = useState(false);
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-    // Hydrate user profile from local storage
-    if (typeof window !== 'undefined') {
-        // Simple client-side only check to avoid hydration mismatch is usually better done with useEffect
-    }
+    // Handle both controlled and uncontrolled modes (for backward compatibility if needed)
+    const isCollapsed = collapsed !== undefined ? collapsed : isInternalCollapsed;
+    const toggleCollapse = () => {
+        if (setCollapsed) {
+            setCollapsed(!isCollapsed);
+        } else {
+            setIsInternalCollapsed(!isInternalCollapsed);
+        }
+    };
 
-    // We need useEffect to avoid hydration error
-    const [mounted, setMounted] = useState(false);
+    const [user, setUser] = useState({ firstName: "Educator", lastName: "Admin", email: "educator@example.com" });
+
     useEffect(() => {
-        setMounted(true);
-        const stored = localStorage.getItem('userProfile');
-        if (stored) {
-            const { firstName, lastName } = JSON.parse(stored);
-            setUserName(`${firstName} ${lastName}`);
+        const profile = localStorage.getItem('userProfile');
+        if (profile) {
+            const data = JSON.parse(profile);
+            // Verify it matches if we want strictness, or just display whatever is there
+            if (data.role === 'educator') setUser(data);
         }
     }, []);
 
+    const navItems = [
+        { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+        { icon: BookOpen, label: "Submissions", href: "/submissions" },
+        { icon: Layers, label: "Mass Grading", href: "/mass-grading" },
+        { icon: PenTool, label: "Grading Tool", href: "/grading" },
+        { icon: BarChart3, label: "Analytics", href: "/analytics" },
+    ];
+
     return (
-        <aside className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex flex-col transition-colors duration-300 h-screen">
-            {/* Header */}
-            <div className="h-20 flex items-center px-6 border-b border-slate-200 dark:border-slate-700">
-                <div className="w-full flex justify-center md:justify-start">
-                    <Logo className="w-10 h-10" textClassName="text-xl font-bold text-slate-900 dark:text-white ml-1" />
-                </div>
+        <motion.aside
+            initial={false}
+            animate={{ width: isCollapsed ? 80 : 256 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 flex flex-col shadow-xl z-20 relative"
+        >
+            <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-100 dark:border-white/5 overflow-hidden shrink-0">
+                <Logo className="w-8 h-8" showText={false} />
+                <AnimatePresence>
+                    {!isCollapsed && (
+                        <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="font-bold text-lg text-slate-800 dark:text-white tracking-tight whitespace-nowrap"
+                        >
+                            GradeWise
+                        </motion.span>
+                    )}
+                </AnimatePresence>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-                {[
-                    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-                    { label: "New Grading Job", href: "/grading", icon: PlusCircle },
-                    { label: "Class History", href: "/history", icon: History },
-                    { label: "Students", href: "/students", icon: Users },
-                ].map((link) => {
+            <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
+                <div className="mb-6 px-2">
+                    {!isCollapsed && (
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Educator</p>
+                    )}
+                </div>
+                {navItems.map((link) => {
                     const isActive = pathname === link.href;
-                    const Icon = link.icon;
                     return (
                         <Link
                             key={link.href}
                             href={link.href}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
-                                ? "bg-primary text-white shadow-lg shadow-blue-500/30"
-                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group relative overflow-hidden ${isActive
+                                ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-semibold"
+                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                         >
-                            <Icon className={`w-5 h-5 transition-colors ${isActive
-                                ? "text-white"
-                                : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
-                                }`} />
-                            <span className="font-medium">{link.label}</span>
+                            <link.icon className={`w-5 h-5 flex-shrink-0 transition-colors ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"}`} />
+                            {!isCollapsed && (
+                                <motion.span
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.1 }}
+                                    className="whitespace-nowrap"
+                                >
+                                    {link.label}
+                                </motion.span>
+                            )}
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeTab"
+                                    className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-600 rounded-r-full"
+                                />
+                            )}
                         </Link>
-                    );
+                    )
                 })}
-
-                <div className="pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
-                    <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">System</p>
-
-                    {[
-                        { label: "Settings", href: "/settings", icon: Settings },
-                        { label: "Support", href: "/support", icon: HelpCircle },
-                    ].map((link) => {
-                        const isActive = pathname === link.href;
-                        const Icon = link.icon;
-                        return (
-                            <Link
-                                key={link.href}
-                                href={link.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${isActive
-                                    ? "bg-primary text-white shadow-lg shadow-blue-500/30"
-                                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
-                                    }`}
-                            >
-                                <Icon className={`w-5 h-5 transition-colors ${isActive
-                                    ? "text-white"
-                                    : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
-                                    }`} />
-                                <span className="font-medium">{link.label}</span>
-                            </Link>
-                        );
-                    })}
-
-                    <button
-                        onClick={() => {
-                            if (confirm("Are you sure you want to log out?")) {
-                                localStorage.removeItem('userProfile');
-                                // localStorage.removeItem('courseMaterials'); // Optional: keep context or clear it
-                                window.location.replace('/signup');
-                            }
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
-                    >
-                        <LogOut className="w-5 h-5 transition-colors text-slate-400 group-hover:text-red-500" />
-                        <span className="font-medium">Log Out</span>
-                    </button>
-                </div>
             </nav>
 
-            <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-4">
-                {/* System Status - Professional & Dynamic */}
-                <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center gap-2">
-                        <span className="relative flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                        </span>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">System Online</span>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 transition-colors">
+                <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''} mb-4 overflow-hidden`}>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
+                        {user.firstName[0]}{user.lastName[0]}
                     </div>
-                    <span className="text-xs font-mono text-slate-400 dark:text-slate-500">v2.4.0</span>
+                    {!isCollapsed && (
+                        <div className="overflow-hidden">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="font-semibold text-sm text-slate-900 dark:text-white truncate"
+                            >
+                                {user.firstName} {user.lastName}
+                            </motion.div>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-xs text-slate-500 truncate w-32"
+                            >
+                                {user.email}
+                            </motion.div>
+                        </div>
+                    )}
                 </div>
 
-                <Link href="/settings" className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shadow-sm group-hover:bg-primary group-hover:text-white transition-all text-xs">
-                        {mounted && userName ? (
-                            userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-                        ) : (
-                            <Users className="w-5 h-5" />
-                        )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{mounted ? userName : "Instructor"}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Pro Plan • Unlimited</p>
-                    </div>
-                    <Settings className="w-4 h-4 text-slate-400 group-hover:text-primary transition-colors" />
-                </Link>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={toggleCollapse}
+                        className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-500 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all shadow-sm"
+                        title={isCollapsed ? "Expand" : "Collapse"}
+                    >
+                        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                    </button>
+
+                    <button
+                        onClick={() => setIsLogoutModalOpen(true)}
+                        className="flex-1 flex items-center justify-center p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+                        title="Logout"
+                    >
+                        <LogOut className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
-        </aside>
+
+            <UnsavedChangesModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                onConfirm={() => {
+                    localStorage.removeItem('userProfile');
+                    window.location.replace('/signup');
+                }}
+            />
+        </motion.aside >
     );
 }
-
