@@ -45,9 +45,9 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
     const navItems = [
         { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-        { icon: BookOpen, label: "Submissions", href: "/submissions" },
-        { icon: Layers, label: "Mass Grading", href: "/mass-grading" },
         { icon: PenTool, label: "Grading Tool", href: "/grading" },
+        { icon: Layers, label: "Mass Grading", href: "/mass-grading" },
+        { icon: BookOpen, label: "Submissions", href: "/submissions" },
         { icon: BarChart3, label: "Analytics", href: "/analytics" },
     ];
 

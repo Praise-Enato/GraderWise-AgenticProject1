@@ -41,6 +41,7 @@ export async function POST(request: Request) {
         status: "pending",
         date: new Date().toLocaleDateString(), // Simple date for now
         fileName: body.fileName,
+        content: body.content || "", // Store the full text content
         grade: undefined,
         feedback: undefined
     };

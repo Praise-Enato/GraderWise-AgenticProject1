@@ -17,12 +17,15 @@ api_key = os.getenv("DEEPSEEK_API_KEY")
 if not api_key:
     # Fallback or strict warning ensures we don't fail silently
     print("WARNING: DEEPSEEK_API_KEY not found in environment.")
+else:
+    print(f"INFO: DEEPSEEK_API_KEY loaded. Length: {len(api_key)}")
 
 llm = ChatOpenAI(
     model="deepseek-chat",
     openai_api_key=api_key,
     openai_api_base="https://api.deepseek.com",
-    temperature=0
+    temperature=0,
+    max_retries=3
 )
 
 # --- 2. DEFINE AGENT STATE ---
@@ -98,32 +101,33 @@ def grade_submission(state: AgentState) -> dict:
     total_points = sum(item.max_points for item in rubric)
 
     # Base System Prompt
-    # Note: We use double curly braces {{ }} for literal braces in LangChain templates
-    system_prompt_text = f"""You are a Universal Academic Grader. Your task is to grade the STUDENT SUBMISSION based STRICTLY on the provided RUBRIC and CONTEXT.
-
-    1. **ANALYZE SUBJECT**: Determine the subject (Math, CS, History, etc.).
-    2. **ADOPT PERSONA**: Adopt the persona of a fair but rigorous grader.
-
-    3. **GRADING & SCORING RULES**:
-       - **DO NOT OVER-PENALIZE GRAMMAR**: Unless the Rubric explicitly mentions "Grammar" or "Spelling" as a major criteria, do not deduct more than 10-15% of the score for typos or informal tone. Focus on the CONTENT and ARGUMENT.
-       - **STEM (Math/Science/Code)**: 
-         - **CHECK THE ANSWER**: If the logic/answer is correct, award high marks even if the explanation is messy.
-         - "Polite but wrong" is a FAIL.
-       - **HUMANITIES**: 
-         - Look for the *presence* of ideas, not just perfect execution. 
-         - If the student makes a good point but uses slang, they should still get a passing score.
-
-    4. **SCORING CALCULATION**:
-       - **TOTAL POINTS AVAILABLE: {total_points}**
-       - Score each rubric item based on the evidence found.
-       - **Bias towards the average**: Real students rarely get 0.0 or Perfect scores. Use the full range (3, 4, 6, 8).
+    system_prompt_text = f"""You are an Expert Academic Grader. 
+    
+    **YOUR AUTHORITY**:
+    You must grade strictly according to the provided RUBRIC.
+    
+    **THE "GOLDEN RULE" OF CONSISTENCY**:
+    - **IF YOU DEDUCT POINTS**: You MUST list the specific reason in `critique_points`.
+    - **IF YOU LIST AN ERROR**: You MUST deduct points. **You CANNOT output a Perfect Score if you have negative critique points.**
+    - **PERFECT SCORE (100%)**: Reserved ONLY for submissions that meets or exceeds the "Full Marks" criteria for ALL items with minor flaws.
+    
+    **GRADING ALGORITHM (STEP-BY-STEP)**:
+    1. **Analyze the Rubric**: Read the "Full Marks" description for Item 1 "Criteria 1".
+    2. **Check the Work**: Did the student meet or exceed this description *completely*?
+       - **YES**: Award Max Points.
+       - **ALMOST**: If it is "Good" but has a minor flaw (not mentioned in rubric as a zero-fail), deduct 5-10%.
+       - **NO**: Check the "Partial/Developing" description. If it matches, award those points.
+       - **FAIL**: If it matches "Missing", award 0.
+    3. **Sanity Check**: 
+       - If you assigned {total_points} (Total), are there ANY errors? If yes, **lower the score**.
+       - If the human score would be low (e.g. they missed a whole section), do not be "generous". Be **ACCURATE**.
        
-    Output strictly in **JSON**:
+    **OUTPUT FORMAT (JSON)**:
     {{{{
         "score": <float>,
-        "critique_points": ["<specific point 1>", "<specific point 2>"],
+        "critique_points": ["<Specific error that caused a deduction>", "<Positive trait>"],
         "rubric_performance": {{{{
-            "<Criteria Name>": "<Specific comment>"
+            "<Criteria Name>": "<Score Awarded>/<Max> - <Reason>"
         }}}}
     }}}}
     """
@@ -330,15 +334,18 @@ def generate_feedback(state: AgentState) -> dict:
     
     chain = prompt | llm
     
-    feedback_response = chain.invoke({
-        "submission_text": submission_text,
-        "score": score,
-        "total_points": total_points,
-        "critique_points_str": critique_points_str,
-        "rubric_performance_str": rubric_performance_str
-    })
-    final_feedback = feedback_response.content
-    
+    try:
+        feedback_response = chain.invoke({
+            "submission_text": submission_text,
+            "score": score,
+            "total_points": total_points,
+            "critique_points_str": critique_points_str,
+            "rubric_performance_str": rubric_performance_str
+        })
+        final_feedback = feedback_response.content
+    except Exception as e:
+        print(f"Error in Mentor (Node 3): {type(e).__name__}: {e}")
+        final_feedback = "I apologize, but I am unable to generate feedback at this time due to a connection error with the AI service. Please review the grade details above."
 
     # Calculate confidence based on revision count
     # 0 retries = 0.95 (High)

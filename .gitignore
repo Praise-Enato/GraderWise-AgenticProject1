@@ -39,5 +39,5 @@ build/
 proposal_text.txt
 
 # Generated Data
-backend/data/chroma/
+backend/data/
 backend/data/temp_uploads/

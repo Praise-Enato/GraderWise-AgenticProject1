@@ -21,7 +21,8 @@ llm = ChatOpenAI(
     model="deepseek-chat",
     openai_api_key=api_key,
     openai_api_base="https://api.deepseek.com",
-    temperature=0
+    temperature=0,
+    max_retries=3
 )
 
 def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
