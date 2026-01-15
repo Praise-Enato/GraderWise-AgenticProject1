@@ -54,18 +54,39 @@ def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     - criteria: The name of the category (e.g., "Thesis", "Grammar", "Analysis").
     - max_points: The maximum score for this category (integer).
     - description: A concise description of what is required for full points.
+    - developing_points: The points awarded for partial or developing mastery (if specified).
+    - developing_description: Description of what constitutes partial or developing mastery.
+    - zero_points: The points awarded for failure or missing criteria (usually 0).
+    - zero_description: Description of what constitutes zero points.
     
     Rules:
     - If the input is a table, map the columns intelligent to Criteria, Points, and Description.
     - If points are given as a range (e.g., "0-10"), use the max value.
     - If no points are specified, infer reasonable weights or assign 0.
+    - Extract descriptions for partial/developing and zero points if available in the text/table.
     
     Output strictly in JSON format matching the following structure:
     Example:
     {{
         "items": [
-            {{"criteria": "Thesis", "max_points": 10, "description": "Clear thesis statement."}},
-            {{"criteria": "Grammar", "max_points": 5,  "description": "No errors."}}
+            {{
+                "criteria": "Thesis", 
+                "max_points": 10, 
+                "description": "Clear thesis statement.",
+                "developing_points": 5,
+                "developing_description": "Thesis is present but vague.",
+                "zero_points": 0,
+                "zero_description": "No thesis statement."
+            }},
+            {{
+                "criteria": "Grammar", 
+                "max_points": 5,  
+                "description": "No errors.",
+                "developing_points": 2.5,
+                "developing_description": "Some errors but readable.",
+                "zero_points": 0,
+                "zero_description": "Unreadable due to errors."
+            }}
         ]
     }}
     """
@@ -83,7 +104,21 @@ def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     
     try:
         response = chain.invoke({})
-        parsed_data = json.loads(response.content)
+        content = response.content.strip()
+        
+        # --- FIX: Handle Markdown Code Blocks ---
+        if content.startswith("```json"):
+            content = content[7:]
+        elif content.startswith("```"):
+            content = content[3:]
+        
+        if content.endswith("```"):
+            content = content[:-3]
+            
+        content = content.strip()
+        # --------------------------------------
+
+        parsed_data = json.loads(content)
         items = [RubricItem(**item) for item in parsed_data.get("items", [])]
         return items
     except Exception as e:

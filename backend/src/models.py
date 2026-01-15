@@ -4,7 +4,11 @@ from typing import List, Optional
 class RubricItem(BaseModel):
     criteria: str = Field(..., description="The criteria for evaluating the submission")
     max_points: float = Field(..., description="Maximum points available for this criteria")
-    description: str = Field(..., description="Detailed description of the criteria")
+    description: str = Field(..., description="Detailed description of the criteria for full points")
+    developing_points: Optional[float] = Field(None, description="Points for partial or developing mastery")
+    developing_description: Optional[str] = Field(None, description="Description for partial or developing mastery")
+    zero_points: Optional[float] = Field(0.0, description="Points for zero mastery (usually 0)")
+    zero_description: Optional[str] = Field(None, description="Description for zero mastery or missing criteria")
 
 class GradeResult(BaseModel):
     score: float = Field(..., description="The score awarded")

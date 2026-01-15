@@ -374,7 +374,7 @@ export default function Dashboard() {
                     <div>
                       <span className="font-semibold text-primary hover:underline">Click to upload</span> or drag and drop
                     </div>
-                    <span className="text-xs text-slate-400">PDF, DOCX, TXT (max 10MB)</span>
+                    <span className="text-xs text-slate-400">PDF, DOCX, TXT (max 500MB)</span>
                   </label>
                 </div>
 

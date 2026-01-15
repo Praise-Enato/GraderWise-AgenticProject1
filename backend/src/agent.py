@@ -10,7 +10,34 @@ from backend.src.models import RubricItem, GradeResult
 from backend.src import rag
 
 # Load environment variables
+# Load environment variables
 load_dotenv()
+
+# --- LOGGING SETUP ---
+import logging
+import datetime
+
+# Create logs directory if it doesn't exist (handled by shell command previously, but good to be safe)
+os.makedirs("backend/logs", exist_ok=True)
+
+# Configure Logger
+logging.basicConfig(
+    filename='backend/logs/grading_debug.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    force=True # Ensure we overwrite any existing basicConfig
+)
+logger = logging.getLogger(__name__)
+
+def log_agent_action(node_name: str, message: str, details: Any = None):
+    """Helper to log actions to both file and print to terminal"""
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    # Terminal
+    print(f"[{timestamp}] {node_name}: {message}")
+    # File
+    logger.info(f"{node_name}: {message}")
+    if details:
+        logger.info(f"DETAILS:\n{json.dumps(details, indent=2, default=str)}")
 
 # --- 1. SETUP DEEPSEEK-V3 LLM ---
 api_key = os.getenv("DEEPSEEK_API_KEY")
@@ -25,12 +52,13 @@ llm = ChatOpenAI(
     openai_api_key=api_key,
     openai_api_base="https://api.deepseek.com",
     temperature=0,
-    max_retries=3
+    max_retries=3,
+    request_timeout=120
 )
 
 # --- 2. DEFINE AGENT STATE ---
 class AgentState(TypedDict):
-    submission_text: str
+    submission_files: List[dict] # List of {filename, content}
     rubric: List[RubricItem]
     context: List[str]
     grade_data: dict
@@ -51,100 +79,132 @@ def retrieve(state: AgentState) -> dict:
     Node 0: Retrieve context using RAG.
     """
     print("---RETRIEVING CONTEXT---")
-    submission_text = state["submission_text"]
-    # Initialize defaults if not present
-    revision_number = state.get("revision_number", 0)
-    grader_feedback = state.get("grader_feedback", "")
-    is_valid = state.get("is_valid", False)
     
     # Check for skip_rag flag
     if state.get("skip_rag", False):
         print("---SKIPPING RAG (Requested)---")
+        return {
+            "context": [], 
+            "revision_number": state.get("revision_number", 0), 
+            "grader_feedback": state.get("grader_feedback", ""),
+            "is_valid": state.get("is_valid", False),
+            "thinking_process": ["Skipping RAG."]
+        }
+
+    rubric = state.get("rubric", [])
+    
+    # --- OPTION 1: SMART QUERY (FIXES ATTENTION SPAN) ---
+    # We query using the RUBRIC (The Question) instead of the SUBMISSION (The Answer).
+    # This ensures we always retrieve the correct lecture notes for the topic.
+    
+    rubric_topics = [item.criteria for item in rubric]
+    rubric_details = [item.description for item in rubric]
+    
+    # Construct a targeted query
+    # Example: "Context for Photosynthesis, Cellular Respiration. Define process..."
+    query = f"Academic context and definitions for: {', '.join(rubric_topics)}. {' '.join(rubric_details)}"
+    
+    # Truncate query safely to ~400 words (2000 chars) to respect embedding limits
+    # This is safe because Rubrics are rarely longer than 2000 chars.
+    query = query[:2000] 
+
+    try:
+        context = rag.retrieve_context(query)
+    except Exception as e:
+        print(f"RAG Error: {e}")
         context = []
-    else:
-        try:
-            context = rag.retrieve_context(submission_text)
-        except Exception as e:
-            print(f"RAG Error: {e}")
-            context = []
 
     return {
         "context": context,
-        "revision_number": revision_number,
-        "grader_feedback": grader_feedback,
-        "is_valid": is_valid,
-        "thinking_process": ["Agent initializing...", "Retrieving context from knowledge base..."] + ([f"Found {len(context)} context chunks."] if context else ["No relevant context found."])
+        "revision_number": state.get("revision_number", 0),
+        "grader_feedback": state.get("grader_feedback", ""),
+        "is_valid": state.get("is_valid", False),
+        "thinking_process": ["Agent initializing...", f"Retrieving context for topics: {rubric_topics}"] + ([f"Found {len(context)} context chunks."] if context else ["No relevant context found."])
     }
 
 def grade_submission(state: AgentState) -> dict:
     """
     Node 1: The Grader (Universal Evaluator)
-    Analyzes subject, adopts persona, grades strictly.
-    Handles Retries if Judge rejected previous output.
     """
     print(f"---GRADING SUBMISSION (Attempt {state.get('revision_number', 0) + 1})---")
-    submission_text = state["submission_text"]
+    submission_files = state["submission_files"]
     rubric = state["rubric"]
     context = state["context"]
     grader_feedback = state.get("grader_feedback", "")
     
-    # Format rubric
-    rubric_str = "\n".join([f"- {item.criteria} (Max Points: {item.max_points}): {item.description}" for item in rubric])
+    # --- 1. UNIVERSAL RUBRIC DISPLAY ---
+    # We display the raw text so it works for ANY subject (Math, History, CS)
+    rubric_parts = []
+    for i, item in enumerate(rubric):
+        part = f"### CRITERIA {i+1}: {item.criteria} (Max: {item.max_points} pts)"
+        part += f"\n   - [FULL MARKS]: {item.description}"
+        if item.developing_description:
+             part += f"\n   - [PARTIAL/DEVELOPING]: {item.developing_description}"
+        if item.zero_description:
+             part += f"\n   - [ZERO/MISSING]: {item.zero_description}"
+        rubric_parts.append(part)
+    rubric_str = "\n\n".join(rubric_parts)
     
-    # Truncate context and submission to safe limits
+    # --- 2. PREPARE SUBMISSION ---
     context_str = "\n\n".join(context)[:3000]
-    if len(submission_text) > 15000:
-        submission_text_safe = submission_text[:15000] + "... [TRUNCATED]"
-    else:
-        submission_text_safe = submission_text
-
-    total_points = sum(item.max_points for item in rubric)
-
-    # Base System Prompt
-    system_prompt_text = f"""You are an Expert Academic Grader. 
     
-    **YOUR AUTHORITY**:
-    You must grade strictly according to the provided RUBRIC.
+    formatted_submission = ""
+    for file in submission_files:
+        content = file['content']
+        if len(content) > 20000: 
+            content = content[:20000] + "... [TRUNCATED]"
+        formatted_submission += f"\n--- FILE: {file['filename']} ---\n{content}\n"
     
-    **THE "GOLDEN RULE" OF CONSISTENCY**:
-    - **IF YOU DEDUCT POINTS**: You MUST list the specific reason in `critique_points`.
-    - **IF YOU LIST AN ERROR**: You MUST deduct points. **You CANNOT output a Perfect Score if you have negative critique points.**
-    - **PERFECT SCORE (100%)**: Reserved ONLY for submissions that meets or exceeds the "Full Marks" criteria for ALL items with minor flaws.
+    # --- 3. THE UNIVERSAL SYSTEM PROMPT ---
+    system_prompt_text = f"""You are an Expert Academic Grader (Universal).
     
-    **GRADING ALGORITHM (STEP-BY-STEP)**:
-    1. **Analyze the Rubric**: Read the "Full Marks" description for Item 1 "Criteria 1".
-    2. **Check the Work**: Did the student meet or exceed this description *completely*?
-       - **YES**: Award Max Points.
-       - **ALMOST**: If it is "Good" but has a minor flaw (not mentioned in rubric as a zero-fail), deduct 5-10%.
-       - **NO**: Check the "Partial/Developing" description. If it matches, award those points.
-       - **FAIL**: If it matches "Missing", award 0.
-    3. **Sanity Check**: 
-       - If you assigned {total_points} (Total), are there ANY errors? If yes, **lower the score**.
-       - If the human score would be low (e.g. they missed a whole section), do not be "generous". Be **ACCURATE**.
-       
-    **OUTPUT FORMAT (JSON)**:
+    **YOUR TASK**:
+    Evaluate the STUDENT SUBMISSION against the RUBRIC strictly and fairly.
+    
+    **UNIVERSAL GRADING RULES**:
+    1. **The Rubric is Law**: Grade ONLY based on the criteria listed.
+    
+    2. **"Content Over Filename" Rule**: 
+       - If the rubric asks for a specific file (e.g., 'report.txt'), **DO NOT** give a zero just because the filename is wrong.
+       - **SEARCH** the submission content. If you find the *content* (e.g., a "Table of Work") inside *any* file or the main text, **GRADE IT**.
+       - Only award 0 if the *content* is genuinely missing.
+    
+    3. **Partial Points (Numeric vs. Subjective)**: 
+       - **Numeric Rubric**: If the rubric lists specific numbers (e.g., "(41.5) pts"), you **MUST** snap to those exact numbers.
+       - **Subjective Rubric**: If the rubric is vague (e.g., "Good Analysis"), use your judgment on a 0-100% scale of the max points. 
+         - *Example:* "Good Analysis (10 pts)". Student is decent but not great -> Award 7.5 or 8.0.
+    
+    4. **Fact Checking**:
+       - Use the `COURSE CONTEXT` to verify claims.
+       - If a student makes a claim that contradicts the Context, deduct points for "Accuracy" (if applicable).
+    
+    **OUTPUT FORMAT**:
+    You must output a JSON list of assessments for EACH criteria.
     {{{{
-        "score": <float>,
-        "critique_points": ["<Specific error that caused a deduction>", "<Positive trait>"],
-        "rubric_performance": {{{{
-            "<Criteria Name>": "<Score Awarded>/<Max> - <Reason>"
-        }}}}
+        "assessments": [
+            {{{{
+                "criteria_index": 1,
+                "criteria_name": "Name of criteria",
+                "awarded_points": <float>,
+                "reason": "Brief explanation referencing the submission content."
+            }}}},
+            ... one for every rubric item
+        ],
+        "general_feedback": "A summary of the overall performance."
     }}}}
     """
 
-    # User Prompt Template
     user_prompt_text = """
     RUBRIC:
     {rubric_str}
     
-    CONTEXT:
+    COURSE CONTEXT (Use for fact-checking only):
     {context_str}
     
     STUDENT SUBMISSION:
     {submission_text}
     """
 
-    # Retry Logic: Prepend Feedback if it exists
     if grader_feedback:
         user_prompt_text = f"⚠️ PREVIOUS GRADE REJECTED. JUDGE SAID: {{grader_feedback}}. FIX THIS ERROR.\n\n" + user_prompt_text
 
@@ -153,46 +213,68 @@ def grade_submission(state: AgentState) -> dict:
         ("user", user_prompt_text)
     ])
 
-    # Bind to JSON object mode
     json_llm = llm.bind(response_format={"type": "json_object"})
     chain = prompt | json_llm
 
     try:
-        # Pass variables to invoke
         result = chain.invoke({
-            "total_points": total_points,
             "rubric_str": rubric_str,
             "context_str": context_str,
-            "submission_text": submission_text_safe,
+            "submission_text": formatted_submission,
             "grader_feedback": grader_feedback
         })
-        parsed = json.loads(result.content)
         
-        # Robust Parsing
+        parsed = json.loads(result.content)
+        assessments = parsed.get("assessments", [])
+        
+        # --- 4. PYTHON CALCULATION (Universal) ---
+        total_score = 0.0
+        critique_points = []
+        rubric_performance = {}
+        
+        for item in assessments:
+            # We let Python do the math to avoid AI hallucinations
+            points = float(item.get("awarded_points", 0.0))
+            reason = item.get("reason", "")
+            name = item.get("criteria_name", "Unknown")
+            
+            total_score += points
+            
+            # Format feedback
+            rubric_performance[name] = f"{points} pts - {reason}"
+            
+            # Identify critiques (Universal Logic: if points < max, it's a critique)
+            # We can't know max per item easily here without parsing, so we assume if points == 0 it's a major critique
+            if points == 0.0:
+                critique_points.append(f"❌ {name}: {reason}")
+            elif points < 5.0: # Heuristic for partial
+                critique_points.append(f"⚠️ {name}: {reason}")
+        
         grade_data = {
-            "score": float(parsed.get("score", 0.0)),
-            "critique_points": parsed.get("critique_points", []),
-            "rubric_performance": parsed.get("rubric_performance", {})
+            "score": total_score,
+            "critique_points": critique_points,
+            "rubric_performance": rubric_performance
         }
+        
+        # LOGGING
+        log_agent_action("GRADER", f"Calculated Score: {total_score}", grade_data)
+        
+
+
 
     except Exception as e:
+        log_agent_action("GRADER", f"ERROR: {str(e)}")
         print(f"JSON Parsing Error in Grader: {e}")
-        # Return default failure state for the Judge to catch
         grade_data = {
             "score": 0.0,
             "critique_points": ["Error parsing specific grader output."],
             "rubric_performance": {}
         }
 
-    log_msg = f"Grading Attempt {state.get('revision_number', 0) + 1}..."
-    if grader_feedback:
-        log_msg += f" (Correcting previous error: {grader_feedback})"
-
     return {
         "grade_data": grade_data,
-        "thinking_process": state.get("thinking_process", []) + [log_msg, "Analyzing submission against rubric..."]
+        "thinking_process": state.get("thinking_process", []) + [f"Graded {len(submission_files)} files universal style."]
     }
-
 
 def validate_grade(state: AgentState) -> dict:
     """
@@ -248,6 +330,7 @@ def validate_grade(state: AgentState) -> dict:
     
     if not valid:
         print(f"❌ Grade Rejected: {reason}")
+        log_agent_action("JUDGE", f"❌ Grade Rejected: {reason}", {"score": score, "critique": critique_points})
         return {
             "is_valid": False,
             "grader_feedback": reason,
@@ -256,6 +339,7 @@ def validate_grade(state: AgentState) -> dict:
         }
     else:
         print("✅ Grade Validated.")
+        log_agent_action("JUDGE", "✅ Grade Validated")
         return {
             "is_valid": True,
             "grader_feedback": "",
@@ -270,7 +354,16 @@ def generate_feedback(state: AgentState) -> dict:
     Provides feedback without giving the answer.
     """
     print("---GENERATING FEEDBACK (NODE 3)---")
-    submission_text = state["submission_text"]
+    submission_files = state["submission_files"]
+    
+    # Reconstruct submission for the prompt (similar to Grader, but maybe less strict truncation if possible)
+    submission_text_formatted = ""
+    for file in submission_files:
+        content = file['content']
+        if len(content) > 15000: # Slightly tighter limit for feedback generation context
+            content = content[:15000] + "... [TRUNCATED]"
+        submission_text_formatted += f"\n--- FILE: {file['filename']} ---\n{content}\n"
+        
     grade_data = state["grade_data"]
     score = grade_data["score"]
     
@@ -336,7 +429,7 @@ def generate_feedback(state: AgentState) -> dict:
     
     try:
         feedback_response = chain.invoke({
-            "submission_text": submission_text,
+            "submission_text": submission_text_formatted,
             "score": score,
             "total_points": total_points,
             "critique_points_str": critique_points_str,

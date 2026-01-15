@@ -38,9 +38,9 @@ export const GradeWiseAPI = {
     },
 
     // Member B uses this
-    gradeSubmission: async (text: string, studentId: string, rubric: RubricItem[]): Promise<GradeResult> => {
+    gradeSubmission: async (files: {filename: string, content: string}[], studentId: string, rubric: RubricItem[]): Promise<GradeResult> => {
         const payload = {
-            submission_text: text,
+            submission_files: files,
             student_id: studentId,
             rubric: rubric
         };
@@ -62,6 +62,17 @@ export const GradeWiseAPI = {
         const formData = new FormData();
         formData.append('file', file);
         const response = await api.post<{ text: string }>('/extract-text', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+
+    extractFilesContent: async (files: File[]): Promise<{ filename: string, content: string }[]> => {
+        const formData = new FormData();
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+        const response = await api.post<{ filename: string, content: string }[]>('/extract-files-content', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
         return response.data;

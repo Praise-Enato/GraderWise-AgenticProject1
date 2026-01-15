@@ -48,7 +48,7 @@ const LOADING_PHASES = [
     }
 ];
 
-export function GradingLoader() {
+export function GradingLoader({ className }: { className?: string }) {
     const [phaseIndex, setPhaseIndex] = useState(0);
 
     useEffect(() => {
@@ -63,7 +63,7 @@ export function GradingLoader() {
     const Icon = currentPhase.icon;
 
     return (
-        <div className="flex flex-col items-center justify-center p-8 w-full">
+        <div className={`flex flex-col items-center justify-center p-8 w-full ${className || ''}`}>
             <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
                 {/* Ripples */}
                 <motion.div

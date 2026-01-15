@@ -50,10 +50,34 @@ def extract_text_from_file(file: UploadFile) -> str:
     try:
         loader = None
         if filename_lower.endswith(".pdf"):
-            loader = PyPDFLoader(file_path)
-            if loader:
-                loaded_docs = loader.load()
-                text = "\n".join([doc.page_content for doc in loaded_docs])
+            try:
+                loader = PyPDFLoader(file_path)
+                if loader:
+                    loaded_docs = loader.load()
+                    text = "\n".join([doc.page_content for doc in loaded_docs])
+            except Exception as pdf_err:
+                print(f"PyPDFLoader failed for {file.filename}: {pdf_err}. Attempting robust fallback...")
+                try:
+                    import pypdf
+                    reader = pypdf.PdfReader(file_path)
+                    text_parts = []
+                    for i, page in enumerate(reader.pages):
+                        try:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text_parts.append(page_text)
+                        except Exception as page_err:
+                            print(f"Skipping page {i} in {file.filename} due to error: {page_err}")
+                            continue # Skip bad pages
+                    text = "\n".join(text_parts)
+                    
+                    if not text:
+                         raise ValueError("No text could be extracted from PDF (likely scanned or encrypted).")
+                         
+                except Exception as fallback_err:
+                     print(f"Robust PDF fallback failed: {fallback_err}")
+                     raise pdf_err # Raise original error if fallback fails
+                     
         elif filename_lower.endswith(".docx"):
             loader = Docx2txtLoader(file_path)
             if loader:
@@ -121,14 +145,14 @@ def ingest_documents(files: List[UploadFile]) -> int:
 
 def retrieve_context(query: str) -> List[str]:
     """
-    Retrieves the top 3 relevant document chunks for the given query.
+    Retrieves the top 10 relevant document chunks for the given query.
     """
     vector_store = Chroma(
         persist_directory=CHROMA_PATH,
         embedding_function=get_embedding_function()
     )
     
-    # Retrieve top 3
-    results = vector_store.similarity_search(query, k=3)
+    # Retrieve top 10
+    results = vector_store.similarity_search(query, k=10)
     
     return [doc.page_content for doc in results]

@@ -20,8 +20,8 @@ export default function GradingPage() {
 
     // State: Submission
     const [studentName, setStudentName] = useState("John Doe");
-    const [submissionText, setSubmissionText] = useState("");
-    const [fileName, setFileName] = useState<string | null>(null);
+    const [submissionFiles, setSubmissionFiles] = useState<{ filename: string, content: string }[]>([]);
+    const [isExtracting, setIsExtracting] = useState(false);
     const [rubricLoaded, setRubricLoaded] = useState(false);
 
     // State: Rubric
@@ -39,8 +39,11 @@ export default function GradingPage() {
                 .then((data: any[]) => {
                     const sub = data.find((s: any) => s.id === submissionId);
                     if (sub) {
-                        setSubmissionText(sub.title + "\n\n(File content would be loaded here)"); // Mock content
-                        setFileName(sub.fileName || "submission.pdf");
+                        // Adapt legacy submission object to file list
+                        setSubmissionFiles([{
+                            filename: sub.fileName || "submission.txt",
+                            content: sub.title + "\n\n(Content loaded from history)" 
+                        }]);
                         // If already graded, load result? (Skipping for now to allow re-grade)
                     }
                 });
@@ -110,20 +113,28 @@ export default function GradingPage() {
 
     // Handlers
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-        setFileName(file.name);
-        setSubmissionText("Extracting text..."); // Loading state
-
+        setIsExtracting(true);
         try {
-            const result = await GradeWiseAPI.extractText(file);
-            setSubmissionText(result.text);
+            // Convert FileList to Array
+            const fileArray = Array.from(files);
+            const extracted = await GradeWiseAPI.extractFilesContent(fileArray);
+            
+            // Append new files to existing list
+            setSubmissionFiles(prev => [...prev, ...extracted]);
         } catch (err: any) {
-            setSubmissionText("");
-            setError(err.message || "Failed to extract text from file");
-            setFileName(null);
+            setError(err.message || "Failed to extract text from files");
+        } finally {
+            setIsExtracting(false);
+            // Reset input value to allow re-uploading same file if needed
+            e.target.value = '';
         }
+    };
+    
+    const removeFile = (index: number) => {
+        setSubmissionFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleRubricUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,8 +192,8 @@ export default function GradingPage() {
     ];
 
     const handleGrade = async () => {
-        if (!submissionText) {
-            setError("Please enter submission text first.");
+        if (submissionFiles.length === 0) {
+            setError("Please upload at least one file.");
             return;
         }
         setIsGrading(true);
@@ -195,7 +206,7 @@ export default function GradingPage() {
         }, 3000);
 
         try {
-            const data = await GradeWiseAPI.gradeSubmission(submissionText, "student-123", rubric);
+            const data = await GradeWiseAPI.gradeSubmission(submissionFiles, "student-123", rubric);
             setResult(data);
         } catch (err: any) {
             setError(err.message || "Grading failed");
@@ -252,26 +263,41 @@ export default function GradingPage() {
                                     <FileText className="w-4 h-4 text-blue-500" /> Student Submission
                                 </h3>
                                 <label className="cursor-pointer px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
-                                    <Upload className="w-3 h-3" />
-                                    {fileName ? "Change File" : "Upload File"}
-                                    <input type="file" className="hidden" accept=".txt,.pdf,.docx,.csv,.xlsx,.py,.js,.ts,.jsx,.tsx,.java,.cpp,.c,.h,.cs,.go,.rs,.php,.rb,.swift,.kt,.scala,.html,.css,.sql,.sh,.bat,.json,.xml,.yaml,.yml,.md" onChange={handleFileUpload} />
+                                    {isExtracting ? <GradingLoader className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
+                                    Add Files
+                                    <input type="file" className="hidden" multiple accept=".txt,.pdf,.docx,.csv,.xlsx,.py,.js,.ts,.jsx,.tsx,.java,.cpp,.c,.h,.cs,.go,.rs,.php,.rb,.swift,.kt,.scala,.html,.css,.sql,.sh,.bat,.json,.xml,.yaml,.yml,.md" onChange={handleFileUpload} />
                                 </label>
                             </div>
-                            <div className="flex-1 p-0 relative">
-                                <textarea
-                                    className="w-full h-full p-4 resize-none bg-transparent outline-none text-slate-700 dark:text-slate-300 font-mono text-sm leading-relaxed"
-                                    placeholder="Paste student text here or upload a file..."
-                                    value={submissionText}
-                                    onChange={(e) => setSubmissionText(e.target.value)}
-                                ></textarea>
-                                {!submissionText && !fileName && (
+                            <div className="flex-1 p-0 relative flex flex-col">
+                                {submissionFiles.length > 0 ? (
+                                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                        {submissionFiles.map((file, index) => (
+                                            <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 group">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-blue-500">
+                                                        <FileText className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-medium text-slate-900 dark:text-white truncate max-w-[200px]">{file.filename}</div>
+                                                        <div className="text-xs text-slate-500">{file.content.length} chars</div>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => removeFile(index)} className="p-2 text-slate-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <div className="text-center text-slate-400">
                                             <Upload className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                            <p className="text-sm">Drop file here (PDF, DOCX, Code, TXT)</p>
+                                            <p className="text-sm">Drop files here (PDF, Code, TXT)<br />or click Upload above</p>
                                         </div>
                                     </div>
                                 )}
+                                
+                                {/* Hidden Textarea for debug/copy if needed, or just removed */}
                             </div>
                         </div>
                     </section>

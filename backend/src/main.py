@@ -1,14 +1,15 @@
 import os
 
 # Disable ChromaDB/PostHog Telemetry
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_SERVER_NO_INTERACTIVE_MODE"] = "True"
 os.environ["OTEL_PYTHON_DISABLED"] = "True"
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Optional
 from backend.src.models import RubricItem, GradeResult, IngestResponse, ChatRequest, ChatResponse
 from backend.src import rag
 from backend.src import agent
@@ -27,10 +28,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class SubmissionFile(BaseModel):
+    filename: str
+    content: str = Field(..., description="The text content of the file")
+
 class GradeRequest(BaseModel):
-    submission_text: str
+    submission_files: List[SubmissionFile] = Field(..., description="List of files to grade")
     rubric: List[RubricItem]
     student_id: str
+    submission_text: Optional[str] = None # Deprecated: kept for backward compatibility if needed, but primary is files
 
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest(files: List[UploadFile] = File(...)):
@@ -38,7 +44,8 @@ async def ingest(files: List[UploadFile] = File(...)):
     Ingests PDF course materials.
     """
     try:
-        count = rag.ingest_documents(files)
+        # Run blocking ingestion in threadpool to support large files without blocking event loop
+        count = await run_in_threadpool(rag.ingest_documents, files)
         return IngestResponse(status="success", files_processed=count)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -65,20 +72,46 @@ async def extract_text_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+from fastapi.concurrency import run_in_threadpool
+
+@app.post("/extract-files-content")
+async def extract_files_content_endpoint(files: List[UploadFile] = File(...)):
+    """
+    Extracts text from multiple files and returns a list of {filename, content}.
+    """
+    results = []
+    for file in files:
+        try:
+            # Run blocking extraction in threadpool
+            text = await run_in_threadpool(rag.extract_text_from_file, file)
+            results.append({"filename": file.filename, "content": text})
+        except Exception as e:
+            results.append({"filename": file.filename, "content": f"Error extracting text: {str(e)}"})
+    return results
+
 @app.post("/grade", response_model=GradeResult)
 async def grade_submission(request: GradeRequest):
     """
     Grades a student submission using the agentic workflow.
     """
     try:
+        # Backward compatibility for legacy single-text requests (if any)
+        if request.submission_text and not request.submission_files:
+             # create a dummy file
+             files_input = [{"filename": "submission_text.txt", "content": request.submission_text}]
+        else:
+             # Convert Pydantic models to dicts for AgentState
+             files_input = [f.dict() for f in request.submission_files]
+
         inputs = {
-            "submission_text": request.submission_text,
+            "submission_files": files_input,
             "rubric": request.rubric,
             "context": [], # Initial empty context, will be populated by retrieve node
             "grade_result": None # Initial placeholder
         }
         
-        result = agent.app.invoke(inputs)
+        # Run blocking agent in threadpool to keep server responsive
+        result = await run_in_threadpool(agent.app.invoke, inputs)
         
         return result["grade_result"]
     except Exception as e:
