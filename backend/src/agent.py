@@ -132,8 +132,7 @@ def grade_submission(state: AgentState) -> dict:
     context = state["context"]
     grader_feedback = state.get("grader_feedback", "")
     
-    # --- 1. UNIVERSAL RUBRIC DISPLAY ---
-    # We display the raw text so it works for ANY subject (Math, History, CS)
+    # --- 1. RAW RUBRIC DISPLAY (Universal) ---
     rubric_parts = []
     for i, item in enumerate(rubric):
         part = f"### CRITERIA {i+1}: {item.criteria} (Max: {item.max_points} pts)"
@@ -152,43 +151,44 @@ def grade_submission(state: AgentState) -> dict:
     for file in submission_files:
         content = file['content']
         if len(content) > 20000: 
-            content = content[:20000] + "... [TRUNCATED]"
+            content = content[:10000] + "\n...[SNIP]...\n" + content[-10000:]
         formatted_submission += f"\n--- FILE: {file['filename']} ---\n{content}\n"
     
-    # --- 3. THE UNIVERSAL SYSTEM PROMPT ---
-    system_prompt_text = f"""You are an Expert Academic Grader (Universal).
+    # --- 3. THE GENERALIZED SYSTEM PROMPT ---
+    system_prompt_text = f"""You are an Expert Universal Academic Grader.
     
     **YOUR TASK**:
-    Evaluate the STUDENT SUBMISSION against the RUBRIC strictly and fairly.
+    Evaluate the STUDENT SUBMISSION against the RUBRIC Strictly and Fairly, criteria by criteria.
     
-    **UNIVERSAL GRADING RULES**:
+    **UNIVERSAL GRADING PRINCIPLES**: 
     1. **The Rubric is Law**: Grade ONLY based on the criteria listed.
-    
-    2. **"Content Over Filename" Rule**: 
-       - If the rubric asks for a specific file (e.g., 'report.txt'), **DO NOT** give a zero just because the filename is wrong.
-       - **SEARCH** the submission content. If you find the *content* (e.g., a "Table of Work") inside *any* file or the main text, **GRADE IT**.
-       - Only award 0 if the *content* is genuinely missing.
-    
-    3. **Partial Points (Numeric vs. Subjective)**: 
-       - **Numeric Rubric**: If the rubric lists specific numbers (e.g., "(41.5) pts"), you **MUST** snap to those exact numbers.
-       - **Subjective Rubric**: If the rubric is vague (e.g., "Good Analysis"), use your judgment on a 0-100% scale of the max points. 
-         - *Example:* "Good Analysis (10 pts)". Student is decent but not great -> Award 7.5 or 8.0.
-    
-    4. **Fact Checking**:
-       - Use the `COURSE CONTEXT` to verify claims.
-       - If a student makes a claim that contradicts the Context, deduct points for "Accuracy" (if applicable).
+    2. **ISOLATION**: Grade each criteria independently. Missing one file (like a report) means 0 points for the "Report" criteria, but FULL points for "Code Logic" if the code is present.
+    3. **MISSING ARTIFACTS**: 
+       - If the rubric requires a specific artifact (file, diagram, citation) and it is completely absent: **Award 0 pts for the criteria**.
+    4. **EXPLICIT SCORING (The "Read the Menu" Rule)**:
+       - If the rubric text contains specific numbers for partial credit (e.g., inside parentheses `(X)`, brackets `[X]`, or labeled `X pts`):
+       - **YOU MUST EXTRACT AND USE THAT EXACT NUMBER.**
+       - *General Logic:* If the description says "X points for doing Y", and the student did Y, award exactly X points.
+    5. **QUANTITATIVE SCALING (The "Target vs Actual" Rule)**:
+       - If a criteria specifies a Target Quantity (e.g., "300 words", "700 words", "5 functions", "3 sources"):
+       - **Measure the Actual Quantity** in the submission.
+       - **STRICTLY Apply this Proportional Deduction**: 
+         - If Target is 700 and Actual is 350 -> That is 50% performance -> Award 50% of criteria points.
+         - If Target is 300 and Actual is 200 -> That is 66% performance -> Award 66% of criteria points.
+       - *Note:* Do not excuse missing volume with "quality". Volume is a hard constraint.
+       - *Note:* "Quantity" doesn't automatically mean "Quality", check for quality work even though it has volume.
     
     **OUTPUT FORMAT**:
-    You must output a JSON list of assessments for EACH criteria.
+    Return a JSON object with a list of assessments.
     {{{{
         "assessments": [
             {{{{
                 "criteria_index": 1,
                 "criteria_name": "Name of criteria",
-                "awarded_points": <float>,
-                "reason": "Brief explanation referencing the submission content."
+                "awarded_points": <float>, 
+                "reason": "Explanation citing the specific rubric line matched or the quantity measured."
             }}}},
-            ... one for every rubric item
+            ...
         ],
         "general_feedback": "A summary of the overall performance."
     }}}}
@@ -198,11 +198,11 @@ def grade_submission(state: AgentState) -> dict:
     RUBRIC:
     {rubric_str}
     
-    COURSE CONTEXT (Use for fact-checking only):
+    COURSE CONTEXT (Use for fact-checking):
     {context_str}
     
     STUDENT SUBMISSION:
-    {submission_text}
+    {formatted_submission}
     """
 
     if grader_feedback:
@@ -217,37 +217,35 @@ def grade_submission(state: AgentState) -> dict:
     chain = prompt | json_llm
 
     try:
+        log_agent_action("GRADER", "Sending request to LLM...")
+        
         result = chain.invoke({
             "rubric_str": rubric_str,
             "context_str": context_str,
-            "submission_text": formatted_submission,
+            "formatted_submission": formatted_submission,
             "grader_feedback": grader_feedback
         })
         
         parsed = json.loads(result.content)
         assessments = parsed.get("assessments", [])
         
-        # --- 4. PYTHON CALCULATION (Universal) ---
+        # --- 4. PYTHON CALCULATION ---
         total_score = 0.0
         critique_points = []
         rubric_performance = {}
         
         for item in assessments:
-            # We let Python do the math to avoid AI hallucinations
             points = float(item.get("awarded_points", 0.0))
             reason = item.get("reason", "")
             name = item.get("criteria_name", "Unknown")
             
             total_score += points
             
-            # Format feedback
             rubric_performance[name] = f"{points} pts - {reason}"
             
-            # Identify critiques (Universal Logic: if points < max, it's a critique)
-            # We can't know max per item easily here without parsing, so we assume if points == 0 it's a major critique
             if points == 0.0:
                 critique_points.append(f"❌ {name}: {reason}")
-            elif points < 5.0: # Heuristic for partial
+            elif points < 5.0: 
                 critique_points.append(f"⚠️ {name}: {reason}")
         
         grade_data = {
@@ -256,11 +254,7 @@ def grade_submission(state: AgentState) -> dict:
             "rubric_performance": rubric_performance
         }
         
-        # LOGGING
         log_agent_action("GRADER", f"Calculated Score: {total_score}", grade_data)
-        
-
-
 
     except Exception as e:
         log_agent_action("GRADER", f"ERROR: {str(e)}")
