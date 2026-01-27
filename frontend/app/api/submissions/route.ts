@@ -10,7 +10,14 @@ async function getSubmissions() {
         const data = await fs.readFile(DATA_FILE, 'utf8');
         return JSON.parse(data);
     } catch (e) {
-        return [];
+        // Create file if not exists
+        try {
+             await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
+             await fs.writeFile(DATA_FILE, '[]', 'utf8');
+             return [];
+        } catch (mkErr) {
+             return [];
+        }
     }
 }
 
@@ -25,6 +32,7 @@ export async function GET(request: Request) {
     const submissions = await getSubmissions();
 
     if (studentId) {
+        // Filter by studentId if provided (though studentId might be legacy concept)
         return NextResponse.json(submissions.filter((s: any) => s.studentId === studentId));
     }
 
@@ -39,9 +47,9 @@ export async function POST(request: Request) {
         id: Date.now().toString(),
         title: body.title || "Untitled Submission",
         status: "pending",
-        date: new Date().toLocaleDateString(), // Simple date for now
+        date: new Date().toLocaleDateString(),
         fileName: body.fileName,
-        content: body.content || "", // Store the full text content
+        content: body.content || "",
         grade: undefined,
         feedback: undefined
     };
@@ -50,10 +58,22 @@ export async function POST(request: Request) {
     const updated = [newSubmission, ...submissions];
     await saveSubmissions(updated);
 
-    // Simulate Background Grading (mock update after 5 seconds)
-    // In a real app, this would be a separate worker, but here we just leave it pending
-    // and rely on a specific "grade" endpoint or user action to trigger grading.
-    // For the demo flow, let's just save it as pending.
-
     return NextResponse.json(newSubmission);
+}
+
+export async function DELETE(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (id) {
+        // Delete specific submission
+        const submissions = await getSubmissions();
+        const updated = submissions.filter((s: any) => s.id !== id);
+        await saveSubmissions(updated);
+        return NextResponse.json({ message: "Deleted submission" });
+    } else {
+        // Clear all
+        await saveSubmissions([]);
+        return NextResponse.json({ message: "Cleared all submissions" });
+    }
 }

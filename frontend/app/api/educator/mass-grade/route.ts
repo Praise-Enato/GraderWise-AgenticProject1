@@ -27,6 +27,9 @@ async function saveSubmissions(submissions: any[]) {
 
 export async function POST(request: Request) {
     try {
+        const body = await request.json();
+        const customRubric = body.rubric || GLOBAL_RUBRIC; // Use passed rubric or default
+
         const submissions = await getSubmissions();
         const pending = submissions.filter((s: any) => s.status === 'pending');
 
@@ -40,9 +43,9 @@ export async function POST(request: Request) {
         for (const sub of pending) {
             // 1. Prepare payload for Python Agent
             const payload = {
-                submission_text: "Mock text for " + sub.title, // Ideally read actual file content
+                submission_text: sub.content || "No content found", // Use actual content
                 student_id: sub.studentId || "unknown",
-                rubric: GLOBAL_RUBRIC
+                rubric: customRubric
             };
 
             // If file exists on disk, we should read it, but for this demo we'll use placeholder text 
@@ -57,14 +60,18 @@ export async function POST(request: Request) {
                 });
 
                 if (!gradeRes.ok) {
-                    throw new Error(`Python backend error: ${gradeRes.statusText}`);
+                    const errText = await gradeRes.text();
+                    throw new Error(`Python backend error: ${gradeRes.statusText} - ${errText}`);
                 }
 
                 const gradeData = await gradeRes.json();
 
+                // Calculate max points from the rubric
+                const totalMaxPoints = customRubric.reduce((sum: number, item: any) => sum + (item.max_points || 0), 0);
+
                 // 2. Update Submission Record
                 sub.status = 'graded';
-                sub.grade = `${gradeData.score} / 100`; // Assuming 100 total
+                sub.grade = `${gradeData.score} / ${totalMaxPoints}`;
                 sub.feedback = gradeData.feedback;
                 sub.thinkingProcess = gradeData.thinking_process;
                 sub.gradedAt = new Date().toISOString();

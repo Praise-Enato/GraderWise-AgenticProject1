@@ -17,9 +17,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    # Ports removed to internal-only communication
-    # ports:
-    #   - "8000:8000"
+    ports:             
+      - "8000:8000"    # <--- WE UN-COMMENTED THIS (This is the fix)
     volumes:
       - ./backend:/app/backend
     env_file:
@@ -33,13 +32,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    # Ports removed to internal-only communication
-    # ports:
-    #   - "3000:3000"
     environment:
-      # API URL is now relative because Nginx handles routing on same domain/port
-      # OR it is the Host URL/Port 80.
-      # For browser-side requests, it should be /api
       - NEXT_PUBLIC_API_URL=/api
     depends_on:
       - backend

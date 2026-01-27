@@ -17,7 +17,7 @@ export default function DashboardLayout({
             <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
 
             {/* Main content area that grows when sidebar shrinks */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 relative">
+            <div className="flex-1 flex flex-col h-screen overflow-y-auto transition-all duration-300 relative">
                 {children}
             </div>
         </div>

@@ -3,20 +3,18 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { GraduationCap, ArrowRight, Github, Mail, Lock, User, Loader2, CheckCircle, School, BookOpen } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowRight, Github, Mail, Lock, User, Loader2, CheckCircle } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { InfoTooltip } from "@/components/InfoTooltip";
 import { ModeToggle } from "@/components/ModeToggle";
 import { TrainLinesBackground } from "@/components/TrainLinesBackground";
-
-type Role = "student" | "educator";
 
 export default function SignupPage() {
     const router = useRouter();
     const [isLogin, setIsLogin] = useState(false);
-    const [role, setRole] = useState<Role>("student");
-    const [formData, setFormData] = useState({ name: "", email: "", password: "", subject: "" });
+    
+    // Role is now always educator
+    const [formData, setFormData] = useState({ name: "", email: "", password: "" });
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -25,12 +23,7 @@ export default function SignupPage() {
     useEffect(() => {
         const profile = localStorage.getItem('userProfile');
         if (profile) {
-            const data = JSON.parse(profile);
-            if (data.role === 'student') {
-                router.replace('/student/dashboard');
-            } else {
-                router.replace('/dashboard');
-            }
+            router.replace('/dashboard');
         }
     }, [router]);
 
@@ -52,14 +45,9 @@ export default function SignupPage() {
                 firstName,
                 lastName,
                 email: formData.email,
-                role,
-                plan: role === 'educator' ? 'Pro' : 'Free'
+                role: 'educator',
+                plan: 'Pro'
             }));
-
-            // Pre-load context if student
-            if (role === 'student' && formData.subject) {
-                localStorage.setItem('courseMaterials', JSON.stringify([`${formData.subject}_Textbook.pdf`]));
-            }
         } else {
             // Login Logic - Mock
             const existingProfile = localStorage.getItem('userProfile');
@@ -67,9 +55,9 @@ export default function SignupPage() {
                 // Auto-create for demo if not found
                 localStorage.setItem('userProfile', JSON.stringify({
                     firstName: "Demo",
-                    lastName: "User",
+                    lastName: "Educator",
                     email: formData.email,
-                    role,
+                    role: 'educator',
                     plan: 'Pro'
                 }));
             }
@@ -78,13 +66,9 @@ export default function SignupPage() {
         setIsLoading(false);
         setIsSuccess(true);
 
-        // Redirect based on role
+        // Redirect
         setTimeout(() => {
-            if (role === 'student') {
-                router.push('/student/dashboard');
-            } else {
-                router.push('/dashboard');
-            }
+            router.push('/dashboard');
         }, 1500);
     };
 
@@ -108,12 +92,12 @@ export default function SignupPage() {
                         <span className="text-3xl font-bold text-white tracking-tight">GradeWise</span>
                     </Link>
                     <h1 className="text-2xl font-bold text-white mb-2">
-                        {isLogin ? "Welcome Back" : "Join the Platform"}
+                        {isLogin ? "Welcome Back" : "Educator Access"}
                     </h1>
                     <p className="text-indigo-200 text-sm">
                         {isLogin
                             ? "Access your dashboard to continue."
-                            : "Select your role to get started."}
+                            : "Create your account to start grading."}
                     </p>
                 </div>
 
@@ -135,40 +119,6 @@ export default function SignupPage() {
                                 Sign In
                             </button>
                         </div>
-
-                        {/* Role Selection (Only for Signup) */}
-                        <AnimatePresence>
-                            {!isLogin && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="grid grid-cols-2 gap-4 mb-6 overflow-hidden"
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => setRole("student")}
-                                        className={`p-4 rounded-xl border-2 transition-all text-center group ${role === 'student' ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
-                                    >
-                                        <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2 transition-colors ${role === 'student' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                                            <GraduationCap className="w-5 h-5" />
-                                        </div>
-                                        <div className={`text-sm font-bold ${role === 'student' ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-600 dark:text-slate-400'}`}>Student</div>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setRole("educator")}
-                                        className={`p-4 rounded-xl border-2 transition-all text-center group ${role === 'educator' ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'}`}
-                                    >
-                                        <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2 transition-colors ${role === 'educator' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                                            <School className="w-5 h-5" />
-                                        </div>
-                                        <div className={`text-sm font-bold ${role === 'educator' ? 'text-emerald-900 dark:text-emerald-200' : 'text-slate-600 dark:text-slate-400'}`}>Educator</div>
-                                    </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             {!isLogin && (
@@ -203,31 +153,6 @@ export default function SignupPage() {
                                 </div>
                             </div>
 
-                            {!isLogin && role === 'student' && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    className="pt-2"
-                                >
-                                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1.5 ml-1">Major / Subject</label>
-                                    <div className="relative">
-                                        <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                                        <select
-                                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-10 py-3 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium appearance-none"
-                                            value={formData.subject}
-                                            onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                                        >
-                                            <option value="">Select subject...</option>
-                                            <option value="English">English Literature</option>
-                                            <option value="Computer Science">Computer Science</option>
-                                            <option value="History">History</option>
-                                            <option value="Psychology">Psychology</option>
-                                        </select>
-                                        <ArrowRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
-                                    </div>
-                                </motion.div>
-                            )}
-
                             <div>
                                 <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1.5 ml-1">Password</label>
                                 <div className="relative">
@@ -246,9 +171,8 @@ export default function SignupPage() {
                             <button
                                 type="submit"
                                 disabled={isLoading || isSuccess}
-                                className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-2 mt-6 ${isSuccess ? "bg-green-500" :
-                                    role === 'educator' ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700" :
-                                        "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700"
+                                className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all flex items-center justify-center gap-2 mt-6 ${isSuccess ? "bg-green-500" :
+                                    "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
                                     }`}
                             >
                                 {isLoading ? (

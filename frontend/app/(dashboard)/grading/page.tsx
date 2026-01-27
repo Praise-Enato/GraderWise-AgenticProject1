@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { GradeWiseAPI, RubricItem, GradeResult } from "@/lib/api";
 import {
     Upload, FileText, Plus, Trash2, ArrowRight, CheckCircle,
@@ -9,12 +9,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { GradingLoader } from "@/components/GradingLoader";
 import ReactMarkdown from 'react-markdown';
-
-
-
 import { useSearchParams } from "next/navigation";
 
-export default function GradingPage() {
+function GradingContent() {
     const searchParams = useSearchParams();
     const submissionId = searchParams.get('id');
 
@@ -34,7 +31,7 @@ export default function GradingPage() {
     useEffect(() => {
         // Fetch submission if ID exists
         if (submissionId) {
-            fetch('/api/student/submissions')
+            fetch('/api/submissions')
                 .then(res => res.json())
                 .then((data: any[]) => {
                     const sub = data.find((s: any) => s.id === submissionId);
@@ -88,7 +85,7 @@ export default function GradingPage() {
             const totalPoints = rubric.reduce((sum, item) => sum + item.max_points, 0);
             const scoreString = `${result.score} / ${totalPoints}`;
 
-            await fetch('/api/student/grade', {
+            await fetch('/api/grade', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -517,5 +514,13 @@ export default function GradingPage() {
                 </AnimatePresence>
             </div>
         </div>
+    );
+}
+
+export default function GradingPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><GradingLoader /></div>}>
+            <GradingContent />
+        </Suspense>
     );
 }

@@ -197,109 +197,18 @@ export default function LandingPage() {
       </section>
 
 
-      {/* Dual Dashboard Ecosystem Section - NEW */}
+      {/* Educator Dashboard Ecosystem Section - MODIFIED */}
       <section className="py-24 bg-white dark:bg-slate-950 transition-colors border-t border-slate-100 dark:border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Two Powerful Dashboards, One Seamless Platform</h2>
+            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">A Powerful Dashboard for Educators</h2>
             <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-              GradeWise provides dedicated experiences for both sides of the classroom.
+              GradeWise provides a dedicated experience for managing your classroom.
             </p>
           </div>
 
-          {/* Student Dashboard Block */}
-          <div className="flex flex-col md:flex-row items-center gap-16 mb-32">
-            <div className="w-full md:w-1/2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-6">
-                <span className="flex h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
-                For Students
-              </div>
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
-                A Portal Built for <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Growth</span>
-              </h3>
-              <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
-                Simplify the submission process and turn grading into a learning opportunity with instant, explainable feedback.
-              </p>
-
-              <div className="space-y-8">
-                <div className="flex gap-4 group">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <FileText className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Effortless Submission</h4>
-                    <p className="text-slate-600 dark:text-slate-400">Drag-and-drop support for PDF, DOCX, and TXT files. Students get instant confirmation and can track their status in real-time.</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 group">
-                  <div className="w-12 h-12 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0 group-hover:bg-violet-600 group-hover:text-white transition-colors">
-                    <Brain className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">AI Grading & Feedback</h4>
-                    <p className="text-slate-600 dark:text-slate-400">
-                      Click-to-reveal implementation gives students detailed, actionable feedback.
-                      <span className="block mt-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                        <Zap className="w-4 h-4" /> Includes RAG Chatbot to explain grades
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-10">
-                <Link href="/signup" className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold hover:gap-3 transition-all">
-                  View Student Portal <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-
-            <div className="w-full md:w-1/2 relative">
-              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 rounded-3xl blur-3xl -z-10" />
-              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden transform md:rotate-1 hover:rotate-0 transition-transform duration-500">
-                {/* Mock UI for Student Dashboard */}
-                <div className="flex items-center justify-between mb-8 border-b border-slate-200 dark:border-slate-800 pb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                    <div className="w-3 h-3 rounded-full bg-green-400" />
-                  </div>
-                  <div className="text-xs text-slate-400 font-mono">student.graderwise.com</div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-slate-900 dark:text-white">History_Essay_Final.pdf</div>
-                        <div className="text-xs text-slate-500">Submitted 2 mins ago</div>
-                      </div>
-                    </div>
-                    <div className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs rounded-full font-medium">
-                      Graded
-                    </div>
-                  </div>
-                  <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
-                    <div className="flex gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0">
-                        <Brain className="w-4 h-4" />
-                      </div>
-                      <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none text-sm text-slate-600 dark:text-slate-300 shadow-sm">
-                        Your thesis statement is strong, but you need more evidence in paragraph 2.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Educator Dashboard Block */}
-          <div className="flex flex-col md:flex-row-reverse items-center gap-16">
+          <div className="flex flex-col md:flex-row items-center gap-16">
             <div className="w-full md:w-1/2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-6">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-400"></span>
@@ -492,7 +401,6 @@ export default function LandingPage() {
             <div>
               <h4 className="font-bold text-slate-900 dark:text-white mb-4">Features</h4>
               <ul className="space-y-2 text-slate-500 dark:text-slate-400 text-sm">
-                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Student Portal</a></li>
                 <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Teacher Dashboard</a></li>
                 <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">AI Grading</a></li>
                 <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Analytics</a></li>

@@ -47,7 +47,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
         { icon: PenTool, label: "Grading Tool", href: "/grading" },
         { icon: Layers, label: "Mass Grading", href: "/mass-grading" },
-        { icon: BookOpen, label: "Submissions", href: "/submissions" },
+        { icon: BookOpen, label: "Grading Results", href: "/submissions" },
         { icon: BarChart3, label: "Analytics", href: "/analytics" },
     ];
 
@@ -58,7 +58,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 flex flex-col shadow-xl z-20 relative"
         >
-            <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-100 dark:border-white/5 overflow-hidden shrink-0">
+            <Link href="/" className="h-16 flex items-center gap-3 px-6 border-b border-slate-100 dark:border-white/5 overflow-hidden shrink-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                 <Logo className="w-8 h-8" showText={false} />
                 <AnimatePresence>
                     {!isCollapsed && (
@@ -72,7 +72,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                         </motion.span>
                     )}
                 </AnimatePresence>
-            </div>
+            </Link>
 
             <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
                 <div className="mb-6 px-2">
