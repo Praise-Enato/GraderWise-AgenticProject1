@@ -28,7 +28,7 @@ opentelemetry-exporter-otlp-proto-grpc==1.24.0
 opentelemetry-exporter-otlp-proto-common==1.24.0
 opentelemetry-proto==1.24.0
 opentelemetry-instrumentation==0.45b0
-opentelemetry-semantic-conventions<0.45b0
+opentelemetry-semantic-conventions==0.45b0
 
 
 
@@ -39,4 +39,3 @@ openpyxl
 httpx
 pypdf
 docx2txt
-2.0.0
