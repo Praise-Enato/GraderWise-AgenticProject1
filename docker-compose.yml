@@ -18,7 +18,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     ports:             
-      - "8000:8000"    # <--- WE UN-COMMENTED THIS (This is the fix)
+      - "8000:8000"
     volumes:
       - ./backend:/app/backend
     env_file:
@@ -32,8 +32,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # This "bakes" the IP into the Next.js build so it stops using 127.0.0.1
+        - NEXT_PUBLIC_API_URL=http://54.160.148.223/api
     environment:
-      - NEXT_PUBLIC_API_URL=/api
+      - NEXT_PUBLIC_API_URL=http://54.160.148.223/api
     depends_on:
       - backend
     networks:

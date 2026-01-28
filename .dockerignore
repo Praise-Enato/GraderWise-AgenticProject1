@@ -1,0 +1,8 @@
+venv/
+.venv/
+__pycache__/
+.git/
+.next/
+node_modules/
+*.xlsx
+*.pdf
