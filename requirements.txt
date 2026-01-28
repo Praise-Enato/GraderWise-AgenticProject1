@@ -18,17 +18,17 @@ posthog<3
 
 # --- Fixes for Compatibility ---
 # Pin Numpy to 1.x to prevent the "np.float_" error
-numpy<2.0.0
+numpy==1.26.4
 
 # Pin Chroma and Telemetry to prevent the other crash
 chromadb==0.5.0
-opentelemetry-api<1.25.0
-opentelemetry-sdk<1.25.0
-opentelemetry-exporter-otlp-proto-grpc<1.25.0
-opentelemetry-exporter-otlp-proto-common<1.25.0
-opentelemetry-proto<1.25.0
-opentelemetry-instrumentation<0.46b0
-opentelemetry-semantic-conventions<0.46b0
+opentelemetry-api<1.24.0
+opentelemetry-sdk<1.24.0
+opentelemetry-exporter-otlp-proto-grpc<1.24.0
+opentelemetry-exporter-otlp-proto-common<1.24.0
+opentelemetry-proto<1.24.0
+opentelemetry-instrumentation<0.45b0
+opentelemetry-semantic-conventions<0.45b0
 
 
 
@@ -39,3 +39,4 @@ openpyxl
 httpx
 pypdf
 docx2txt
+2.0.0
