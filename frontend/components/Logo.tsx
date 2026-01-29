@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useId } from 'react';
 import { motion } from "framer-motion";
 
 interface LogoProps {
@@ -17,6 +17,14 @@ export const Logo: React.FC<LogoProps> = ({
     textClassName = "text-xl font-bold text-slate-900 dark:text-white",
     status = "idle"
 }) => {
+    // Generate unique IDs for this instance to prevent collisions
+    const id = useId();
+    const faceLightId = `faceLight-${id}`;
+    const faceDarkId = `faceDark-${id}`;
+    const faceTopId = `faceTop-${id}`;
+    const glowId = `glow3d-${id}`;
+    const blurId = `blur-${id}`; // Assuming there was a blur filter usage or meant to be
+
     // Determine spark color and speed based on status
     const sparkColor = {
         idle: "#FDE047", // Yellow
@@ -43,23 +51,28 @@ export const Logo: React.FC<LogoProps> = ({
                 <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-xl">
                     <defs>
                         {/* 3D Lighting Gradients */}
-                        <linearGradient id="faceLight" x1="0" y1="0" x2="100%" y2="100%">
+                        <linearGradient id={faceLightId} x1="0" y1="0" x2="100%" y2="100%">
                             <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.9" /> {/* bright blue */}
                             <stop offset="100%" stopColor="#2563EB" stopOpacity="1" />
                         </linearGradient>
-                        <linearGradient id="faceDark" x1="100%" y1="0%" x2="0%" y2="100%">
+                        <linearGradient id={faceDarkId} x1="100%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" stopColor="#1E40AF" stopOpacity="1" /> {/* dark blue */}
                             <stop offset="100%" stopColor="#172554" stopOpacity="1" />
                         </linearGradient>
-                        <linearGradient id="faceTop" x1="0" y1="0.5" x2="1" y2="0.5">
+                        <linearGradient id={faceTopId} x1="0" y1="0.5" x2="1" y2="0.5">
                             <stop offset="0%" stopColor="#93C5FD" />
                             <stop offset="100%" stopColor="#3B82F6" />
                         </linearGradient>
 
                         {/* Glow Filter */}
-                        <filter id="glow3d" x="-50%" y="-50%" width="200%" height="200%">
+                        <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
                             <feGaussianBlur stdDeviation="4" result="blur" />
                             <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                        
+                        {/* Shadow Blur Filter (Missing in original but referenced) */}
+                        <filter id={blurId} x="-50%" y="-50%" width="200%" height="200%">
+                             <feGaussianBlur stdDeviation="2" />
                         </filter>
                     </defs>
 
@@ -69,16 +82,16 @@ export const Logo: React.FC<LogoProps> = ({
                         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     >
                         {/* Isometric Cube Base - Bottom Face (Shadow) */}
-                        <path d="M50 95 L15 75 L50 60 L85 75 Z" fill="#1e3a8a" opacity="0.4" filter="url(#blur)" />
+                        <path d="M50 95 L15 75 L50 60 L85 75 Z" fill="#1e3a8a" opacity="0.4" filter={`url(#${blurId})`} />
 
                         {/* Right Face (Darker) */}
-                        <path d="M50 55 L85 35 V75 L50 95 Z" fill="url(#faceDark)" stroke="#1e3a8a" strokeWidth="0.5" />
+                        <path d="M50 55 L85 35 V75 L50 95 Z" fill={`url(#${faceDarkId})`} stroke="#1e3a8a" strokeWidth="0.5" />
 
                         {/* Left Face (Mid) */}
-                        <path d="M50 55 L15 35 V75 L50 95 Z" fill="url(#faceLight)" stroke="#2563EB" strokeWidth="0.5" />
+                        <path d="M50 55 L15 35 V75 L50 95 Z" fill={`url(#${faceLightId})`} stroke="#2563EB" strokeWidth="0.5" />
 
                         {/* Top Face (Brightest) */}
-                        <path d="M50 55 L15 35 L50 15 L85 35 Z" fill="url(#faceTop)" stroke="#93C5FD" strokeWidth="0.5" />
+                        <path d="M50 55 L15 35 L50 15 L85 35 Z" fill={`url(#${faceTopId})`} stroke="#93C5FD" strokeWidth="0.5" />
 
                         {/* Mortarboard / Cap Detail (Floating on top) */}
                         <motion.g
@@ -96,7 +109,7 @@ export const Logo: React.FC<LogoProps> = ({
                     <motion.circle
                         cx="50" cy="50" r="3"
                         fill={sparkColor}
-                        filter="url(#glow3d)"
+                        filter={`url(#${glowId})`}
                         animate={{
                             offsetDistance: "100%",
                             opacity: status === 'success' ? 1 : [0, 1, 1, 0]

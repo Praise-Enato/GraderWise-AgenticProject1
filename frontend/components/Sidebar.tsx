@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard, History, Settings, LogOut, ChevronLeft, ChevronRight, User,
-    BookOpen, PenTool, BarChart3, Brain, Layers
+    BookOpen, PenTool, BarChart3, Brain, Layers, X
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { UnsavedChangesModal } from "@/components/UnsavedChangesModal";
@@ -15,16 +15,20 @@ import { useState, useEffect } from "react";
 interface SidebarProps {
     collapsed?: boolean;
     setCollapsed?: (v: boolean) => void;
+    isMobile?: boolean;      // New prop
+    onClose?: () => void;    // New prop
 }
 
-export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
+export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onClose }: SidebarProps) {
     const pathname = usePathname();
     const [isInternalCollapsed, setIsInternalCollapsed] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-    // Handle both controlled and uncontrolled modes (for backward compatibility if needed)
-    const isCollapsed = collapsed !== undefined ? collapsed : isInternalCollapsed;
+    // Force expanded on mobile
+    const isCollapsed = isMobile ? false : (collapsed !== undefined ? collapsed : isInternalCollapsed);
+    
     const toggleCollapse = () => {
+        if (isMobile) return; // Disable toggle on mobile
         if (setCollapsed) {
             setCollapsed(!isCollapsed);
         } else {
@@ -38,7 +42,6 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         const profile = localStorage.getItem('userProfile');
         if (profile) {
             const data = JSON.parse(profile);
-            // Verify it matches if we want strictness, or just display whatever is there
             if (data.role === 'educator') setUser(data);
         }
     }, []);
@@ -54,25 +57,37 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     return (
         <motion.aside
             initial={false}
-            animate={{ width: isCollapsed ? 80 : 256 }}
+            animate={isMobile ? undefined : { width: isCollapsed ? 80 : 256 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 flex flex-col shadow-xl z-20 relative"
+            className={`h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 flex flex-col shadow-xl z-20 ${isMobile ? 'w-72' : 'relative'}`}
         >
-            <Link href="/" className="h-16 flex items-center gap-3 px-6 border-b border-slate-100 dark:border-white/5 overflow-hidden shrink-0 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <Logo className="w-8 h-8" showText={false} />
-                <AnimatePresence>
-                    {!isCollapsed && (
-                        <motion.span
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="font-bold text-lg text-slate-800 dark:text-white tracking-tight whitespace-nowrap"
-                        >
-                            GradeWise
-                        </motion.span>
-                    )}
-                </AnimatePresence>
-            </Link>
+            <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 dark:border-white/5 shrink-0 bg-white dark:bg-slate-900 transition-colors">
+                <Link href="/" className="flex items-center gap-3 overflow-hidden hover:opacity-80 transition-opacity">
+                    <Logo className="w-8 h-8" showText={false} />
+                    <AnimatePresence>
+                        {!isCollapsed && (
+                            <motion.span
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="font-bold text-lg text-slate-800 dark:text-white tracking-tight whitespace-nowrap"
+                            >
+                                GradeWise
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                </Link>
+
+                {isMobile && onClose && (
+                    <button 
+                        onClick={onClose}
+                        className="p-1 -mr-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                        aria-label="Close menu"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                )}
+            </div>
 
             <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
                 <div className="mb-6 px-2">
@@ -86,6 +101,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                         <Link
                             key={link.href}
                             href={link.href}
+                            onClick={() => isMobile && onClose && onClose()} // Close on click for mobile
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group relative overflow-hidden ${isActive
                                 ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-semibold"
                                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -139,13 +155,15 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={toggleCollapse}
-                        className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-500 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all shadow-sm"
-                        title={isCollapsed ? "Expand" : "Collapse"}
-                    >
-                        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                    </button>
+                    {!isMobile && (
+                        <button
+                            onClick={toggleCollapse}
+                            className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-500 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all shadow-sm"
+                            title={isCollapsed ? "Expand" : "Collapse"}
+                        >
+                            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                        </button>
+                    )}
 
                     <button
                         onClick={() => setIsLogoutModalOpen(true)}
