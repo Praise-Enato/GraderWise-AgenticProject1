@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 const DATA_FILE = path.join(process.cwd(), 'data', 'submissions.json');
-const PYTHON_API = 'http://127.0.0.1:8000';
+const PYTHON_API = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
 
 // Mock Rubric for Auto-Grading (In real app, fetch from DB or request)
 const GLOBAL_RUBRIC = [

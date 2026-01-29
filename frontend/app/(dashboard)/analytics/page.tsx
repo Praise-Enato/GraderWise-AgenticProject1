@@ -17,7 +17,7 @@ export default function AnalyticsPage() {
     useEffect(() => {
         async function fetchAnalytics() {
             try {
-                const res = await fetch('/api/submissions');
+                const res = await fetch('/api/submissions', { cache: 'no-store' });
                 const data = await res.json();
                 
                 if (Array.isArray(data)) {

@@ -23,7 +23,7 @@ export default function SubmissionsPage() {
 
     const fetchSubmissions = async () => {
         try {
-            const res = await fetch('/api/submissions');
+            const res = await fetch('/api/submissions', { cache: 'no-store' });
             const data = await res.json();
             // Add mock student names for demo if missing
             const enriched = data.map((s: any) => ({

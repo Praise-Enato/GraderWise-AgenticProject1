@@ -37,6 +37,9 @@ services:
         - NEXT_PUBLIC_API_URL=http://54.160.148.223/api
     environment:
       - NEXT_PUBLIC_API_URL=http://54.160.148.223/api
+      - BACKEND_INTERNAL_URL=http://backend:8000
+    volumes:
+      - ./data:/app/data
     depends_on:
       - backend
     networks:

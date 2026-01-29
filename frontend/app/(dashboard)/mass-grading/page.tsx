@@ -49,7 +49,7 @@ export default function MassGradingPage() {
 
     const fetchStats = async () => {
         try {
-            const res = await fetch('/api/submissions');
+            const res = await fetch('/api/submissions', { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
                 const pending = data.filter((s: any) => s.status === 'pending');
