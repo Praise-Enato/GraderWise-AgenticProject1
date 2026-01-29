@@ -13,23 +13,23 @@ export default function LandingPage() {
   const features = [
     {
       icon: Brain,
-      title: "AI-Powered Grading Agent",
-      description: "Our RAG-based agent analyzes student submissions against your rubrics with human-like reasoning."
+      title: "4-Node Multi-Agent System",
+      description: "LangGraph orchestrates Retrieve, Grade, Validate, and Mentor nodes with self-correction loops for accuracy."
     },
     {
       icon: Shield,
-      title: "Privacy First",
-      description: "Student data is processed locally or via secure enterprise APIs. Your data never trains public models."
+      title: "Privacy-First Architecture",
+      description: "Local ChromaDB vector store with HuggingFace embeddings. Your course materials and student data never leave your control."
     },
     {
-      icon: LayoutDashboard,
-      title: "Professional Dashboard",
-      description: "A split-screen interface designed for educators. Review, edit, and approve grades in seconds."
+      icon: Zap,
+      title: "Mass Grading at Scale",
+      description: "Upload dozens of submissions at once. The agent processes them in parallel with consistent rubric application."
     },
     {
       icon: BookOpen,
-      title: "Context-Aware",
-      description: "Upload your textbooks and lecture notes. GradeWise benchmarks answers against your specific course material."
+      title: "RAG-Powered Context",
+      description: "Automatically retrieves relevant context from your textbooks and lecture notes to fact-check student answers."
     }
   ];
 
@@ -91,7 +91,7 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs font-semibold uppercase tracking-wider mb-6"
             >
               <span className="flex h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse"></span>
-              v2.4 Intelligent Grading Agent
+              Powered by DeepSeek V3 • Multi-Agent Architecture
             </motion.div>
 
             <motion.h1
@@ -110,8 +110,7 @@ export default function LandingPage() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-xl text-slate-600 dark:text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed"
             >
-              GradeWise is an enterprise-grade agentic AI that revolutionizes assessment.
-              It ingests your course materials, learns your rubrics, and provides personalized, accurate feedback in seconds.
+              GradeWise is an enterprise-grade agentic AI that revolutionizes assessment. It ingests your course materials, learns your rubrics, and provides personalized, accurate feedback in seconds. Powered by a 4-node LangGraph architecture with self-correction loop.
             </motion.p>
 
             <motion.div
@@ -121,37 +120,34 @@ export default function LandingPage() {
               className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
               <Link href="/signup" className="w-full sm:w-auto px-8 py-4 text-white font-semibold rounded-full shadow-xl shadow-blue-600/20 hover:shadow-blue-600/30 transition-all flex items-center justify-center gap-2 group bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700">
-                Try Grading Agent
+                Start Grading for Free
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform animate-bounce" />
               </Link>
-              <a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-8 py-4 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 font-semibold rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all flex items-center justify-center gap-2">
-                View NotebookLLM Demo
-              </a>
             </motion.div>
 
             <div className="mt-12 flex items-center justify-center gap-6 text-sm text-slate-500 dark:text-slate-500">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Open Source Logic</span>
+                <span>Grounded, Consistent, and Reliable</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span>Bring Your Own Keys</span>
+                <span>Privacy-First Design</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Technical Specs Section */}
       <section className="py-12 bg-white dark:bg-slate-950 border-y border-slate-100 dark:border-white/5 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { label: "AI Model", value: "DeepSeek V3", tooltip: "State-of-the-art coding and reasoning model." },
-              { label: "Architecture", value: "RAG + LangGraph", tooltip: "Retrieval Augmented Generation with agentic workflow control." },
-              { label: "Infra", value: "Secure Cloud" },
-              { label: "Target Latency", value: "< 2s/Essay" }
+              { label: "LLM Engine", value: "DeepSeek V3", tooltip: "State-of-the-art reasoning model with 671B parameters" },
+              { label: "Agent Architecture", value: "4-Node LangGraph", tooltip: "Multi-agent system: Retrieve → Grade → Validate → Mentor" },
+              { label: "Vector Database", value: "ChromaDB", tooltip: "Local embeddings with HuggingFace all-MiniLM-L6-v2 for privacy-first RAG" },
+              { label: "File Support", value: "20+ Formats", tooltip: "PDF, DOCX, CSV, XLSX, Python, JavaScript, and more" }
             ].map((stat, i) => (
               <div key={i} className="text-center group cursor-default">
                 <div className="flex items-center gap-2 justify-center">
@@ -201,9 +197,9 @@ export default function LandingPage() {
       <section className="py-24 bg-white dark:bg-slate-950 transition-colors border-t border-slate-100 dark:border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">A Powerful Dashboard for Educators</h2>
+            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Analytics & Performance Tracking</h2>
             <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-              GradeWise provides a dedicated experience for managing your classroom.
+              Monitor class performance, identify struggling students, and track AI confidence scores in real-time.
             </p>
           </div>
 
@@ -218,7 +214,7 @@ export default function LandingPage() {
                 Total Control at <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">Scale</span>
               </h3>
               <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
-                Manage rubrics, review AI grades, and track class performance from a single command center.
+                Manage rubrics, review AI grades with confidence scores, track class performance, and identify low-confidence results for manual review—all from one unified dashboard.
               </p>
 
               <div className="space-y-8">
@@ -227,19 +223,31 @@ export default function LandingPage() {
                     <LayoutDashboard className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Class Overview</h4>
-                    <p className="text-slate-600 dark:text-slate-400">See all submissions, active grading sessions, and class distribution stats at a glance.</p>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Analytics Dashboard</h4>
+                    <p className="text-slate-600 dark:text-slate-400">View grade distributions, average scores, and identify outliers. Track class performance over time.</p>
                   </div>
                 </div>
 
                 <div className="flex gap-4 group">
                   <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    <CheckCircle className="w-6 h-6" />
+                    <Brain className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">One-Click Approval</h4>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Confidence Scoring</h4>
                     <p className="text-slate-600 dark:text-slate-400">
-                      Review the AI's reasoning chain and approve grades instantly, or step in to make manual adjustments.
+                      The Judge agent assigns confidence scores (0-100%). Low-confidence results are flagged for your review.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Mass Grading</h4>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Process dozens of submissions simultaneously. Upload ZIP files with multiple student works for batch grading.
                     </p>
                   </div>
                 </div>
@@ -269,20 +277,20 @@ export default function LandingPage() {
                   {/* Stats Row Mock */}
                   <div className="flex gap-4">
                     <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                      <div className="text-xs text-slate-500 uppercase">To Review</div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white">12</div>
+                      <div className="text-xs text-slate-500 uppercase">Avg Confidence</div>
+                      <div className="text-2xl font-bold text-emerald-600">94%</div>
                     </div>
                     <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                      <div className="text-xs text-slate-500 uppercase">Graded</div>
-                      <div className="text-2xl font-bold text-emerald-600">85%</div>
+                      <div className="text-xs text-slate-500 uppercase">Class Avg</div>
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white">78.2</div>
                     </div>
                   </div>
 
                   {/* List Item Mock */}
                   <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-between shadow-sm border-l-4 border-l-yellow-500">
                     <div>
-                      <div className="text-sm font-bold text-slate-900 dark:text-white">Wilson G. - Physics 101</div>
-                      <div className="text-xs text-slate-500">Needs Review • Confidence: Low</div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-white">Praise E. - Physics 101</div>
+                      <div className="text-xs text-slate-500">Needs Review • Confidence: 68%</div>
                     </div>
                     <button className="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs rounded-lg font-medium">
                       Review
@@ -299,46 +307,52 @@ export default function LandingPage() {
       {/* Live Demo Section - NEW */}
       <RubricParserDemo />
 
-      {/* How It Works Section */}
+      {/* How It Works Section - Multi-Agent Architecture */}
       <section id="how-it-works" className="py-24 bg-white dark:bg-slate-950 border-y border-slate-200 dark:border-white/5 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">How GradeWise Works</h2>
-            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">From upload to feedback in three simple steps.</p>
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">The Multi-Agent Workflow</h2>
+            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">Four specialized AI agents work together to ensure grading accuracy</p>
           </div>
 
           <div className="relative">
             {/* Connector Line */}
             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-slate-200 via-blue-200 to-slate-200 dark:from-slate-800 dark:via-indigo-900 dark:to-slate-800 -translate-y-1/2 hidden md:block z-0"></div>
 
-            <div className="grid md:grid-cols-3 gap-12 relative z-10">
+            <div className="grid md:grid-cols-4 gap-8 relative z-10">
               {[
                 {
                   step: "01",
-                  title: "Ingest Context",
-                  desc: "Upload rubrics, textbooks, and lecture notes. The AI indexes your materials for factual grounding.",
+                  title: "Retrieve Agent",
+                  desc: "RAG queries ChromaDB to fetch relevant context from your course materials based on rubric criteria.",
                   icon: BookOpen
                 },
                 {
                   step: "02",
-                  title: "Agentic Analysis",
-                  desc: "The AI Grader reads student work, cross-references your materials, and applies the rubric line-by-line.",
+                  title: "Grader Agent",
+                  desc: "DeepSeek V3 evaluates the submission against your rubric with quantitative scaling and explicit scoring.",
                   icon: Brain
                 },
                 {
                   step: "03",
-                  title: "Review & Export",
-                  desc: "Receive a fully drafted feedback report. Approve with one click or edit as needed, then sync to your gradebook.",
-                  icon: CheckCircle
+                  title: "Judge Agent",
+                  desc: "Quality assurance layer validates scoring consistency. Rejects and loops back if errors are detected.",
+                  icon: Shield
+                },
+                {
+                  step: "04",
+                  title: "Mentor Agent",
+                  desc: "Generates Socratic feedback to guide students without giving away answers. Encourages critical thinking.",
+                  icon: GraduationCap
                 }
               ].map((item, i) => (
-                <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm text-center relative group hover:border-blue-300 dark:hover:border-indigo-700 transition-colors">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white">
-                    <item.icon className="w-8 h-8" />
+                <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm text-center relative group hover:border-blue-300 dark:hover:border-indigo-700 transition-colors">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white">
+                    <item.icon className="w-7 h-7" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{item.title}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">{item.desc}</p>
-                  <span className="absolute -top-4 -right-4 text-6xl font-black text-slate-100 dark:text-slate-800 group-hover:text-blue-50 dark:group-hover:text-indigo-900/20 transition-colors -z-10">{item.step}</span>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{item.title}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{item.desc}</p>
+                  <span className="absolute -top-3 -right-3 text-5xl font-black text-slate-100 dark:text-slate-800 group-hover:text-blue-50 dark:group-hover:text-indigo-900/20 transition-colors -z-10">{item.step}</span>
                 </div>
               ))}
             </div>
@@ -407,12 +421,26 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="font-bold text-slate-900 dark:text-white mb-4">Company</h4>
-              <ul className="space-y-2 text-slate-500 dark:text-slate-400 text-sm">
-                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">About Us</a></li>
-                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Careers</a></li>
-                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Terms of Service</a></li>
+              <h4 className="font-bold text-slate-900 dark:text-white mb-4">Contact Us</h4>
+              <ul className="space-y-3 text-slate-500 dark:text-slate-400 text-sm">
+                <li>
+                  <div className="font-medium text-slate-700 dark:text-slate-300">Praise Enato</div>
+                  <a href="mailto:praisenato@gmail.com" className="hover:text-blue-600 dark:hover:text-blue-400">praisenato@gmail.com</a>
+                  <div className="text-xs mt-0.5">
+                    <a href="https://wa.me/2348142064996" target="_blank" rel="noopener noreferrer" className="hover:text-green-600 dark:hover:text-green-400">
+                      +234 814 206 4996
+                    </a>
+                  </div>
+                </li>
+                <li className="pt-2">
+                  <div className="font-medium text-slate-700 dark:text-slate-300">Felix Gbedemah</div>
+                  <a href="mailto:afrogbede09@gmail.com" className="hover:text-blue-600 dark:hover:text-blue-400">afrogbede09@gmail.com</a>
+                  <div className="text-xs mt-0.5">
+                    <a href="https://wa.me/233556427542" target="_blank" rel="noopener noreferrer" className="hover:text-green-600 dark:hover:text-green-400">
+                      +233 55 642 7542
+                    </a>
+                  </div>
+                </li>
               </ul>
             </div>
           </div>
