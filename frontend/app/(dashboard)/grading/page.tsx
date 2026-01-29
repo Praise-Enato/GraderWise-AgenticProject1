@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { GradeWiseAPI, RubricItem, GradeResult } from "@/lib/api";
 import {
     Upload, FileText, Plus, Trash2, ArrowRight, CheckCircle,
-    AlertCircle, Sparkles, BookOpen, ChevronRight, Calculator
+    AlertCircle, Sparkles, BookOpen, ChevronRight, Calculator, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GradingLoader } from "@/components/GradingLoader";
@@ -260,7 +260,7 @@ function GradingContent() {
                                     <FileText className="w-4 h-4 text-blue-500" /> Student Submission
                                 </h3>
                                 <label className="cursor-pointer px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
-                                    {isExtracting ? <GradingLoader className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
+                                    {isExtracting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                                     Add Files
                                     <input type="file" className="hidden" multiple accept=".txt,.pdf,.docx,.csv,.xlsx,.py,.js,.ts,.jsx,.tsx,.java,.cpp,.c,.h,.cs,.go,.rs,.php,.rb,.swift,.kt,.scala,.html,.css,.sql,.sh,.bat,.json,.xml,.yaml,.yml,.md" onChange={handleFileUpload} />
                                 </label>
