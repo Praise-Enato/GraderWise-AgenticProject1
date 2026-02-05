@@ -4,11 +4,11 @@ import "./globals.css";
 
 export const metadata = {
   metadataBase: new URL('https://gradewise.cfd'),
-  title: 'GradeWise',
-  description: 'AI Grading Agent',
+  title: 'GradeWise | AI Grading Agent for Modern Educators',
+  description: 'GradeWise is an intelligent AI grading agent that delivers accurate, fast, and consistent feedback for student assignments. Join the future of education today.',
   openGraph: {
-    title: 'GradeWise',
-    description: 'AI Grading Agent',
+    title: 'GradeWise | AI Grading Agent for Modern Educators',
+    description: 'GradeWise is an intelligent AI grading agent that delivers accurate, fast, and consistent feedback for student assignments. Join the future of education today.',
     url: 'https://gradewise.cfd',
     siteName: 'GradeWise',
     images: [
@@ -24,8 +24,8 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'GradeWise',
-    description: 'AI Grading Agent',
+    title: 'GradeWise | AI Grading Agent for Modern Educators',
+    description: 'GradeWise is an intelligent AI grading agent that delivers accurate, fast, and consistent feedback for student assignments. Join the future of education today.',
     images: ['/og-image.png'],
   },
 };
