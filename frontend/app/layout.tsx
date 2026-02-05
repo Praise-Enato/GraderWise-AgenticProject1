@@ -11,6 +11,14 @@ export const metadata = {
     description: 'Intelligent Grading Agent',
     url: 'https://gradewise.cfd',
     siteName: 'GradeWise',
+    images: [
+      {
+        url: '/og-image.png', // Relative path to be resolved by metadataBase
+        width: 1200,
+        height: 630,
+        alt: 'GradeWise Preview',
+      },
+    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -18,6 +26,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'GradeWise',
     description: 'Intelligent Grading Agent',
+    images: ['/og-image.png'],
   },
 };
 
