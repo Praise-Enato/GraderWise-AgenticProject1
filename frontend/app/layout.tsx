@@ -5,10 +5,10 @@ import "./globals.css";
 export const metadata = {
   metadataBase: new URL('https://gradewise.cfd'),
   title: 'GradeWise',
-  description: 'Intelligent Grading Agent',
+  description: 'AI Grading Agent',
   openGraph: {
     title: 'GradeWise',
-    description: 'Intelligent Grading Agent',
+    description: 'AI Grading Agent',
     url: 'https://gradewise.cfd',
     siteName: 'GradeWise',
     images: [
@@ -25,7 +25,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'GradeWise',
-    description: 'Intelligent Grading Agent',
+    description: 'AI Grading Agent',
     images: ['/og-image.png'],
   },
 };
