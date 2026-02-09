@@ -44,3 +44,6 @@ openpyxl
 httpx
 pypdf
 docx2txt
+
+# --- Business Plan Grading (Phase 1) ---
+markitdown[all]  # Microsoft MarkItDown for PPTX to Markdown conversion

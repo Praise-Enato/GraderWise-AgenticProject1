@@ -57,9 +57,11 @@ llm = ChatOpenAI(
 )
 
 # --- 2. DEFINE AGENT STATE ---
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
+    # Required fields
     submission_files: List[dict] # List of {filename, content}
     rubric: List[RubricItem]
+    # Optional fields (total=False makes all fields optional by default)
     context: List[str]
     grade_data: dict
     final_feedback: str
@@ -70,6 +72,10 @@ class AgentState(TypedDict):
     is_valid: bool             # Flag for conditional edge (default: False)
     skip_rag: bool             # Optional flag to skip RAG (default: False)
     thinking_process: List[str] # Log of agent's thoughts
+    # Business Plan Grading Fields (NEW)
+    grading_type: str          # "academic" or "business_plan"
+    pptx_content: List[dict]   # Processed PPTX slides
+    business_context_type: str # "startup", "enterprise", or "nonprofit"
 
 
 # --- 3. NODE IMPLEMENTATIONS ---
@@ -507,3 +513,64 @@ workflow.add_conditional_edges(
 workflow.add_edge("generate_feedback", END)
 
 app = workflow.compile()
+
+# --- 6. ROUTER FOR BUSINESS PLAN GRADING ---
+# Import business agent
+try:
+    from backend.src import business_agent
+    BUSINESS_AGENT_AVAILABLE = True
+except ImportError:
+    print("WARNING: Business agent not available. Only academic grading will work.")
+    BUSINESS_AGENT_AVAILABLE = False
+
+def route_grading_type(state: AgentState) -> str:
+    """
+    Router function to determine workflow based on grading type.
+
+    Returns:
+        - "academic" for academic grading (default)
+        - "business" for business plan grading
+    """
+    grading_type = state.get("grading_type", "academic")
+
+    if grading_type == "business_plan" and BUSINESS_AGENT_AVAILABLE:
+        print("---ROUTING TO BUSINESS PLAN GRADING---")
+        return "business"
+    else:
+        print("---ROUTING TO ACADEMIC GRADING---")
+        return "academic"
+
+# Build main router workflow
+if BUSINESS_AGENT_AVAILABLE:
+    print("Building dual-workflow router (academic + business plan grading)...")
+
+    # Create router graph
+    router_workflow = StateGraph(AgentState)
+
+    # Add both workflows as nodes
+    router_workflow.add_node("academic", app)  # Academic workflow
+    router_workflow.add_node("business", business_agent.business_app)  # Business workflow
+
+    # Add conditional routing at entry
+    router_workflow.set_conditional_entry_point(
+        route_grading_type,
+        {
+            "academic": "academic",
+            "business": "business"
+        }
+    )
+
+    # Both workflows end naturally (they have END edges internally)
+    router_workflow.add_edge("academic", END)
+    router_workflow.add_edge("business", END)
+
+    # Compile router
+    router_app = router_workflow.compile()
+
+    print("✓ Dual-workflow router compiled successfully")
+    print("  - Academic grading: /grade endpoint")
+    print("  - Business plan grading: /grade-business-plan endpoint")
+else:
+    # Fallback to academic-only if business agent not available
+    router_app = app
+    print("✓ Academic-only workflow compiled (business agent unavailable)")
