@@ -6,6 +6,7 @@ from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from backend.src.models import RubricItem, GradeResult
+from backend.src.business_rag import BusinessRAG
 
 # Load environment variables
 load_dotenv()
@@ -102,6 +103,47 @@ Return JSON with the following structure:
 {context_text}
 
 Now evaluate this business plan. Return ONLY the JSON response, no additional text."""
+
+
+def business_retrieve(state: Dict) -> dict:
+    """
+    Node 0: Retrieve business context from the Business RAG collection.
+
+    Queries the business ChromaDB with rubric criteria to pull in relevant
+    industry benchmarks, financial ratios, and evaluation frameworks.
+    """
+    print("---RETRIEVING BUSINESS CONTEXT---")
+    logger.info("Node: business_retrieve - Fetching business context from RAG")
+
+    rubric = state.get("rubric", [])
+    business_context_type = state.get("business_context_type", "startup")
+
+    # Build query from rubric criteria — same approach as academic retrieve
+    rubric_topics = [item.criteria for item in rubric]
+    rubric_details = [item.description for item in rubric]
+
+    query = f"Business plan evaluation context for: {', '.join(rubric_topics)}. {' '.join(rubric_details)}"
+    query = query[:2000]  # Respect embedding limits
+
+    try:
+        context = BusinessRAG.retrieve_business_context(
+            query=query,
+            context_type=business_context_type,
+            k=5
+        )
+        logger.info(f"Retrieved {len(context)} business context chunks for type '{business_context_type}'")
+    except Exception as e:
+        logger.error(f"Business RAG retrieval error: {e}")
+        context = []
+
+    return {
+        "context": context,
+        "thinking_process": [
+            f"Retrieving business context for type: {business_context_type}",
+            f"Query topics: {rubric_topics}",
+            f"Found {len(context)} context chunks."
+        ]
+    }
 
 
 def grade_business_plan(state: Dict) -> dict:
@@ -402,14 +444,16 @@ def check_validation(state: Dict) -> str:
 business_workflow = StateGraph(dict)  # Using dict as state type for flexibility
 
 # Add nodes
+business_workflow.add_node("business_retrieve", business_retrieve)
 business_workflow.add_node("grade_business_plan", grade_business_plan)
 business_workflow.add_node("validate_business_grade", validate_business_grade)
 business_workflow.add_node("generate_business_feedback", generate_business_feedback)
 
-# Set entry point
-business_workflow.set_entry_point("grade_business_plan")
+# Set entry point — retrieve context first, then grade
+business_workflow.set_entry_point("business_retrieve")
 
 # Add edges
+business_workflow.add_edge("business_retrieve", "grade_business_plan")
 business_workflow.add_edge("grade_business_plan", "validate_business_grade")
 business_workflow.add_conditional_edges(
     "validate_business_grade",

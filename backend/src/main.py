@@ -10,6 +10,7 @@ from backend.src import agent
 from backend.src import rubric_parser
 from backend.src.pptx_processor import PPTXProcessor
 from backend.src import business_rubric_templates
+from backend.src.business_rag import BusinessRAG
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from fastapi.concurrency import run_in_threadpool
@@ -31,6 +32,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # ------------------------------------
+
+# --- AUTO-INGEST BUSINESS CONTEXT STARTER PACK ON STARTUP ---
+@app.on_event("startup")
+async def startup_event():
+    """Auto-ingest business context starter pack on first run."""
+    try:
+        BusinessRAG.auto_ingest_starter_pack()
+    except Exception as e:
+        print(f"Warning: Business context auto-ingest failed: {e}")
+
 
 class SubmissionFile(BaseModel):
     filename: str
@@ -212,6 +223,26 @@ async def extract_pptx_endpoint(file: UploadFile = File(...)):
                 print(f"Warning: Could not remove temp file {temp_path}: {e}")
 
 
+@app.post("/ingest-business-context")
+async def ingest_business_context_endpoint(
+    files: List[UploadFile] = File(...),
+    context_type: str = Form("startup")
+):
+    """
+    Ingest business-specific context materials (benchmarks, guides, templates).
+
+    Parameters:
+    - files: PDF, DOCX, or TXT files containing business context
+    - context_type: Category tag — "startup", "enterprise", "nonprofit", or "general"
+    """
+    try:
+        count = await run_in_threadpool(BusinessRAG.ingest_business_context, files, context_type)
+        return {"status": "success", "files_processed": count, "context_type": context_type}
+    except Exception as e:
+        print(f"Error ingesting business context: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/grade-business-plan", response_model=GradeResult)
 async def grade_business_plan_endpoint(
     student_id: str = Form(...),
@@ -297,7 +328,7 @@ async def grade_business_plan_endpoint(
             "rubric": rubric,
             "grading_type": "business_plan",
             "business_context_type": business_context_type,
-            "context": [],  # TODO: Add business RAG context in Phase 2
+            "context": [],  # business_retrieve node populates this from Business RAG
             "grade_result": None,
             "student_id": student_id
         }
@@ -352,6 +383,7 @@ async def root():
             "pptx_extraction": "/extract-pptx",
             "business_rubric_template": "/business-rubric-template/{business_type}",
             "ingest_materials": "/ingest",
+            "ingest_business_context": "/ingest-business-context",
             "parse_rubric": "/parse-rubric"
         }
     }

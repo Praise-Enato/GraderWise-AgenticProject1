@@ -1,0 +1,226 @@
+import os
+import glob
+from typing import List
+from fastapi import UploadFile
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from backend.src.rag import get_embedding_function, extract_text_from_file
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Separate ChromaDB path for business context (isolated from academic)
+BUSINESS_CHROMA_PATH = "./backend/data/chroma_business"
+BUSINESS_CONTEXT_DIR = "./backend/data/business_context"
+
+
+class BusinessRAG:
+    """
+    RAG module for business plan grading context.
+
+    Uses a separate ChromaDB collection from academic RAG, with:
+    - Smaller chunk size (500 chars vs 1000) for faster, more precise retrieval
+    - context_type metadata tagging for filtered queries (startup/enterprise/nonprofit)
+    - Fewer retrieved chunks (5 vs 10) to keep token costs low
+    """
+
+    @staticmethod
+    def ingest_business_context(files: List[UploadFile], context_type: str = "startup") -> int:
+        """
+        Ingest business context files (PDF, DOCX, TXT) into the business ChromaDB collection.
+
+        Args:
+            files: List of uploaded files to ingest
+            context_type: Category tag — "startup", "enterprise", "nonprofit", or "general"
+
+        Returns:
+            Number of files successfully processed
+        """
+        documents = []
+        files_processed = 0
+
+        for file in files:
+            try:
+                extracted_text = extract_text_from_file(file)
+                if extracted_text:
+                    documents.append(Document(
+                        page_content=extracted_text,
+                        metadata={
+                            "source": file.filename,
+                            "context_type": context_type
+                        }
+                    ))
+                    files_processed += 1
+                else:
+                    print(f"Warning: Extracted text was empty for {file.filename}")
+            except Exception as e:
+                print(f"Skipping {file.filename} due to error: {e}")
+
+        if not documents:
+            return 0
+
+        # Smaller chunks for business context — more precise retrieval
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+        splits = text_splitter.split_documents(documents)
+
+        # Store in separate business ChromaDB collection
+        Chroma.from_documents(
+            documents=splits,
+            embedding=get_embedding_function(),
+            persist_directory=BUSINESS_CHROMA_PATH
+        )
+
+        logger.info(f"Ingested {files_processed} files ({len(splits)} chunks) into business context [{context_type}]")
+        return files_processed
+
+    @staticmethod
+    def ingest_text_documents(texts: List[dict]) -> int:
+        """
+        Ingest raw text documents (used by the starter pack auto-ingest).
+
+        Args:
+            texts: List of dicts with keys: "content", "source", "context_type"
+
+        Returns:
+            Number of documents processed
+        """
+        documents = []
+        for item in texts:
+            content = item.get("content", "")
+            if content.strip():
+                documents.append(Document(
+                    page_content=content,
+                    metadata={
+                        "source": item.get("source", "unknown"),
+                        "context_type": item.get("context_type", "general")
+                    }
+                ))
+
+        if not documents:
+            return 0
+
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+        splits = text_splitter.split_documents(documents)
+
+        Chroma.from_documents(
+            documents=splits,
+            embedding=get_embedding_function(),
+            persist_directory=BUSINESS_CHROMA_PATH
+        )
+
+        logger.info(f"Ingested {len(documents)} text documents ({len(splits)} chunks) into business context")
+        return len(documents)
+
+    @staticmethod
+    def retrieve_business_context(query: str, context_type: str = "startup", k: int = 5) -> List[str]:
+        """
+        Retrieve business context filtered by context_type.
+
+        Args:
+            query: Search query (e.g., rubric criteria text)
+            context_type: Filter by context type — "startup", "enterprise", "nonprofit", or "general"
+            k: Number of chunks to retrieve (default 5, fewer than academic's 10)
+
+        Returns:
+            List of relevant text chunks
+        """
+        # Check if the business ChromaDB exists
+        if not os.path.exists(BUSINESS_CHROMA_PATH):
+            logger.warning("Business ChromaDB not found. No business context available.")
+            return []
+
+        try:
+            vector_store = Chroma(
+                persist_directory=BUSINESS_CHROMA_PATH,
+                embedding_function=get_embedding_function()
+            )
+
+            # Retrieve with metadata filter for context_type
+            # Also include "general" context that applies to all types
+            results = vector_store.similarity_search(
+                query,
+                k=k,
+                filter={"context_type": {"$in": [context_type, "general"]}}
+            )
+
+            return [doc.page_content for doc in results]
+
+        except Exception as e:
+            logger.error(f"Error retrieving business context: {e}")
+            return []
+
+    @staticmethod
+    def auto_ingest_starter_pack() -> bool:
+        """
+        Auto-ingest starter pack files from backend/data/business_context/ on first run.
+
+        Checks if business ChromaDB already has data. If empty, reads all .md and .txt
+        files from the business_context directory and ingests them.
+
+        Returns:
+            True if starter pack was ingested, False if already populated or no files found
+        """
+        # Skip if business ChromaDB already has data
+        if os.path.exists(BUSINESS_CHROMA_PATH):
+            try:
+                vector_store = Chroma(
+                    persist_directory=BUSINESS_CHROMA_PATH,
+                    embedding_function=get_embedding_function()
+                )
+                existing_count = vector_store._collection.count()
+                if existing_count > 0:
+                    logger.info(f"Business context already has {existing_count} chunks. Skipping auto-ingest.")
+                    return False
+            except Exception:
+                pass  # If check fails, proceed with ingestion
+
+        # Check if starter pack directory exists
+        if not os.path.exists(BUSINESS_CONTEXT_DIR):
+            logger.warning(f"Starter pack directory not found: {BUSINESS_CONTEXT_DIR}")
+            return False
+
+        # Find all .md and .txt files in the starter pack directory
+        starter_files = glob.glob(os.path.join(BUSINESS_CONTEXT_DIR, "*.md")) + \
+                        glob.glob(os.path.join(BUSINESS_CONTEXT_DIR, "*.txt"))
+
+        if not starter_files:
+            logger.warning("No starter pack files found in business_context directory.")
+            return False
+
+        texts = []
+        for file_path in starter_files:
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                filename = os.path.basename(file_path)
+
+                # Determine context_type from filename convention:
+                # startup_*.md -> "startup", enterprise_*.md -> "enterprise", etc.
+                context_type = "general"
+                fname_lower = filename.lower()
+                if fname_lower.startswith("startup"):
+                    context_type = "startup"
+                elif fname_lower.startswith("enterprise"):
+                    context_type = "enterprise"
+                elif fname_lower.startswith("nonprofit"):
+                    context_type = "nonprofit"
+
+                texts.append({
+                    "content": content,
+                    "source": filename,
+                    "context_type": context_type
+                })
+                logger.info(f"Loaded starter file: {filename} (type: {context_type})")
+            except Exception as e:
+                logger.error(f"Error reading starter file {file_path}: {e}")
+
+        if texts:
+            count = BusinessRAG.ingest_text_documents(texts)
+            logger.info(f"Starter pack auto-ingested: {count} files")
+            print(f"Business context starter pack loaded: {count} files ingested")
+            return True
+
+        return False

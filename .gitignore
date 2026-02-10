@@ -39,7 +39,8 @@ build/
 proposal_text.txt
 
 # Generated Data
-backend/data/
+backend/data/*
+!backend/data/business_context/
 backend/logs/
 *.log
 
