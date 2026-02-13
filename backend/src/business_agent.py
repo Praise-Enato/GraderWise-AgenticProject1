@@ -4,8 +4,8 @@ import json
 from typing import Dict
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from backend.src.models import RubricItem, GradeResult
+from langchain_core.messages import SystemMessage, HumanMessage
+from backend.src.models import RubricItem, GradeResult, AgentState
 from backend.src.business_rag import BusinessRAG
 
 # Load environment variables
@@ -118,11 +118,17 @@ def business_retrieve(state: Dict) -> dict:
     rubric = state.get("rubric", [])
     business_context_type = state.get("business_context_type", "startup")
 
-    # Build query from rubric criteria — same approach as academic retrieve
-    rubric_topics = [item.criteria for item in rubric]
-    rubric_details = [item.description for item in rubric]
+    # Validate rubric is non-empty before building query
+    rubric_topics = []
+    if not rubric:
+        logger.warning("business_retrieve called with empty rubric — using fallback query")
+        query = f"Business plan evaluation context and benchmarks for {business_context_type} business plans"
+    else:
+        # Build query from rubric criteria — same approach as academic retrieve
+        rubric_topics = [item.criteria for item in rubric]
+        rubric_details = [item.description for item in rubric]
+        query = f"Business plan evaluation context for: {', '.join(rubric_topics)}. {' '.join(rubric_details)}"
 
-    query = f"Business plan evaluation context for: {', '.join(rubric_topics)}. {' '.join(rubric_details)}"
     query = query[:2000]  # Respect embedding limits
 
     try:
@@ -136,11 +142,12 @@ def business_retrieve(state: Dict) -> dict:
         logger.error(f"Business RAG retrieval error: {e}")
         context = []
 
+    topic_summary = ", ".join(rubric_topics) if rubric_topics else "general business evaluation"
     return {
         "context": context,
         "thinking_process": [
             f"Retrieving business context for type: {business_context_type}",
-            f"Query topics: {rubric_topics}",
+            f"Query topics: {topic_summary}",
             f"Found {len(context)} context chunks."
         ]
     }
@@ -188,30 +195,35 @@ def grade_business_plan(state: Dict) -> dict:
     # Format context
     context_text = "\n".join(context) if context else "No additional context provided."
 
-    # Build prompt
-    prompt_text = BUSINESS_GRADER_PROMPT.format(
-        rubric_text=rubric_text,
-        submission_text=submission_text,
-        context_text=context_text
+    # Build prompt — use str.replace() instead of .format() to avoid brace issues
+    # with submission content that may contain { } characters
+    prompt_text = BUSINESS_GRADER_PROMPT.replace(
+        "{rubric_text}", rubric_text
+    ).replace(
+        "{submission_text}", submission_text
+    ).replace(
+        "{context_text}", context_text
     )
+    # The template uses {{ }} for JSON examples — convert to literal braces
+    prompt_text = prompt_text.replace("{{", "{").replace("}}", "}")
 
     # Add grader feedback if this is a retry
     if grader_feedback:
         prompt_text += f"\n\n**JUDGE FEEDBACK (Previous attempt was rejected):**\n{grader_feedback}\n\nPlease revise your grading based on this feedback."
 
-    # Create prompt template
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", prompt_text),
-        ("human", "Evaluate this business plan and return JSON with your assessment.")
-    ])
+    # Use direct messages instead of ChatPromptTemplate to avoid
+    # LangChain re-interpreting { } in the already-formatted prompt as variables
+    messages = [
+        SystemMessage(content=prompt_text),
+        HumanMessage(content="Evaluate this business plan and return JSON with your assessment.")
+    ]
 
     # Bind JSON mode
     json_llm = llm.bind(response_format={"type": "json_object"})
-    chain = prompt | json_llm
 
     # Invoke LLM
     try:
-        response = chain.invoke({})
+        response = json_llm.invoke(messages)
         response_text = response.content
 
         # Parse JSON
@@ -340,7 +352,7 @@ def generate_business_feedback(state: Dict) -> dict:
 
     # Extract key information
     total_score = grade_data.get("total_score", 0.0)
-    max_score = sum(item.max_points for item in rubric)
+    max_score = sum(item.max_points for item in rubric) if rubric else 0
     assessments = grade_data.get("assessments", [])
     investment_decision = grade_data.get("investment_decision", "Needs Work")
     key_risks = grade_data.get("key_risks", [])
@@ -350,8 +362,9 @@ def generate_business_feedback(state: Dict) -> dict:
     feedback_parts = []
 
     # Executive Summary
+    score_pct = (total_score / max_score * 100) if max_score > 0 else 0.0
     feedback_parts.append(f"## 🎯 Executive Summary\n")
-    feedback_parts.append(f"**Score:** {total_score}/{max_score} ({total_score/max_score*100:.1f}%)")
+    feedback_parts.append(f"**Score:** {total_score}/{max_score} ({score_pct:.1f}%)")
     feedback_parts.append(f"**Investment Decision:** {investment_decision}")
     feedback_parts.append(f"**Funding Readiness:** {funding_recommendation}\n")
 
@@ -379,18 +392,26 @@ def generate_business_feedback(state: Dict) -> dict:
             feedback_parts.append(f"- {risk}")
         feedback_parts.append("")
 
-    # Actionable guidance based on investment decision
+    # Actionable guidance based on investment decision AND actual gaps
     feedback_parts.append("**What to Focus On:**")
+
+    # Build dynamic guidance from the weakest-scoring criteria
+    if gaps:
+        for g in gaps[:3]:  # Top 3 weakest areas
+            name = g.get("criteria_name", "Unknown")
+            pts = g.get("awarded_points", 0)
+            mx = g.get("max_points", 1)
+            if pts == 0:
+                feedback_parts.append(f"- **{name}** scored 0/{mx} — this section needs to be added or completely reworked")
+            else:
+                feedback_parts.append(f"- **{name}** scored {pts}/{mx} — revisit and strengthen this area")
+
     if investment_decision == "Pass":
-        feedback_parts.append("- Strong foundation - focus on execution and hitting early milestones")
-        feedback_parts.append("- Address the gaps noted above before your next pitch")
+        feedback_parts.append("- Strong foundation — focus on execution and hitting early milestones")
     elif investment_decision == "Needs Work":
-        feedback_parts.append("- Revisit your financial model - ensure CAC/LTV ratios are realistic")
-        feedback_parts.append("- Strengthen your competitive differentiation and moat")
-        feedback_parts.append("- Add more specific customer validation or early traction data")
+        feedback_parts.append("- Address the critical gaps above before your next pitch")
     else:  # Not Fundable
         feedback_parts.append("- This needs significant rework before being investor-ready")
-        feedback_parts.append("- Consider pivoting or finding product-market fit first")
         feedback_parts.append("- Talk to more customers and validate core assumptions")
 
     feedback_parts.append("")
@@ -441,7 +462,7 @@ def check_validation(state: Dict) -> str:
 
 
 # --- BUILD BUSINESS WORKFLOW GRAPH ---
-business_workflow = StateGraph(dict)  # Using dict as state type for flexibility
+business_workflow = StateGraph(AgentState)  # Using AgentState for consistent type checking
 
 # Add nodes
 business_workflow.add_node("business_retrieve", business_retrieve)

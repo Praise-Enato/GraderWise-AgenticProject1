@@ -1,13 +1,12 @@
 import os
 import glob
+import logging
 from typing import List
 from fastapi import UploadFile
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from backend.src.rag import get_embedding_function, extract_text_from_file
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +26,54 @@ class BusinessRAG:
     """
 
     @staticmethod
+    def _get_existing_sources() -> set:
+        """Get set of already-ingested source filenames to prevent duplicates."""
+        if not os.path.exists(BUSINESS_CHROMA_PATH):
+            return set()
+        try:
+            vector_store = Chroma(
+                persist_directory=BUSINESS_CHROMA_PATH,
+                embedding_function=get_embedding_function()
+            )
+            # Get all metadata to extract unique sources
+            collection = vector_store._collection
+            all_metadata = collection.get(include=["metadatas"])
+            sources = {m.get("source", "") for m in all_metadata.get("metadatas", []) if m}
+            return sources
+        except Exception as e:
+            logger.warning(f"Could not check existing sources: {e}")
+            return set()
+
+    @staticmethod
+    def _delete_source(filename: str):
+        """Delete all documents from a specific source filename."""
+        if not os.path.exists(BUSINESS_CHROMA_PATH):
+            return
+            
+        try:
+            vector_store = Chroma(
+                persist_directory=BUSINESS_CHROMA_PATH,
+                embedding_function=get_embedding_function()
+            )
+            # Delete by metadata filter
+            # Note: chroma.delete might need ids, but modern versions support where filter
+            # We'll try getting ids first to be safe
+            collection = vector_store._collection
+            result = collection.get(where={"source": filename})
+            ids = result.get("ids", [])
+            
+            if ids:
+                collection.delete(ids=ids)
+                logger.info(f"Deleted {len(ids)} existing chunks for source: {filename}")
+                
+        except Exception as e:
+            logger.error(f"Error deleting source {filename}: {e}")
+
+    @staticmethod
     def ingest_business_context(files: List[UploadFile], context_type: str = "startup") -> int:
         """
         Ingest business context files (PDF, DOCX, TXT) into the business ChromaDB collection.
+        Overwrites existing files with the same name.
 
         Args:
             files: List of uploaded files to ingest
@@ -38,10 +82,20 @@ class BusinessRAG:
         Returns:
             Number of files successfully processed
         """
+        # Check existing sources to identify updates
+        existing_sources = BusinessRAG._get_existing_sources()
+
         documents = []
         files_processed = 0
+        updated = 0
 
         for file in files:
+            # If valid overwrite, delete old version first
+            if file.filename in existing_sources:
+                 logger.info(f"Found existing source {file.filename}. Overwriting...")
+                 BusinessRAG._delete_source(file.filename)
+                 updated += 1
+            
             try:
                 extracted_text = extract_text_from_file(file)
                 if extracted_text:
@@ -54,9 +108,9 @@ class BusinessRAG:
                     ))
                     files_processed += 1
                 else:
-                    print(f"Warning: Extracted text was empty for {file.filename}")
+                    logger.warning(f"Extracted text was empty for {file.filename}")
             except Exception as e:
-                print(f"Skipping {file.filename} due to error: {e}")
+                logger.error(f"Skipping {file.filename} due to error: {e}")
 
         if not documents:
             return 0
@@ -72,7 +126,7 @@ class BusinessRAG:
             persist_directory=BUSINESS_CHROMA_PATH
         )
 
-        logger.info(f"Ingested {files_processed} files ({len(splits)} chunks) into business context [{context_type}]")
+        logger.info(f"Ingested {files_processed} files ({len(splits)} chunks) into business context [{context_type}]. Updated {updated} existing files.")
         return files_processed
 
     @staticmethod
@@ -163,18 +217,10 @@ class BusinessRAG:
             True if starter pack was ingested, False if already populated or no files found
         """
         # Skip if business ChromaDB already has data
-        if os.path.exists(BUSINESS_CHROMA_PATH):
-            try:
-                vector_store = Chroma(
-                    persist_directory=BUSINESS_CHROMA_PATH,
-                    embedding_function=get_embedding_function()
-                )
-                existing_count = vector_store._collection.count()
-                if existing_count > 0:
-                    logger.info(f"Business context already has {existing_count} chunks. Skipping auto-ingest.")
-                    return False
-            except Exception:
-                pass  # If check fails, proceed with ingestion
+        existing_sources = BusinessRAG._get_existing_sources()
+        if existing_sources:
+            logger.info(f"Business context already has {len(existing_sources)} sources. Skipping auto-ingest.")
+            return False
 
         # Check if starter pack directory exists
         if not os.path.exists(BUSINESS_CONTEXT_DIR):
@@ -220,7 +266,6 @@ class BusinessRAG:
         if texts:
             count = BusinessRAG.ingest_text_documents(texts)
             logger.info(f"Starter pack auto-ingested: {count} files")
-            print(f"Business context starter pack loaded: {count} files ingested")
             return True
 
         return False

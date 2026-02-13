@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
-from backend.src.models import RubricItem, GradeResult
+from backend.src.models import RubricItem, GradeResult, AgentState
 from backend.src import rag
 
 # Load environment variables
@@ -57,25 +57,7 @@ llm = ChatOpenAI(
 )
 
 # --- 2. DEFINE AGENT STATE ---
-class AgentState(TypedDict, total=False):
-    # Required fields
-    submission_files: List[dict] # List of {filename, content}
-    rubric: List[RubricItem]
-    # Optional fields (total=False makes all fields optional by default)
-    context: List[str]
-    grade_data: dict
-    final_feedback: str
-    grade_result: GradeResult
-    # Control Fields for Self-Correction Loop
-    revision_number: int       # Tracks retry attempts (default: 0)
-    grader_feedback: str       # Rejection reason from the Judge (default: "")
-    is_valid: bool             # Flag for conditional edge (default: False)
-    skip_rag: bool             # Optional flag to skip RAG (default: False)
-    thinking_process: List[str] # Log of agent's thoughts
-    # Business Plan Grading Fields (NEW)
-    grading_type: str          # "academic" or "business_plan"
-    pptx_content: List[dict]   # Processed PPTX slides
-    business_context_type: str # "startup", "enterprise", or "nonprofit"
+# AgentState is now imported from backend.src.models to avoid circular imports
 
 
 # --- 3. NODE IMPLEMENTATIONS ---

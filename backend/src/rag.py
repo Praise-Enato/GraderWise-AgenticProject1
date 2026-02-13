@@ -1,4 +1,5 @@
 import os
+import uuid
 import shutil
 from typing import List
 from fastapi import UploadFile
@@ -31,9 +32,11 @@ def extract_text_from_file(file: UploadFile) -> str:
     Extracts text from an uploaded file (PDF, DOCX, TXT, CSV, XLSX).
     For tabular data (CSV, XLSX), converts to Markdown table.
     """
-    file_path = os.path.join(TEMP_UPLOAD_DIR, file.filename)
+    # Use UUID prefix to prevent filename collisions from concurrent uploads
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    file_path = os.path.join(TEMP_UPLOAD_DIR, unique_filename)
     filename_lower = file.filename.lower()
-    
+
     # Save uploaded file temporarily
     file.file.seek(0)
     with open(file_path, "wb") as buffer:

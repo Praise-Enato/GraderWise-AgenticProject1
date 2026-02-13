@@ -90,5 +90,50 @@ export const GradeWiseAPI = {
             context_files: []
         };
         return (await api.post<{ response: string, sources: string[] }>('/chat', payload)).data;
+    },
+
+    // --- Business Plan Grading ---
+
+    extractPPTX: async (file: File): Promise<{ markdown_content: string, slide_count: number, has_tables: boolean, has_images: boolean, text_length: number }> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post('/extract-pptx', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+
+    gradeBusinessPlan: async (
+        pptxFiles: File[],
+        docFiles: File[],
+        rubric: RubricItem[],
+        studentId: string,
+        businessType: string
+    ): Promise<GradeResult> => {
+        const formData = new FormData();
+        formData.append('student_id', studentId);
+        formData.append('business_context_type', businessType);
+        formData.append('rubric_json', JSON.stringify(rubric));
+        pptxFiles.forEach(file => formData.append('pptx_files', file));
+        docFiles.forEach(file => formData.append('document_files', file));
+        const response = await api.post<GradeResult>('/grade-business-plan', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+
+    getBusinessRubricTemplate: async (businessType: string): Promise<RubricItem[]> => {
+        const response = await api.get<RubricItem[]>(`/business-rubric-template/${businessType}`);
+        return response.data;
+    },
+
+    ingestBusinessContext: async (files: File[], contextType: string): Promise<{ status: string, files_processed: number, context_type: string }> => {
+        const formData = new FormData();
+        files.forEach(file => formData.append('files', file));
+        formData.append('context_type', contextType);
+        const response = await api.post('/ingest-business-context', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
     }
 };

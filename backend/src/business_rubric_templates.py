@@ -188,6 +188,74 @@ NONPROFIT_RUBRIC = [
 ]
 
 
+# General Business Plan Rubric (universal, any business type)
+GENERAL_RUBRIC = [
+    RubricItem(
+        criteria="Executive Summary & Problem Statement",
+        max_points=15,
+        description="Concise executive summary with clear problem definition, target customer, and proposed solution",
+        developing_points=8,
+        developing_description="Summary present but unfocused, vague problem, or missing key elements",
+        zero_points=0,
+        zero_description="No executive summary or fails to articulate the core problem"
+    ),
+    RubricItem(
+        criteria="Market Analysis & Opportunity",
+        max_points=15,
+        description="Market sizing with methodology and sources, target segment definition, and industry trend awareness",
+        developing_points=8,
+        developing_description="Market discussed but lacks data, sources, or clear segmentation",
+        zero_points=0,
+        zero_description="No market analysis or completely unsupported claims"
+    ),
+    RubricItem(
+        criteria="Business Model & Revenue Strategy",
+        max_points=15,
+        description="Clear revenue model, pricing rationale, customer acquisition strategy, and value proposition",
+        developing_points=8,
+        developing_description="Revenue model mentioned but incomplete, missing pricing logic, or unclear value prop",
+        zero_points=0,
+        zero_description="No business model or unclear how the venture generates revenue"
+    ),
+    RubricItem(
+        criteria="Financial Plan & Projections",
+        max_points=20,
+        description="Revenue projections with stated assumptions, expense breakdown, funding requirements, and path to sustainability",
+        developing_points=10,
+        developing_description="Basic financials present but missing assumptions, no expense detail, or unrealistic projections",
+        zero_points=0,
+        zero_description="No financial plan or entirely unsubstantiated numbers"
+    ),
+    RubricItem(
+        criteria="Competitive Analysis & Differentiation",
+        max_points=10,
+        description="Key competitors identified with honest comparison, clear differentiation, and defensibility explanation",
+        developing_points=5,
+        developing_description="Competitors mentioned but shallow analysis, weak differentiation, or ignores key players",
+        zero_points=0,
+        zero_description="No competitive analysis or claims no competition exists"
+    ),
+    RubricItem(
+        criteria="Team & Operations",
+        max_points=10,
+        description="Team with relevant skills, operational plan covering key processes, and risk acknowledgment with mitigations",
+        developing_points=5,
+        developing_description="Team listed but skill gaps unaddressed, vague operations, or no risk awareness",
+        zero_points=0,
+        zero_description="No team info, no operational plan, or critical unaddressed gaps"
+    ),
+    RubricItem(
+        criteria="Presentation & Communication Quality",
+        max_points=15,
+        description="Professional formatting, logical structure, clear writing, effective use of visuals and data",
+        developing_points=8,
+        developing_description="Readable but lacks polish, inconsistent formatting, or weak visual communication",
+        zero_points=0,
+        zero_description="Poorly written, confusing structure, or unprofessional presentation"
+    )
+]
+
+
 def get_rubric_template(business_type: str) -> List[RubricItem]:
     """
     Get rubric template based on business plan type.
@@ -201,11 +269,12 @@ def get_rubric_template(business_type: str) -> List[RubricItem]:
     templates = {
         "startup": STARTUP_RUBRIC,
         "enterprise": ENTERPRISE_RUBRIC,
-        "nonprofit": NONPROFIT_RUBRIC
+        "nonprofit": NONPROFIT_RUBRIC,
+        "general": GENERAL_RUBRIC
     }
 
-    # Default to startup if unknown type
-    return templates.get(business_type.lower(), STARTUP_RUBRIC)
+    # Default to general if unknown type
+    return templates.get(business_type.lower(), GENERAL_RUBRIC)
 
 
 def get_rubric_total_points(rubric: List[RubricItem]) -> float:

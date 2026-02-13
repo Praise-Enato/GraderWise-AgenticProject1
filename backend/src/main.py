@@ -1,5 +1,17 @@
 import os
+
+# --- ENVIRONMENT CONFIGURATION (MUST BE FIRST) ---
+# Force HuggingFace to use local cache (prevents startup connection errors)
+os.environ["HF_HUB_OFFLINE"] = "1"
+# Disable Telemetry and Parallelism
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_SERVER_NO_INTERACTIVE_MODE"] = "True"
+os.environ["OTEL_PYTHON_DISABLED"] = "True"
+
 import json
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -15,13 +27,23 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from fastapi.concurrency import run_in_threadpool
 
-# Disable ChromaDB/PostHog Telemetry
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-os.environ["ANONYMIZED_TELEMETRY"] = "False"
-os.environ["CHROMA_SERVER_NO_INTERACTIVE_MODE"] = "True"
-os.environ["OTEL_PYTHON_DISABLED"] = "True"
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="GradeWise API")
+
+# --- LIFESPAN: AUTO-INGEST BUSINESS CONTEXT STARTER PACK ON STARTUP ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan — runs startup and shutdown logic."""
+    # Startup: auto-ingest starter pack in threadpool to avoid blocking event loop
+    try:
+        await run_in_threadpool(BusinessRAG.auto_ingest_starter_pack)
+    except Exception as e:
+        logger.warning(f"Business context auto-ingest failed: {e}")
+    yield
+    # Shutdown: nothing needed for now
+
+
+app = FastAPI(title="GradeWise API", lifespan=lifespan)
 
 # --- CORS CONFIGURATION (THE FIX) ---
 app.add_middleware(
@@ -32,15 +54,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # ------------------------------------
-
-# --- AUTO-INGEST BUSINESS CONTEXT STARTER PACK ON STARTUP ---
-@app.on_event("startup")
-async def startup_event():
-    """Auto-ingest business context starter pack on first run."""
-    try:
-        BusinessRAG.auto_ingest_starter_pack()
-    except Exception as e:
-        print(f"Warning: Business context auto-ingest failed: {e}")
 
 
 class SubmissionFile(BaseModel):

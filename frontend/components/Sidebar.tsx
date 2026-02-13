@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard, History, Settings, LogOut, ChevronLeft, ChevronRight, User,
-    BookOpen, PenTool, BarChart3, Brain, Layers, X
+    BookOpen, PenTool, BarChart3, Brain, Layers, X, Briefcase
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { UnsavedChangesModal } from "@/components/UnsavedChangesModal";
@@ -49,6 +49,7 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
     const navItems = [
         { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
         { icon: PenTool, label: "Grading Tool", href: "/grading" },
+        { icon: Briefcase, label: "Business Grading", href: "/business-grading" },
         { icon: Layers, label: "Mass Grading", href: "/mass-grading" },
         { icon: BookOpen, label: "Grading Results", href: "/submissions" },
         { icon: BarChart3, label: "Analytics", href: "/analytics" },

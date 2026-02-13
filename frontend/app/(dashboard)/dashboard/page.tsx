@@ -12,7 +12,10 @@ import {
   ArrowRight,
   X,
   File as FileIcon,
-  Loader2
+  Loader2,
+  Briefcase,
+  GraduationCap,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,6 +59,16 @@ export default function Dashboard() {
   const [rubricMessage, setRubricMessage] = useState('');
 
   const [savedMaterials, setSavedMaterials] = useState<string[]>([]);
+
+  // Grading type toggle
+  const [gradingType, setGradingType] = useState<'academic' | 'business'>('academic');
+
+  // Business context ingestion modal
+  const [showBusinessContextModal, setShowBusinessContextModal] = useState(false);
+  const [businessContextFiles, setBusinessContextFiles] = useState<File[]>([]);
+  const [businessContextType, setBusinessContextType] = useState('startup');
+  const [businessContextStatus, setBusinessContextStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [businessContextMessage, setBusinessContextMessage] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -121,6 +134,12 @@ export default function Dashboard() {
         console.error("Failed to parse course materials", e);
       }
     }
+
+    // Load grading type preference
+    const savedType = localStorage.getItem('gradingType');
+    if (savedType === 'business' || savedType === 'academic') {
+      setGradingType(savedType);
+    }
   }, []);
 
   const handleIngest = async () => {
@@ -182,6 +201,35 @@ export default function Dashboard() {
   const onRubricFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setRubricFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleGradingTypeChange = (type: 'academic' | 'business') => {
+    setGradingType(type);
+    localStorage.setItem('gradingType', type);
+  };
+
+  const handleBusinessContextIngest = async () => {
+    if (businessContextFiles.length === 0) return;
+    setBusinessContextStatus('uploading');
+    try {
+      const result = await GradeWiseAPI.ingestBusinessContext(businessContextFiles, businessContextType);
+      setBusinessContextStatus('success');
+      setBusinessContextMessage(`Successfully processed ${result.files_processed} files as ${result.context_type} context.`);
+      setTimeout(() => {
+        setShowBusinessContextModal(false);
+        setBusinessContextFiles([]);
+        setBusinessContextStatus('idle');
+      }, 2000);
+    } catch (error: any) {
+      setBusinessContextStatus('error');
+      setBusinessContextMessage(error.message || "Failed to ingest business context");
+    }
+  };
+
+  const onBusinessContextFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setBusinessContextFiles(Array.from(e.target.files));
     }
   };
 
@@ -271,11 +319,35 @@ export default function Dashboard() {
             <div className="lg:col-span-1 space-y-6">
               <section className="bg-white dark:bg-slate-800/50 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm h-full flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-6">
+                  <div className="flex items-center gap-2 mb-4">
                     <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-primary">
                       <Zap className="w-5 h-5" />
                     </div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">Quick Actions</h2>
+                  </div>
+
+                  {/* Grading Type Toggle */}
+                  <div className="flex gap-2 mb-5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    <button
+                      onClick={() => handleGradingTypeChange('academic')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        gradingType === 'academic'
+                          ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      <GraduationCap className="w-4 h-4" /> Academic
+                    </button>
+                    <button
+                      onClick={() => handleGradingTypeChange('business')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                        gradingType === 'business'
+                          ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      <Briefcase className="w-4 h-4" /> Business
+                    </button>
                   </div>
 
                   <div className="space-y-3">
@@ -287,13 +359,13 @@ export default function Dashboard() {
                     />
                     <ActionButton
                       icon={<FolderOpen className="w-5 h-5" />}
-                      title="Course Materials"
-                      desc="Manage resources"
-                      onClick={() => setShowIngestModal(true)}
+                      title={gradingType === 'business' ? "Business Context" : "Course Materials"}
+                      desc={gradingType === 'business' ? "Upload benchmarks & guides" : "Manage resources"}
+                      onClick={() => gradingType === 'business' ? setShowBusinessContextModal(true) : setShowIngestModal(true)}
                     />
                   </div>
 
-                  {savedMaterials.length > 0 && (
+                  {savedMaterials.length > 0 && gradingType === 'academic' && (
                     <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="text-xs font-bold uppercase text-slate-500">Active Context</h3>
@@ -311,9 +383,13 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <Link href="/grading" className="mt-6 w-full">
-                  <button className="w-full py-3 bg-slate-900 dark:bg-black text-white rounded-xl font-medium shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20 transition-all flex items-center justify-center gap-2 group">
-                    Start New Grading Job <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <Link href={gradingType === 'business' ? "/business-grading" : "/grading"} className="mt-6 w-full">
+                  <button className={`w-full py-3 text-white rounded-xl font-medium shadow-lg transition-all flex items-center justify-center gap-2 group ${
+                    gradingType === 'business'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10 hover:shadow-emerald-500/20'
+                      : 'bg-slate-900 dark:bg-black shadow-slate-900/10 hover:shadow-slate-900/20'
+                  }`}>
+                    {gradingType === 'business' ? 'Start Business Plan Grading' : 'Start New Grading Job'} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </Link>
               </section>
@@ -559,6 +635,119 @@ export default function Dashboard() {
                 >
                   {rubricStatus === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
                   {rubricStatus === 'uploading' ? 'Scanning...' : 'Parse Rubric'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Business Context Ingestion Modal */}
+      <AnimatePresence>
+        {showBusinessContextModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800"
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-emerald-500" /> Upload Business Context
+                </h3>
+                <button onClick={() => setShowBusinessContextModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Upload industry benchmarks, evaluation frameworks, or market data. The grading agent uses these for context-aware assessment.
+                </p>
+
+                {/* Context Type Selector */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase mb-2 block">Context Category</label>
+                  <div className="flex gap-2">
+                    {['startup', 'enterprise', 'nonprofit', 'general'].map(ct => (
+                      <button
+                        key={ct}
+                        onClick={() => setBusinessContextType(ct)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize ${
+                          businessContextType === ct
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        {ct}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center hover:border-emerald-500 transition-colors bg-slate-50/50 dark:bg-slate-800/30">
+                  <input
+                    type="file"
+                    id="business-context-upload"
+                    multiple
+                    accept=".pdf,.docx,.txt,.md"
+                    className="hidden"
+                    onChange={onBusinessContextFileChange}
+                  />
+                  <label htmlFor="business-context-upload" className="cursor-pointer flex flex-col items-center gap-3">
+                    <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600 dark:text-emerald-400">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="font-semibold text-emerald-600 hover:underline">Click to upload</span> or drag and drop
+                    </div>
+                    <span className="text-xs text-slate-400">PDF, DOCX, TXT, MD</span>
+                  </label>
+                </div>
+
+                {businessContextFiles.length > 0 && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {businessContextFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
+                        <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300 truncate">
+                          <FileIcon className="w-4 h-4 text-slate-400" />
+                          <span className="truncate max-w-[200px]">{file.name}</span>
+                        </div>
+                        <span className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {businessContextStatus === 'success' && (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm rounded-lg flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> {businessContextMessage}
+                  </div>
+                )}
+                {businessContextStatus === 'error' && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {businessContextMessage}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                <button onClick={() => setShowBusinessContextModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBusinessContextIngest}
+                  disabled={businessContextFiles.length === 0 || businessContextStatus === 'uploading'}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                >
+                  {businessContextStatus === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {businessContextStatus === 'uploading' ? 'Processing...' : 'Ingest Context'}
                 </button>
               </div>
             </motion.div>
