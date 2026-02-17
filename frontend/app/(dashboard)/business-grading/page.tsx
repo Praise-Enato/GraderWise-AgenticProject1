@@ -195,11 +195,27 @@ export default function BusinessGradingPage() {
         if (!result) return;
         try {
             const totalPoints = rubric.reduce((sum, item) => sum + item.max_points, 0);
-            await fetch('/api/grade', {
+
+            // Step 1: Create a new submission entry
+            const createRes = await fetch('/api/submissions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: `biz-${Date.now()}`,
+                    title: saveMeta.teamName || "Business Plan",
+                    fileName: pptxMeta?.filename || documentFiles[0]?.filename || "business_plan",
+                    student_id: saveMeta.teamId || "team-001",
+                    subject: saveMeta.course || "Business Plan",
+                })
+            });
+            if (!createRes.ok) throw new Error("Failed to create submission entry");
+            const submissionData = await createRes.json();
+
+            // Step 2: Update it with the grade
+            const gradeRes = await fetch('/api/grade', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: submissionData.id,
                     manualGrade: {
                         score: `${result.score} / ${totalPoints}`,
                         feedback: result.feedback,
@@ -207,6 +223,8 @@ export default function BusinessGradingPage() {
                     }
                 })
             });
+            if (!gradeRes.ok) throw new Error("Failed to save grade");
+
             setIsSaved(true);
             setTimeout(() => {
                 setResult(null);
@@ -214,6 +232,7 @@ export default function BusinessGradingPage() {
             }, 1000);
         } catch (e) {
             console.error("Failed to save grade", e);
+            setError("Failed to save grade. Please try again.");
         }
     };
 

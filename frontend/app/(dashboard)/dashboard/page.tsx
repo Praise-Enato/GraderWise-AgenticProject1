@@ -525,7 +525,7 @@ export default function Dashboard() {
                 )}
                 {ingestStatus === 'error' && (
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" /> {ingestMessage}
+                    <AlertCircle className="w-4 h-4" /> {ingestMessage}
                   </div>
                 )}
               </div>
@@ -619,7 +619,7 @@ export default function Dashboard() {
                 )}
                 {rubricStatus === 'error' && (
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" /> {rubricMessage}
+                    <AlertCircle className="w-4 h-4" /> {rubricMessage}
                   </div>
                 )}
               </div>
