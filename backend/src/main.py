@@ -371,7 +371,7 @@ async def get_business_rubric_template(business_type: str):
     Get rubric template for business plan type.
 
     Parameters:
-    - business_type: "startup", "enterprise", or "nonprofit"
+    - business_type: "byums", "startup", "enterprise", "nonprofit", or "general"
 
     Returns:
     - List of RubricItem objects as JSON

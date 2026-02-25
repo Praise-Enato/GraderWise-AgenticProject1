@@ -22,6 +22,7 @@ interface PPTXMeta {
 }
 
 const BUSINESS_TYPES = [
+    { key: "byums", label: "BYUMS Competition", desc: "BYUMS Business Plan Competition rubric" },
     { key: "startup", label: "Startup", desc: "Seed/Series A pitch deck" },
     { key: "enterprise", label: "Enterprise", desc: "Strategic business plan" },
     { key: "nonprofit", label: "Nonprofit", desc: "Grant proposal / social enterprise" },

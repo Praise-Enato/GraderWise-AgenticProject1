@@ -174,7 +174,7 @@ class BusinessRAG:
 
         Args:
             query: Search query (e.g., rubric criteria text)
-            context_type: Filter by context type — "startup", "enterprise", "nonprofit", or "general"
+            context_type: Filter by context type — "startup", "enterprise", "nonprofit", "general", or "grading_examples"
             k: Number of chunks to retrieve (default 5, fewer than academic's 10)
 
         Returns:
@@ -191,12 +191,17 @@ class BusinessRAG:
                 embedding_function=get_embedding_function()
             )
 
-            # Retrieve with metadata filter for context_type
-            # Also include "general" context that applies to all types
+            # For grading_examples, only retrieve that specific type
+            # For other types, also include "general" context
+            if context_type == "grading_examples":
+                filter_dict = {"context_type": "grading_examples"}
+            else:
+                filter_dict = {"context_type": {"$in": [context_type, "general"]}}
+
             results = vector_store.similarity_search(
                 query,
                 k=k,
-                filter={"context_type": {"$in": [context_type, "general"]}}
+                filter=filter_dict
             )
 
             return [doc.page_content for doc in results]
@@ -204,6 +209,98 @@ class BusinessRAG:
         except Exception as e:
             logger.error(f"Error retrieving business context: {e}")
             return []
+
+    @staticmethod
+    def ingest_grading_examples(training_examples: list) -> int:
+        """
+        Ingest structured grading examples from human-graded business plans
+        into the business ChromaDB collection with context_type='grading_examples'.
+
+        Each training example is split into per-category documents so similar
+        past grading patterns are retrieved for the relevant rubric categories.
+
+        Args:
+            training_examples: List of dicts from training_data_loader.load_training_data()
+
+        Returns:
+            Number of documents processed
+        """
+        # First, delete any existing grading_examples to avoid duplicates
+        BusinessRAG._delete_grading_examples()
+
+        documents = []
+        for example in training_examples:
+            biz_name = example["business_name"]
+            sector = example["sector"]
+            grand_total = example["grand_total"]
+
+            # Create one document per category with detailed scoring
+            for category, totals in example["category_totals"].items():
+                # Get the individual criteria scores for this category
+                category_criteria = [
+                    c for c in example["criteria_scores"]
+                    if c["category"] == category
+                ]
+
+                criteria_lines = []
+                for c in category_criteria:
+                    criteria_lines.append(
+                        f"  - {c['criteria']}: {c['awarded_points']}/{c['max_points']}"
+                    )
+
+                content = (
+                    f"Human-Graded Reference — {biz_name} ({sector})\n"
+                    f"Overall Score: {grand_total}/100\n"
+                    f"Category: {category} — {totals['awarded']}/{totals['max']}\n"
+                    f"Criteria Scores:\n" + "\n".join(criteria_lines)
+                )
+
+                documents.append(Document(
+                    page_content=content,
+                    metadata={
+                        "source": f"training_data_{biz_name}",
+                        "context_type": "grading_examples",
+                        "category": category,
+                        "business_name": biz_name,
+                        "sector": sector,
+                    }
+                ))
+
+        if not documents:
+            return 0
+
+        # Use smaller chunks since these are already concise
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        splits = text_splitter.split_documents(documents)
+
+        Chroma.from_documents(
+            documents=splits,
+            embedding=get_embedding_function(),
+            persist_directory=BUSINESS_CHROMA_PATH
+        )
+
+        logger.info(f"Ingested {len(documents)} grading example documents ({len(splits)} chunks)")
+        return len(documents)
+
+    @staticmethod
+    def _delete_grading_examples():
+        """Delete all existing grading_examples documents from ChromaDB."""
+        if not os.path.exists(BUSINESS_CHROMA_PATH):
+            return
+
+        try:
+            vector_store = Chroma(
+                persist_directory=BUSINESS_CHROMA_PATH,
+                embedding_function=get_embedding_function()
+            )
+            collection = vector_store._collection
+            result = collection.get(where={"context_type": "grading_examples"})
+            ids = result.get("ids", [])
+            if ids:
+                collection.delete(ids=ids)
+                logger.info(f"Deleted {len(ids)} existing grading example chunks")
+        except Exception as e:
+            logger.warning(f"Could not delete grading examples: {e}")
 
     @staticmethod
     def auto_ingest_starter_pack() -> bool:
@@ -266,6 +363,15 @@ class BusinessRAG:
         if texts:
             count = BusinessRAG.ingest_text_documents(texts)
             logger.info(f"Starter pack auto-ingested: {count} files")
-            return True
 
-        return False
+        # Also auto-ingest training data (grading examples) if available
+        try:
+            from backend.src.training_data_loader import load_training_data
+            training_examples = load_training_data()
+            if training_examples:
+                grading_count = BusinessRAG.ingest_grading_examples(training_examples)
+                logger.info(f"Auto-ingested {grading_count} grading example documents from training data")
+        except Exception as e:
+            logger.warning(f"Could not auto-ingest training data: {e}")
+
+        return True

@@ -9,6 +9,7 @@ class RubricItem(BaseModel):
     developing_description: Optional[str] = Field(None, description="Description for partial or developing mastery")
     zero_points: Optional[float] = Field(0.0, description="Points for zero mastery (usually 0)")
     zero_description: Optional[str] = Field(None, description="Description for zero mastery or missing criteria")
+    course_guide: Optional[str] = Field(None, description="Detailed comprehensive course guide text for this criteria")
 
 class GradeResult(BaseModel):
     score: float = Field(..., description="The score awarded")
@@ -83,3 +84,4 @@ class AgentState(TypedDict, total=False):
     grading_type: str          # "academic" or "business_plan"
     pptx_content: List[dict]   # Processed PPTX slides
     business_context_type: str # "startup", "enterprise", or "nonprofit"
+    grading_examples: List[str] # RAG-retrieved grading examples from training data
