@@ -51,9 +51,10 @@ backend/logs/
 /*.pptx
 /*.docx
 general_business_plans/
-# Human-score answer key (applicant name + expert judge scores); used only to (re)build
-# the already-committed backend/data/bpc/few_shot_examples.json.
-few_shot_example*.csv
+# Root drop-zone copies of the human-scored calibration CSV are ignored; the
+# canonical copy lives (committed) under backend/calibration_data/ and is the
+# build source for backend/data/bpc/few_shot_examples.json.
+/few_shot_example*.csv
 
 # Temp Scripts
 verify_backend.py

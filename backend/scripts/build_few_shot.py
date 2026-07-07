@@ -5,8 +5,8 @@ criterion names against the plan rubric, and writes backend/data/bpc/few_shot_ex
 
 Usage:
     python -m backend.scripts.build_few_shot \
-        --plan "Copy of Africa Business Plan Competition - 2026  (1).pdf" \
-        --scores "few_shot_example - Sheet1.csv"
+        --plan "Copy of Africa Business Plan Competition - 2026  (1).pdf"
+    # --scores defaults to the committed calibration CSV under backend/calibration_data/
 """
 from __future__ import annotations
 
@@ -23,12 +23,14 @@ from backend.src.input_adapter import get_adapter
 
 OUT = "backend/data/bpc/few_shot_examples.json"
 RUBRIC_CSV = "BYUMS RUBRIC - Sheet1.csv"
+DEFAULT_SCORES = "backend/calibration_data/few_shot_example.csv"
 
 
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--plan", required=True, help="plan PDF used as the example")
-    p.add_argument("--scores", required=True, help="human-scored CSV for that plan")
+    p.add_argument("--scores", default=DEFAULT_SCORES,
+                   help="human-scored CSV for that plan (default: committed calibration CSV)")
     p.add_argument("--out", default=OUT)
     p.add_argument("--overrides", default="backend/data/bpc/few_shot_overrides.json",
                    help="optional curator score overrides (auditable adjustments)")
