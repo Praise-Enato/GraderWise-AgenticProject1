@@ -11,6 +11,7 @@ export default function BpcGradingPage() {
     const [guideline, setGuideline] = useState("");
     const [planTotal, setPlanTotal] = useState(0);
     const [rubricError, setRubricError] = useState<string | null>(null);
+    const [rubricMode, setRubricMode] = useState<"byums" | "general">("byums");
 
     const [teamName, setTeamName] = useState("");
     const [files, setFiles] = useState<{ filename: string; content: string; file?: File }[]>([]);
@@ -22,14 +23,19 @@ export default function BpcGradingPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        GradeWiseAPI.getBpcRubric()
-            .then((data) => {
-                setRubric(data.plan);
-                setGuideline(data.guideline || "");
-                setPlanTotal(data.plan_total);
-            })
-            .catch((e) => setRubricError(e?.message || "Could not load the BYUMS rubric from the backend."));
-    }, []);
+        let active = true;  // ignore stale responses if the mode is switched mid-fetch
+        setRubricError(null); setRubric([]); setResult(null);
+        if (rubricMode === "general") {
+            GradeWiseAPI.getGeneralRubric()
+                .then((d) => { if (!active) return; setRubric(d.rubric); setGuideline(""); setPlanTotal(d.total); })
+                .catch((e) => { if (active) setRubricError(e?.message || "Could not load the general rubric."); });
+        } else {
+            GradeWiseAPI.getBpcRubric()
+                .then((data) => { if (!active) return; setRubric(data.plan); setGuideline(data.guideline || ""); setPlanTotal(data.plan_total); })
+                .catch((e) => { if (active) setRubricError(e?.message || "Could not load the BYUMS rubric from the backend."); });
+        }
+        return () => { active = false; };
+    }, [rubricMode]);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const list = e.target.files;
@@ -64,13 +70,13 @@ export default function BpcGradingPage() {
                     return;
                 }
                 // vision MVP grades the first uploaded plan
-                data = await GradeWiseAPI.gradeVision(files[0].file, teamName || "team", rubric, guideline);
+                data = await GradeWiseAPI.gradeVision(files[0].file, teamName || "team", rubric, guideline, rubricMode === "byums");
             } else {
                 data = await GradeWiseAPI.gradeSubmission(
                     files.map((f) => ({ filename: f.filename, content: f.content })),
                     teamName || "team",
                     rubric,
-                    { guideline, skip_rag: true, max_retries: 1 }
+                    { guideline, skip_rag: true, max_retries: 1, use_calibration: rubricMode === "byums" }
                 );
             }
             setResult(data);
@@ -92,14 +98,16 @@ export default function BpcGradingPage() {
                             <Briefcase className="w-7 h-7 text-emerald-600" /> Business Plan Grader
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-1">
-                            BYU Africa BPC 2026 — plan component (80 pts). Text grading, or vision mode to read slide images.
+                            {rubricMode === "byums"
+                                ? "BYU Africa BPC 2026 — plan component (80 pts). Text grading, or vision mode to read slide images."
+                                : "General business-plan rubric (100 pts) — grades any business plan; no competition guideline."}
                         </p>
                     </div>
                     {/* Rubric status chip */}
                     {rubric.length > 0 ? (
                         <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-full flex items-center gap-2">
                             <CheckCircle className="w-3.5 h-3.5" />
-                            BYUMS plan rubric — {rubric.length} criteria / {planTotal} pts{guideline ? " + judges' guideline" : ""}
+                            {rubricMode === "byums" ? "BYUMS plan rubric" : "General business rubric"} — {rubric.length} criteria / {planTotal} pts{guideline ? " + judges' guideline" : ""}
                         </span>
                     ) : rubricError ? (
                         <span className="text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-full flex items-center gap-2">
@@ -109,6 +117,21 @@ export default function BpcGradingPage() {
                         <span className="text-xs text-slate-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> loading rubric…</span>
                     )}
                 </header>
+
+                {/* Rubric selector */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-slate-500">Rubric:</span>
+                    <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-sm">
+                        <button onClick={() => setRubricMode("byums")} disabled={isGrading}
+                            className={`px-3 py-1.5 transition-colors ${rubricMode === "byums" ? "bg-emerald-600 text-white" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
+                            BYUMS Competition (80)
+                        </button>
+                        <button onClick={() => setRubricMode("general")} disabled={isGrading}
+                            className={`px-3 py-1.5 border-l border-slate-200 dark:border-slate-700 transition-colors ${rubricMode === "general" ? "bg-emerald-600 text-white" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
+                            General Business (100)
+                        </button>
+                    </div>
+                </div>
 
                 {/* Input card */}
                 <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 space-y-4">
@@ -182,7 +205,7 @@ export default function BpcGradingPage() {
                             <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
                                 <div className="flex items-center justify-between flex-wrap gap-4">
                                     <div>
-                                        <p className="text-sm text-slate-500">Plan score (80% component — excludes the 20% video)</p>
+                                        <p className="text-sm text-slate-500">{rubricMode === "byums" ? "Plan score (80% component — excludes the 20% video)" : "Business plan score (general rubric)"}</p>
                                         <div className="text-4xl font-black text-slate-900 dark:text-white mt-1">
                                             {result.score}<span className="text-2xl text-slate-400"> / {planTotal}</span>
                                         </div>

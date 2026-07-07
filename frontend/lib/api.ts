@@ -57,6 +57,7 @@ export interface GradeOptions {
     guideline?: string;
     skip_rag?: boolean;
     max_retries?: number;
+    use_calibration?: boolean;   // false for the general rubric (BYUMS example doesn't apply)
 }
 
 export interface FewShotScore {
@@ -95,6 +96,11 @@ export const GradeWiseAPI = {
         return (await api.get<BpcRubricResponse>('/bpc-rubric')).data;
     },
 
+    // General (non-competition) business-plan rubric (150 pts)
+    getGeneralRubric: async (): Promise<{ rubric: RubricItem[]; total: number }> => {
+        return (await api.get<{ rubric: RubricItem[]; total: number }>('/general-rubric')).data;
+    },
+
     // Human reference scores for the AI-vs-human head-to-head
     getFewShotScores: async (): Promise<FewShotScore[]> => {
         return (await api.get<FewShotScore[]>('/bpc-fewshot-scores')).data;
@@ -102,12 +108,13 @@ export const GradeWiseAPI = {
 
     // Vision grading (Phase 1b): upload the raw PDF; backend renders slides and
     // grades them with a multimodal model (sees financial tables, license, bank).
-    gradeVision: async (file: File, studentId: string, rubric: RubricItem[], guideline: string): Promise<GradeResult> => {
+    gradeVision: async (file: File, studentId: string, rubric: RubricItem[], guideline: string, useCalibration: boolean = true): Promise<GradeResult> => {
         const fd = new FormData();
         fd.append('files', file);
         fd.append('rubric', JSON.stringify(rubric));
         fd.append('guideline', guideline || '');
         fd.append('student_id', studentId);
+        fd.append('use_calibration', String(useCalibration));
         const r = await api.post<GradeResult>('/grade-vision', fd, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });

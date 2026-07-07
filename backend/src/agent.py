@@ -92,6 +92,9 @@ class AgentState(TypedDict, total=False):
     max_retries: int                  # batch caps this low; live uses full
     thinking_process: List[str]
     eligibility: dict                 # {status, reasons, advisory_notes, ai_content_flag}
+    use_calibration: bool             # competition mode: gates BYUMS eligibility screen + few-shot calibration
+                                      # (default True). False = general rubric. MUST be declared here or
+                                      # StateGraph drops it from the input and the gates never fire.
 
 
 # --- Helpers ---------------------------------------------------------------- #
@@ -141,8 +144,7 @@ def _confidence_from_revisions(revisions: int) -> float:
 
 
 # --- Prompts ---------------------------------------------------------------- #
-GRADER_SYSTEM = """You are a STRICT, skeptical evaluator for a Business Plan Competition that
-awards real prize money. Over-scoring a weak plan is a serious error. Evaluate the SUBMISSION
+GRADER_SYSTEM = """__GRADER_INTRO__ Evaluate the SUBMISSION
 against the RUBRIC one criterion at a time. Weigh genuine potential for success, not polish.
 
 CRITICAL — EVIDENCE AND TEXT-ONLY:
@@ -209,15 +211,12 @@ SUBMISSION:
 {submission}
 """
 
-FEEDBACK_SYSTEM = """You are a competition judge writing feedback directly to a participant team.
-
-In this competition, your written feedback is, in most cases, the ONLY prize a participant
-takes home. Make it genuinely useful.
+FEEDBACK_SYSTEM = """__FEEDBACK_INTRO__
 
 RULES (from the judging guidelines):
 - Be positive AND constructive. Encourage, but give real, specific guidance.
 - Write directly to the team ("you" / "your business"). They will read this.
-- Use simple vocabulary. English is not the first language for most participants.
+- __FEEDBACK_VOCAB__
 - Do NOT use slang, idioms, or business jargon/acronyms. If you must use a term, explain it plainly.
 - Be specific. No one-line "good job" feedback. Name concrete strengths and concrete improvements.
 - Give at least one concrete idea that could strengthen the business.
@@ -250,6 +249,45 @@ Write the participant-facing feedback now.
 """
 
 
+# --- Mode-specific prompt framing ------------------------------------------- #
+# The shared grader/feedback prompts carry BYUMS-competition framing (prize money,
+# "competition", non-native-English participants). That framing is correct in
+# competition mode but is factually WRONG for the general rubric (an arbitrary
+# business plan is not in a prize competition). We swap only the framing sentences
+# by mode; the rules/output-format below them are universal. Placeholders are plain
+# tokens (not {braces}) so ChatPromptTemplate never treats them as variables.
+_GRADER_INTRO = {
+    True: ("You are a STRICT, skeptical evaluator for a Business Plan Competition that "
+           "awards real prize money. Over-scoring a weak plan is a serious error."),
+    False: ("You are a STRICT, skeptical evaluator of business plans. Over-scoring a weak "
+            "plan is a serious error."),
+}
+_FEEDBACK_INTRO = {
+    True: ("You are a competition judge writing feedback directly to a participant team.\n\n"
+           "In this competition, your written feedback is, in most cases, the ONLY prize a "
+           "participant takes home. Make it genuinely useful."),
+    False: ("You are an experienced business advisor writing feedback directly to the plan's "
+            "author.\n\nYour written feedback is the most valuable thing they take away from "
+            "this review. Make it genuinely useful."),
+}
+_FEEDBACK_VOCAB = {
+    True: "Use simple vocabulary. English is not the first language for most participants.",
+    False: "Use clear, simple vocabulary and avoid unnecessary jargon.",
+}
+
+
+def grader_system(competition: bool = True) -> str:
+    """Resolve GRADER_SYSTEM for competition (True) or general (False) mode."""
+    return GRADER_SYSTEM.replace("__GRADER_INTRO__", _GRADER_INTRO[bool(competition)])
+
+
+def feedback_system(competition: bool = True) -> str:
+    """Resolve FEEDBACK_SYSTEM for competition (True) or general (False) mode."""
+    return (FEEDBACK_SYSTEM
+            .replace("__FEEDBACK_INTRO__", _FEEDBACK_INTRO[bool(competition)])
+            .replace("__FEEDBACK_VOCAB__", _FEEDBACK_VOCAB[bool(competition)]))
+
+
 # --- Nodes ------------------------------------------------------------------ #
 def prepare(state: AgentState) -> dict:
     """Screen eligibility and (optionally) retrieve RAG context. RAG is skipped by
@@ -257,12 +295,24 @@ def prepare(state: AgentState) -> dict:
     files = state["submission_files"]
     _, combined = _assemble_submission(files)
 
-    elig = screen_eligibility(combined)
-    thinking = ["Screening eligibility (business-type exclusions, language, AI-content)..."]
-    if elig.status != ELIGIBILITY_ELIGIBLE:
-        thinking.append(f"Eligibility: {elig.status} — {'; '.join(elig.reasons) or 'see notes'}")
+    # The eligibility/DQ screen is BYUMS-competition-specific (excluded business
+    # types, required license/bank deliverables, English requirement). It only
+    # applies in competition mode — NOT to the general rubric, where "franchise"
+    # etc. are perfectly valid businesses. use_calibration marks competition mode.
+    if state.get("use_calibration", True):
+        elig = screen_eligibility(combined)
+        thinking = ["Screening eligibility (business-type exclusions, language, AI-content)..."]
+        if elig.status != ELIGIBILITY_ELIGIBLE:
+            thinking.append(f"Eligibility: {elig.status} — {'; '.join(elig.reasons) or 'see notes'}")
+        else:
+            thinking.append("Eligibility: eligible.")
+        eligibility = {
+            "status": elig.status, "reasons": elig.reasons,
+            "advisory_notes": elig.advisory_notes, "ai_content_flag": elig.ai_content_flag,
+        }
     else:
-        thinking.append("Eligibility: eligible.")
+        thinking = ["General rubric: competition eligibility/DQ screen skipped."]
+        eligibility = {"status": ELIGIBILITY_ELIGIBLE, "reasons": [], "advisory_notes": [], "ai_content_flag": False}
 
     context: List[str] = []
     skip = state.get("skip_rag", True)  # default: skip RAG for business plans
@@ -276,12 +326,7 @@ def prepare(state: AgentState) -> dict:
 
     return {
         "context": context,
-        "eligibility": {
-            "status": elig.status,
-            "reasons": elig.reasons,
-            "advisory_notes": elig.advisory_notes,
-            "ai_content_flag": elig.ai_content_flag,
-        },
+        "eligibility": eligibility,
         "revision_number": state.get("revision_number", 0),
         "grader_feedback": state.get("grader_feedback", ""),
         "is_valid": False,
@@ -308,12 +353,17 @@ def grade_submission(state: AgentState) -> dict:
 
     # Few-shot calibration. Exclude any example that IS the current submission
     # (leave-one-out) so a plan is never calibrated against itself (no leakage).
-    submission_names = {f.get("filename", "") for f in state["submission_files"]}
-    calibration_block = calibration.build_calibration_block(
-        _load_fewshot_examples(), exclude_filenames=submission_names
-    )
+    # Skipped entirely when use_calibration is False (e.g. the general rubric, whose
+    # criteria differ from the BYUMS example's).
+    calibration_block = ""
+    if state.get("use_calibration", True):
+        submission_names = {f.get("filename", "") for f in state["submission_files"]}
+        calibration_block = calibration.build_calibration_block(
+            _load_fewshot_examples(), exclude_filenames=submission_names
+        )
 
-    prompt = ChatPromptTemplate.from_messages([("system", GRADER_SYSTEM), ("user", GRADER_USER)])
+    system_prompt = grader_system(competition=state.get("use_calibration", True))
+    prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", GRADER_USER)])
     try:
         llm = get_llm("grade").bind(response_format={"type": "json_object"})
         response = (prompt | llm).invoke({
@@ -380,7 +430,8 @@ def generate_feedback(state: AgentState) -> dict:
     revisions = state.get("revision_number", 0)
     confidence = _confidence_from_revisions(revisions)
     # NOTE: confidence is intentionally NOT appended to thinking_process.
-    thinking = state.get("thinking_process", []) + ["Writing participant feedback (BYUMS voice)."]
+    _voice = "BYUMS voice" if state.get("use_calibration", True) else "business-advisor voice"
+    thinking = state.get("thinking_process", []) + [f"Writing participant feedback ({_voice})."]
 
     dq_reasons = list(elig.get("reasons", [])) + [
         f"(advisory) {n}" for n in elig.get("advisory_notes", [])
@@ -400,7 +451,8 @@ def generate_feedback(state: AgentState) -> dict:
     rubric_perf = "\n".join(f"- {k}: {v}" for k, v in gd.rubric_performance.items())
     critique = "\n".join(f"- {c}" for c in gd.critique_points) or "None."
 
-    prompt = ChatPromptTemplate.from_messages([("system", FEEDBACK_SYSTEM), ("user", FEEDBACK_USER)])
+    system_prompt = feedback_system(competition=state.get("use_calibration", True))
+    prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", FEEDBACK_USER)])
     try:
         response = (prompt | get_llm("feedback")).invoke({
             "submission": formatted,

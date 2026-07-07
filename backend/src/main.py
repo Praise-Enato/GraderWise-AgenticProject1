@@ -12,9 +12,10 @@ from backend.src import rubric_parser
 from backend.src import rubric_csv
 from backend.src import vision_grade
 from backend.src import calibration
+from backend.src import general_rubric
 from backend.src.input_adapter import get_adapter
 from backend.src.grading import to_grade_result
-from backend.src.eligibility import screen_eligibility
+from backend.src.eligibility import screen_eligibility, EligibilityResult
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from fastapi.concurrency import run_in_threadpool
@@ -49,6 +50,7 @@ class GradeRequest(BaseModel):
     guideline: Optional[str] = Field(None, description="Judges' guideline document, injected as fixed context")
     skip_rag: Optional[bool] = Field(None, description="Skip RAG retrieval (default True for business plans)")
     max_retries: Optional[int] = Field(None, description="Max Judge retries (capped for batch, full for live)")
+    use_calibration: Optional[bool] = Field(None, description="Apply few-shot calibration (BYUMS-specific). Set False for the general rubric.")
 
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest(files: List[UploadFile] = File(...)):
@@ -124,6 +126,8 @@ async def grade_submission(request: GradeRequest):
             inputs["skip_rag"] = request.skip_rag
         if request.max_retries is not None:
             inputs["max_retries"] = request.max_retries
+        if request.use_calibration is not None:
+            inputs["use_calibration"] = request.use_calibration
 
         result = await run_in_threadpool(agent.app.invoke, inputs)
         return result["grade_result"]
@@ -196,6 +200,7 @@ async def grade_vision(
     rubric: str = Form(...),          # JSON string: list of rubric items
     guideline: str = Form(""),
     student_id: str = Form("team"),
+    use_calibration: str = Form("true"),   # "false" for the general rubric
 ):
     """Vision grading (Phase 1b): render the uploaded plan PDF to slide images and
     grade them with a multimodal model, so image-based content (financial tables,
@@ -232,15 +237,22 @@ async def grade_vision(
             raise HTTPException(status_code=422,
                                 detail="Could not render slide images from the PDF (is pypdfium2 installed?).")
 
-        elig = screen_eligibility(normalized.text)
-        calib = calibration.build_calibration_block(
-            agent._load_fewshot_examples(), exclude_filenames={f.filename or ""}
-        )
+        # Competition mode (use_calibration) gates BOTH the few-shot calibration and
+        # the BYUMS-specific eligibility/DQ screen. The general rubric uses neither.
+        competition_mode = use_calibration.lower() != "false"
+        if competition_mode:
+            elig = screen_eligibility(normalized.text)
+            calib = calibration.build_calibration_block(
+                agent._load_fewshot_examples(), exclude_filenames={f.filename or ""}
+            )
+        else:
+            elig = EligibilityResult(status="eligible", reasons=[], advisory_notes=[], ai_content_flag=False)
+            calib = ""
         rubric_str = agent._format_rubric(rubric_items)
 
         grade_data = await run_in_threadpool(
             vision_grade.grade_with_vision,
-            agent.GRADER_SYSTEM, rubric_items, rubric_str,
+            agent.grader_system(competition=competition_mode), rubric_items, rubric_str,
             guideline or "None provided.", calib, image_uris,
         )
 
@@ -325,6 +337,13 @@ async def bpc_fewshot_scores():
         }
         for e in examples
     ]
+
+
+@app.get("/general-rubric")
+async def general_rubric_endpoint():
+    """A general-purpose business-plan rubric (100 pts), not competition-specific.
+    Use with use_calibration=False (the BYUMS few-shot example doesn't apply)."""
+    return {"rubric": general_rubric.to_dicts(), "total": general_rubric.total_points()}
 
 
 @app.get("/")
