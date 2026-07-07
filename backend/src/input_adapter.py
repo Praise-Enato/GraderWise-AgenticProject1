@@ -8,7 +8,7 @@ as the model router).
 
 For the demo only the PDF adapter is built. The pure parts (YouTube-link
 extraction, adapter routing, the normalized shape) are unit-tested; PDF text and
-page-image extraction lazily import pypdf / PyMuPDF and degrade gracefully when
+page-image extraction lazily import pypdf / pypdfium2 and degrade gracefully when
 those libraries are absent.
 """
 from __future__ import annotations
@@ -97,41 +97,34 @@ class PDFAdapter(InputAdapter):
     def _render_pages(path: str, notes: List[str], dpi: int = 130, max_pages: int = 30) -> List[bytes]:
         """Render each PDF page to PNG bytes for the vision model. Slide-deck PDFs
         carry the financials/license/bank/photos as images, so text alone is not
-        enough (eng review). Uses PyMuPDF if available. Capped at max_pages to bound
-        the multimodal payload size."""
-        try:
-            import fitz  # PyMuPDF, lazy optional dep
-        except ImportError:
-            notes.append("PyMuPDF (fitz) not installed — page images unavailable; "
+        enough (eng review). Delegates to render_pdf_images (pypdfium2)."""
+        images = render_pdf_images(path, dpi=dpi, max_pages=max_pages)
+        if not images:
+            notes.append("Slide images unavailable (install pypdfium2 + pillow) — "
                          "vision grading will have no slide images.")
-            return []
-        try:
-            doc = fitz.open(path)
-            images = []
-            for i, page in enumerate(doc):
-                if i >= max_pages:
-                    notes.append(f"PDF has {doc.page_count} pages; rendered first {max_pages} for vision.")
-                    break
-                images.append(page.get_pixmap(dpi=dpi).tobytes("png"))
-            return images
-        except Exception as e:  # pragma: no cover - defensive
-            notes.append(f"page render error: {e}")
-            return []
+        return images
 
 
 def render_pdf_images(path: str, dpi: int = 130, max_pages: int = 30) -> List[bytes]:
-    """Render a PDF's pages to PNG bytes (for vision grading). Returns [] if
-    PyMuPDF is unavailable. Capped at max_pages to bound payload size."""
+    """Render a PDF's pages to PNG bytes (for vision grading), capped at max_pages
+    to bound the multimodal payload. Uses pypdfium2 (Apache-2.0 / BSD-3, Google's
+    PDFium) + Pillow — both permissively licensed (no AGPL). Returns [] if the
+    libraries are unavailable or the file can't be rendered."""
     try:
-        import fitz  # PyMuPDF
+        import io
+        import pypdfium2 as pdfium
     except ImportError:
         return []
     images: List[bytes] = []
-    doc = fitz.open(path)
-    for i, page in enumerate(doc):
-        if i >= max_pages:
-            break
-        images.append(page.get_pixmap(dpi=dpi).tobytes("png"))
+    try:
+        pdf = pdfium.PdfDocument(path)
+        for i in range(min(len(pdf), max_pages)):
+            pil = pdf[i].render(scale=dpi / 72.0).to_pil()
+            buf = io.BytesIO()
+            pil.save(buf, format="PNG")
+            images.append(buf.getvalue())
+    except Exception:  # pragma: no cover - defensive (corrupt/encrypted PDF)
+        return images
     return images
 
 

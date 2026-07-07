@@ -230,7 +230,7 @@ async def grade_vision(
         image_uris = vision_grade.pngs_to_datauris(normalized.page_images)
         if not image_uris:
             raise HTTPException(status_code=422,
-                                detail="Could not render slide images from the PDF (is PyMuPDF installed?).")
+                                detail="Could not render slide images from the PDF (is pypdfium2 installed?).")
 
         elig = screen_eligibility(normalized.text)
         calib = calibration.build_calibration_block(
