@@ -44,3 +44,5 @@ openpyxl
 httpx
 pypdf
 docx2txt
+# --- Vision grading (Phase 1b): render PDF slides to images for the multimodal model ---
+PyMuPDF

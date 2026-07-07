@@ -43,9 +43,13 @@ backend/data/
 backend/logs/
 *.log
 
+# Applicant plan submissions (contain personal info / bank statements) — never commit
+/*.pdf
+
 # Temp Scripts
 verify_backend.py
 test_llm_connection.py
 test_file_*.txt
 frontend/data/*.json
 nginx/
+.gstack/

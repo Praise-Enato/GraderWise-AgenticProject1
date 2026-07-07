@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-    LayoutDashboard, History, Settings, LogOut, ChevronLeft, ChevronRight, User,
-    BookOpen, PenTool, BarChart3, Brain, Layers, X
+    LayoutDashboard, LogOut, ChevronLeft, ChevronRight,
+    BookOpen, PenTool, BarChart3, Layers, X, Briefcase, Trophy, Swords
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { UnsavedChangesModal } from "@/components/UnsavedChangesModal";
@@ -48,6 +48,9 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
 
     const navItems = [
         { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+        { icon: Briefcase, label: "Business Plan Grader", href: "/bpc-grading" },
+        { icon: Trophy, label: "Competition Screening", href: "/bpc-screening" },
+        { icon: Swords, label: "AI vs Human", href: "/bpc-headtohead" },
         { icon: PenTool, label: "Grading Tool", href: "/grading" },
         { icon: Layers, label: "Mass Grading", href: "/mass-grading" },
         { icon: BookOpen, label: "Grading Results", href: "/submissions" },

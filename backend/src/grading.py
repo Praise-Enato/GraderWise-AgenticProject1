@@ -1,0 +1,202 @@
+"""Pure grade-parsing and grade-assembly logic.
+
+Extracted from the LangGraph agent so it can be unit-tested without importing
+langchain/langgraph/chromadb. This is where the engineering review's Issue #4
+lives: a malformed grader response must NOT become a real-looking score of 0
+(which would bury a good plan at the bottom of a ranking). Instead it becomes
+graded_ok=False, flagged for human review.
+"""
+from __future__ import annotations
+
+import json
+import math
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
+from backend.src.models import (
+    CriterionAssessment,
+    GradeResult,
+    RubricItem,
+    ELIGIBILITY_ELIGIBLE,
+    ELIGIBILITY_NEEDS_REVIEW,
+)
+
+# A per-criterion award below this (on a 0..max scale) is surfaced as a warning
+# in the critique list, matching the previous agent behaviour.
+_LOW_AWARD_THRESHOLD = 5.0
+
+
+@dataclass
+class GradeData:
+    score: float
+    assessments: List[CriterionAssessment] = field(default_factory=list)
+    critique_points: List[str] = field(default_factory=list)
+    rubric_performance: Dict[str, str] = field(default_factory=dict)
+    graded_ok: bool = True
+    error: Optional[str] = None
+    general_feedback: str = ""
+
+
+def _safe_int(value, default: int) -> int:
+    """Coerce a possibly-messy value to int, falling back to default."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def strip_code_fences(text: str) -> str:
+    """Remove a leading ```json / ``` fence and trailing ``` if present."""
+    s = text.strip()
+    if s.startswith("```json"):
+        s = s[len("```json"):]
+    elif s.startswith("```"):
+        s = s[len("```"):]
+    if s.endswith("```"):
+        s = s[:-3]
+    return s.strip()
+
+
+def _rubric_lookups(rubric: List[RubricItem]):
+    by_index = {i + 1: item for i, item in enumerate(rubric)}   # 1-based
+    by_name = {item.criteria.strip().lower(): item for item in rubric}
+    return by_index, by_name
+
+
+def _resolve_max_points(item_json: dict, rubric: List[RubricItem], by_index, by_name):
+    """Find the criterion's max points from the rubric (by index, then name),
+    falling back to any max the model supplied.
+
+    Returns (max_points, resolved). resolved is False when the criterion matched
+    nothing in the rubric and the model supplied no max — i.e. a phantom criterion
+    whose award we cannot bound (handled as untrustworthy by the caller)."""
+    idx = item_json.get("criteria_index")
+    if isinstance(idx, (int, float)) and not isinstance(idx, bool) and int(idx) in by_index:
+        return float(by_index[int(idx)].max_points), True
+    name = str(item_json.get("criteria_name", "")).strip().lower()
+    if name in by_name:
+        return float(by_name[name].max_points), True
+    supplied = item_json.get("max_points")
+    if isinstance(supplied, (int, float)) and not isinstance(supplied, bool) and math.isfinite(float(supplied)):
+        return float(supplied), True
+    return 0.0, False
+
+
+def parse_grader_response(raw_content: str, rubric: List[RubricItem]) -> GradeData:
+    """Parse the grader model's JSON output into structured, trustworthy data.
+
+    Returns graded_ok=False (never a silent 0) when the output is unparseable,
+    empty, or contains non-numeric awards.
+    """
+    if raw_content is None or str(raw_content).strip() == "":
+        return GradeData(score=0.0, graded_ok=False, error="Empty grader response")
+
+    cleaned = strip_code_fences(str(raw_content))
+    try:
+        parsed = json.loads(cleaned)
+    except (json.JSONDecodeError, ValueError) as e:
+        return GradeData(score=0.0, graded_ok=False, error=f"Unparseable grader JSON: {e}")
+
+    if not isinstance(parsed, dict):
+        return GradeData(score=0.0, graded_ok=False, error="Grader JSON was not an object")
+
+    raw_assessments = parsed.get("assessments")
+    if not isinstance(raw_assessments, list) or len(raw_assessments) == 0:
+        return GradeData(score=0.0, graded_ok=False,
+                         error="Grader returned no per-criterion assessments")
+
+    by_index, by_name = _rubric_lookups(rubric)
+
+    total = 0.0
+    assessments: List[CriterionAssessment] = []
+    critique_points: List[str] = []
+    rubric_performance: Dict[str, str] = {}
+
+    for i, item in enumerate(raw_assessments):
+        if not isinstance(item, dict):
+            return GradeData(score=0.0, graded_ok=False,
+                             error=f"Assessment #{i} was not an object")
+        name = str(item.get("criteria_name", "Unknown")).strip() or "Unknown"
+        raw_points = item.get("awarded_points", None)
+        try:
+            points = float(raw_points)
+        except (TypeError, ValueError):
+            # Non-numeric award = untrustworthy grade. Flag, don't fabricate.
+            return GradeData(score=0.0, graded_ok=False,
+                             error=f"Non-numeric awarded_points for '{name}'")
+        # Non-finite (NaN/Infinity) would slip past the numeric check, defeat the
+        # clamp (all NaN comparisons are False), and poison the total. Reject it.
+        if not math.isfinite(points):
+            return GradeData(score=0.0, graded_ok=False,
+                             error=f"Non-finite awarded_points for '{name}'")
+
+        max_points, max_resolved = _resolve_max_points(item, rubric, by_index, by_name)
+        # A positive award to a criterion we cannot bound (not in the rubric, no
+        # supplied max) is untrustworthy — it would inflate the total unchecked.
+        if not max_resolved and points != 0:
+            return GradeData(score=0.0, graded_ok=False,
+                             error=f"Awarded {points} to unknown criterion '{name}' with no resolvable max points")
+        reason = str(item.get("reason", "")).strip()
+
+        # Clamp into [0, max] so an over-award can't inflate the total; make the
+        # clamp visible rather than silent.
+        clamped = points
+        if max_points > 0 and points > max_points:
+            clamped = max_points
+            reason = (reason + f" [clamped from {points} to max {max_points}]").strip()
+        if clamped < 0:
+            clamped = 0.0
+            reason = (reason + f" [clamped up from {points} to 0]").strip()
+
+        total += clamped
+        assessments.append(CriterionAssessment(
+            criteria_index=_safe_int(item.get("criteria_index"), i + 1),
+            criteria_name=name,
+            awarded_points=clamped,
+            max_points=max_points,
+            reason=reason,
+        ))
+        rubric_performance[name] = f"{clamped} pts - {reason}"
+        if clamped == 0.0:
+            critique_points.append(f"❌ {name}: {reason}")
+        elif clamped < _LOW_AWARD_THRESHOLD:
+            critique_points.append(f"⚠️ {name}: {reason}")
+
+    return GradeData(
+        score=total,
+        assessments=assessments,
+        critique_points=critique_points,
+        rubric_performance=rubric_performance,
+        graded_ok=True,
+        error=None,
+        general_feedback=str(parsed.get("general_feedback", "")),
+    )
+
+
+def to_grade_result(
+    grade_data: GradeData,
+    feedback: str,
+    thinking_process: Optional[List[str]] = None,
+    confidence_score: float = 1.0,
+    eligibility_status: str = ELIGIBILITY_ELIGIBLE,
+    dq_reasons: Optional[List[str]] = None,
+    ai_content_flag: bool = False,
+) -> GradeResult:
+    """Assemble the API-facing GradeResult, propagating grade status + eligibility."""
+    # A grade that failed to parse should never present as an eligible real score.
+    status = eligibility_status
+    if not grade_data.graded_ok and status == ELIGIBILITY_ELIGIBLE:
+        status = ELIGIBILITY_NEEDS_REVIEW
+    return GradeResult(
+        score=grade_data.score,
+        feedback=feedback,
+        citations=[],
+        thinking_process=thinking_process or [],
+        confidence_score=confidence_score,
+        assessments=grade_data.assessments,
+        graded_ok=grade_data.graded_ok,
+        error=grade_data.error,
+        eligibility_status=status,
+        dq_reasons=dq_reasons or [],
+        ai_content_flag=ai_content_flag,
+    )

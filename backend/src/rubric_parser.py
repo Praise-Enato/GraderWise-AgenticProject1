@@ -1,29 +1,20 @@
 from typing import List
 from fastapi import UploadFile
-from dotenv import load_dotenv
 import os
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from backend.src.models import RubricItem
 from backend.src import rag
+from backend.src.llm import get_llm
 import json
 
 # WORKAROUND: Remove NO_PROXY if it causes DNS issues
 if "NO_PROXY" in os.environ:
     if "api.deepseek.com" not in os.environ.get("NO_PROXY", ""):
-        # print(f"DEBUG: Removing NO_PROXY to fix DNS...")
         del os.environ["NO_PROXY"]
 
-# Initialize LLM (DeepSeek-V3)
-api_key = os.getenv("DEEPSEEK_API_KEY")
-
-llm = ChatOpenAI(
-    model="deepseek-chat",
-    openai_api_key=api_key,
-    openai_api_base="https://api.deepseek.com",
-    temperature=0,
-    max_retries=3
-)
+# The LLM is obtained lazily from the model router (get_llm("rubric")) inside
+# parse_rubric, so a missing API key fails at call time with a clear message
+# rather than at import time.
 
 def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     """
@@ -91,19 +82,22 @@ def parse_rubric(files: List[UploadFile]) -> List[RubricItem]:
     }}
     """
     
-    human_prompt = f"RUBRIC CONTENT:\n{aggregated_text}"
-    
+    # Pass the rubric content as a template VARIABLE, not interpolated into the
+    # template string — otherwise any '{' or '}' in the rubric is parsed as a
+    # template field and crashes /parse-rubric.
+    human_prompt = "RUBRIC CONTENT:\n{content}"
+
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         ("human", human_prompt)
     ])
     
-    # Bind JSON mode
-    json_llm = llm.bind(response_format={"type": "json_object"})
+    # Bind JSON mode. Model comes from the router (get_llm) so config lives in one place.
+    json_llm = get_llm("rubric").bind(response_format={"type": "json_object"})
     chain = prompt | json_llm
     
     try:
-        response = chain.invoke({})
+        response = chain.invoke({"content": aggregated_text})
         content = response.content.strip()
         
         # --- FIX: Handle Markdown Code Blocks ---

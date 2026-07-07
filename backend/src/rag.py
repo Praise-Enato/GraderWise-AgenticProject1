@@ -7,9 +7,13 @@ import pandas as pd
 from langchain_core.documents import Document
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
 from functools import lru_cache
+
+# NOTE: langchain_chroma (Chroma) and langchain_huggingface (HuggingFaceEmbeddings)
+# are imported lazily inside the functions that use them. They pull in the heavy
+# torch/sentence-transformers/chromadb stack, which is only needed for RAG
+# ingest/retrieve — and business-plan grading runs with skip_rag=True. Keeping
+# these imports lazy lets the grading backend start without the ML stack installed.
 
 # Constants
 CHROMA_PATH = "./backend/data/chroma"
@@ -21,6 +25,7 @@ os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 @lru_cache(maxsize=1)
 def get_embedding_function():
     try:
+        from langchain_huggingface import HuggingFaceEmbeddings  # lazy (pulls torch)
         return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     except Exception as e:
         print(f"Error initializing embeddings: {e}")
@@ -135,6 +140,7 @@ def ingest_documents(files: List[UploadFile]) -> int:
     splits = text_splitter.split_documents(documents)
 
     # Embed and store in ChromaDB
+    from langchain_chroma import Chroma  # lazy (pulls chromadb)
     Chroma.from_documents(
         documents=splits,
         embedding=get_embedding_function(),
@@ -147,6 +153,7 @@ def retrieve_context(query: str) -> List[str]:
     """
     Retrieves the top 10 relevant document chunks for the given query.
     """
+    from langchain_chroma import Chroma  # lazy (pulls chromadb)
     vector_store = Chroma(
         persist_directory=CHROMA_PATH,
         embedding_function=get_embedding_function()

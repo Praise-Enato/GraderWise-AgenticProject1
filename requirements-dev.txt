@@ -1,0 +1,9 @@
+# Dev/test dependencies for the Business Plan Grader unit tests.
+# These are intentionally light: the correctness-critical logic lives in
+# dependency-free pure modules (validation, grading, eligibility, llm,
+# input_adapter) so the unit suite runs without torch/langgraph/chromadb.
+#
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+#   .venv/bin/python -m pytest
+pytest>=8
+pydantic>=2
