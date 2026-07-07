@@ -37,8 +37,15 @@ from functools import lru_cache
 from backend.src.models import RubricItem, GradeResult, ELIGIBILITY_ELIGIBLE
 from backend.src import rag
 from backend.src import calibration
+from backend.src import reference_corpus
 from backend.src.llm import get_llm
-from backend.src.grading import GradeData, parse_grader_response, to_grade_result
+from backend.src.grading import (
+    GradeData,
+    parse_grader_response,
+    to_grade_result,
+    find_missing_criteria,
+    summarize_performance,
+)
 from backend.src.eligibility import screen_eligibility
 
 load_dotenv()
@@ -95,6 +102,8 @@ class AgentState(TypedDict, total=False):
     use_calibration: bool             # competition mode: gates BYUMS eligibility screen + few-shot calibration
                                       # (default True). False = general rubric. MUST be declared here or
                                       # StateGraph drops it from the input and the gates never fire.
+    use_grounding: bool               # retrieve the static grounding corpus into grader context (default
+                                      # False; degrades to no-op if the corpus/embedding model is absent).
 
 
 # --- Helpers ---------------------------------------------------------------- #
@@ -116,6 +125,8 @@ def _format_rubric(rubric: List[RubricItem]) -> str:
     parts = []
     for i, item in enumerate(rubric):
         part = f"### CRITERION {i + 1}: {item.criteria} (Max: {item.max_points} pts)"
+        if item.course_guide:
+            part += f"\n   - [WHAT THIS MEANS]: {item.course_guide}"
         part += f"\n   - [FULL MARKS]: {item.description}"
         if item.developing_description:
             part += f"\n   - [PARTIAL]: {item.developing_description}"
@@ -182,7 +193,19 @@ SCORING RULES:
 11. Follow the JUDGES' GUIDELINE below, and CALIBRATE your severity to the CALIBRATION REFERENCE
     (an expert judge's scored example) when one is provided.
 
-OUTPUT FORMAT — return a single JSON object:
+SCORING DISPOSITION (how expert human graders actually score — apply to every criterion):
+- Use the FULL range. Do not cluster awards in the safe middle. A criterion that is fully,
+  clearly met earns FULL marks; one that is absent or unsupported earns 0. Both extremes are
+  correct and expected when the evidence warrants them.
+- No "pity points." Do not award a soft partial to be nice. Absent, vague, or unsupported
+  content (e.g. financials with no basis, a "no competition" claim, a hand-wavy risk section)
+  is 0, not 1.
+- Be hardest on FINANCIALS and RISK. These are where weak plans are most often over-credited:
+  demand concrete, internally consistent figures and specific, mitigated risks; otherwise score low.
+- COMPLETENESS: you MUST return exactly one assessment object for EVERY rubric criterion, in order.
+  Never omit a criterion; if it is absent from the submission, still include it with awarded_points 0.
+
+OUTPUT FORMAT — return a single JSON object (one assessment PER criterion, all of them):
 {{
     "assessments": [
         {{
@@ -244,6 +267,12 @@ PER-CRITERION RESULTS:
 
 CRITIQUE NOTES:
 {critique}
+
+STRONGEST CRITERIA (scored 80%+ of max — ground "what you did well" in these):
+{strengths}
+
+WEAKEST CRITERIA (scored below 60% of max — ground "where you can improve" in these):
+{gaps}
 
 Write the participant-facing feedback now.
 """
@@ -324,6 +353,18 @@ def prepare(state: AgentState) -> dict:
             log_agent_action("PREPARE", f"RAG error: {e}")
             thinking.append("RAG unavailable; continuing without it.")
 
+    # Grounding: retrieve generic business-plan evaluation knowledge (financial
+    # credibility, market sizing, quality guide) from the static reference corpus.
+    # Graceful no-op if the corpus / embedding model is absent, so it's safe to
+    # request even when nothing is ingested.
+    if state.get("use_grounding", False):
+        grounded = reference_corpus.retrieve_reference_context(_rag_query(state["rubric"]))
+        if grounded:
+            context = context + grounded
+            thinking.append(f"Grounding: added {len(grounded)} reference chunk(s).")
+        else:
+            thinking.append("Grounding requested, but the reference corpus is unavailable; skipped.")
+
     return {
         "context": context,
         "eligibility": eligibility,
@@ -389,7 +430,8 @@ def grade_submission(state: AgentState) -> dict:
 
 
 def validate_grade(state: AgentState) -> dict:
-    """Judge — structural validation only (graded_ok + score bounds)."""
+    """Judge — structural validation: graded_ok + score bounds + rubric completeness.
+    Pure Python, no LLM. Rejects to the Grader (up to MAX_RETRIES) on failure."""
     gd: GradeData = state["grade_data"]
     rubric = state["rubric"]
     total_points = sum(item.max_points for item in rubric)
@@ -403,6 +445,17 @@ def validate_grade(state: AgentState) -> dict:
         valid, reason = False, f"score {gd.score} exceeds max possible {total_points}"
     elif gd.score < 0:
         valid, reason = False, f"score {gd.score} is negative"
+    else:
+        # Completeness: a single grader call can silently drop criteria on a long
+        # rubric, giving an artificially low total that passes the bounds checks.
+        missing = find_missing_criteria(gd.assessments, rubric)
+        if missing:
+            shown = "; ".join(missing[:8]) + ("; ..." if len(missing) > 8 else "")
+            valid, reason = False, (
+                f"incomplete grade: {len(missing)} of {len(rubric)} criteria were not scored "
+                f"(missing: {shown}). Return exactly one assessment for EVERY criterion; "
+                f"award 0 for any that are absent — do not omit them."
+            )
 
     if valid:
         log_agent_action("JUDGE", "grade validated")
@@ -451,6 +504,12 @@ def generate_feedback(state: AgentState) -> dict:
     rubric_perf = "\n".join(f"- {k}: {v}" for k, v in gd.rubric_performance.items())
     critique = "\n".join(f"- {c}" for c in gd.critique_points) or "None."
 
+    # Strengths/gaps are derived DETERMINISTICALLY from the per-criterion scores (not
+    # asked of the LLM) so the feedback is anchored to what was actually scored well/poorly.
+    strengths, gaps = summarize_performance(gd.assessments)
+    strengths_str = "\n".join(f"- {s}" for s in strengths) or "None scored at 80%+ of max."
+    gaps_str = "\n".join(f"- {g}" for g in gaps) or "None scored below 60% of max."
+
     system_prompt = feedback_system(competition=state.get("use_calibration", True))
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", FEEDBACK_USER)])
     try:
@@ -460,6 +519,8 @@ def generate_feedback(state: AgentState) -> dict:
             "total_points": total_points,
             "rubric_performance": rubric_perf,
             "critique": critique,
+            "strengths": strengths_str,
+            "gaps": gaps_str,
         })
         feedback = response.content
     except Exception as e:

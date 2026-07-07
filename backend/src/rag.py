@@ -88,6 +88,12 @@ def extract_text_from_file(file: UploadFile) -> str:
             if loader:
                 loaded_docs = loader.load()
                 text = "\n".join([doc.page_content for doc in loaded_docs])
+        elif filename_lower.endswith(".pptx"):
+            # Slide decks: extract per-slide text + tables (financials live in tables).
+            from backend.src.input_adapter import extract_pptx_text
+            text = extract_pptx_text(file_path)
+            if not text:
+                raise ValueError("No text extracted from .pptx (empty deck, or python-pptx missing).")
         elif filename_lower.endswith(".txt") or any(filename_lower.endswith(ext) for ext in CODE_EXTENSIONS):
             # Treat code files as text
             loader = TextLoader(file_path)

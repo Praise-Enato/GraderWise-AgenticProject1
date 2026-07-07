@@ -25,6 +25,14 @@ def test_all_have_positive_max_and_description():
         assert it.description.strip()
 
 
+def test_all_have_guide_and_tier_descriptions():
+    # richer rubric: every criterion carries intent + partial + zero boundaries
+    for it in G.GENERAL_RUBRIC:
+        assert it.course_guide and it.course_guide.strip(), it.criteria
+        assert it.developing_description and it.developing_description.strip(), it.criteria
+        assert it.zero_description and it.zero_description.strip(), it.criteria
+
+
 def test_financials_is_heaviest_section():
     sections: dict = {}
     for it in G.GENERAL_RUBRIC:

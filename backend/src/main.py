@@ -51,6 +51,7 @@ class GradeRequest(BaseModel):
     skip_rag: Optional[bool] = Field(None, description="Skip RAG retrieval (default True for business plans)")
     max_retries: Optional[int] = Field(None, description="Max Judge retries (capped for batch, full for live)")
     use_calibration: Optional[bool] = Field(None, description="Apply few-shot calibration (BYUMS-specific). Set False for the general rubric.")
+    use_grounding: Optional[bool] = Field(None, description="Ground the grader in the static reference corpus (financial/market/quality guides). No-op if the corpus is not ingested.")
 
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest(files: List[UploadFile] = File(...)):
@@ -128,6 +129,8 @@ async def grade_submission(request: GradeRequest):
             inputs["max_retries"] = request.max_retries
         if request.use_calibration is not None:
             inputs["use_calibration"] = request.use_calibration
+        if request.use_grounding is not None:
+            inputs["use_grounding"] = request.use_grounding
 
         result = await run_in_threadpool(agent.app.invoke, inputs)
         return result["grade_result"]
@@ -214,17 +217,17 @@ async def grade_vision(
 
     f = files[0]  # MVP: one plan per call
     suffix = os.path.splitext(f.filename or "plan.pdf")[1].lower()
-    if suffix != ".pdf":
-        raise HTTPException(status_code=422, detail="Vision grading requires a PDF file.")
+    if suffix not in (".pdf", ".pptx"):
+        raise HTTPException(status_code=422, detail="Vision grading requires a PDF or PPTX file.")
 
     MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # keep in sync with nginx client_max_body_size
     if getattr(f, "size", None) and f.size > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="PDF too large (max 25 MB).")
+        raise HTTPException(status_code=413, detail="File too large (max 25 MB).")
     data = await f.read()
     if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="PDF too large (max 25 MB).")
+        raise HTTPException(status_code=413, detail="File too large (max 25 MB).")
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp_path = tmp.name
     try:
         tmp.write(data)
@@ -234,8 +237,11 @@ async def grade_vision(
         normalized = await run_in_threadpool(get_adapter(tmp_path).load, tmp_path)
         image_uris = vision_grade.pngs_to_datauris(normalized.page_images)
         if not image_uris:
-            raise HTTPException(status_code=422,
-                                detail="Could not render slide images from the PDF (is pypdfium2 installed?).")
+            detail = ("Could not render slide images from the PDF (is pypdfium2 installed?)."
+                      if suffix == ".pdf" else
+                      "No embedded images found in the .pptx — grade this deck via the text "
+                      "path (/grade) instead, which reads its slide text and tables.")
+            raise HTTPException(status_code=422, detail=detail)
 
         # Competition mode (use_calibration) gates BOTH the few-shot calibration and
         # the BYUMS-specific eligibility/DQ screen. The general rubric uses neither.

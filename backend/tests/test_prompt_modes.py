@@ -54,6 +54,17 @@ def test_universal_rules_survive_in_both_modes():
         assert "What you did well" in A.feedback_system(comp)
 
 
+def test_format_rubric_renders_course_guide_when_present():
+    from backend.src.models import RubricItem
+    with_guide = RubricItem(criteria="X - y", max_points=5, description="full",
+                            course_guide="what this criterion means")
+    without = RubricItem(criteria="Z - w", max_points=5, description="full")
+    rendered = A._format_rubric([with_guide, without])
+    assert "[WHAT THIS MEANS]: what this criterion means" in rendered
+    # criterion without a guide simply omits the line (no empty label)
+    assert rendered.count("[WHAT THIS MEANS]") == 1
+
+
 def test_resolved_prompts_are_valid_chat_templates():
     # guards against brace breakage: the JSON {{ }} in GRADER_SYSTEM must stay
     # escaped and no framing text may introduce stray {vars}

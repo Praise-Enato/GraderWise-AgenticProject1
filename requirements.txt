@@ -47,3 +47,5 @@ docx2txt
 # --- Vision grading (Phase 1b): render PDF slides to images (permissive licenses) ---
 pypdfium2
 pillow
+# --- PowerPoint (.pptx) plans: text + tables + embedded images (MIT, lightweight) ---
+python-pptx

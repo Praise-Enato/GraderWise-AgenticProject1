@@ -128,14 +128,134 @@ def render_pdf_images(path: str, dpi: int = 130, max_pages: int = 30) -> List[by
     return images
 
 
+# --- PowerPoint (.pptx) ----------------------------------------------------- #
+def _walk_shapes(shapes):
+    """Yield every shape, recursing into group shapes (which hold no text/table of
+    their own but contain nested shapes)."""
+    try:
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+    except ImportError:  # pragma: no cover - guarded by callers
+        MSO_SHAPE_TYPE = None
+    for shape in shapes:
+        if MSO_SHAPE_TYPE is not None and shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from _walk_shapes(shape.shapes)
+        else:
+            yield shape
+
+
+def extract_pptx_text(path: str, notes: Optional[List[str]] = None) -> str:
+    """Extract text from a .pptx: per-slide shape text + table cells (joined ' | '),
+    each slide prefixed '[Slide N]' so the grader can cite locations and financials
+    that live in tables are captured. Uses python-pptx (MIT; lxml + Pillow — no AGPL).
+    Returns '' if python-pptx is unavailable or the file can't be read."""
+    try:
+        from pptx import Presentation  # lazy: optional dep
+    except ImportError:
+        if notes is not None:
+            notes.append("python-pptx not installed — no text extracted from .pptx.")
+        return ""
+    try:
+        prs = Presentation(path)
+    except Exception as e:
+        if notes is not None:
+            notes.append(f"PPTX read error: {e}")
+        return ""
+    slides_out: List[str] = []
+    for idx, slide in enumerate(prs.slides, 1):
+        parts: List[str] = []
+        for shape in _walk_shapes(slide.shapes):
+            try:
+                if getattr(shape, "has_table", False) and shape.has_table:
+                    for row in shape.table.rows:
+                        cells = [(c.text or "").strip() for c in row.cells]
+                        if any(cells):
+                            parts.append(" | ".join(cells))
+                elif getattr(shape, "has_text_frame", False) and shape.has_text_frame:
+                    t = (shape.text_frame.text or "").strip()
+                    if t:
+                        parts.append(t)
+            except Exception:  # pragma: no cover - defensive per-shape
+                continue
+        if parts:
+            slides_out.append(f"[Slide {idx}]\n" + "\n".join(parts))
+    return "\n\n".join(slides_out)
+
+
+def extract_pptx_images(path: str, notes: Optional[List[str]] = None,
+                        max_images: int = 30) -> List[bytes]:
+    """Extract embedded picture blobs from a .pptx as PNG bytes for the vision model.
+    Full text-on-canvas slide rendering needs LibreOffice; embedded images — photos,
+    charts saved as pictures, license/bank scans — are the high-value visual content
+    and come free from python-pptx. Blobs are normalized to PNG via Pillow. Returns []
+    if python-pptx is unavailable or there are no embedded images."""
+    try:
+        from pptx import Presentation  # lazy
+    except ImportError:
+        if notes is not None:
+            notes.append("python-pptx not installed — no images extracted from .pptx.")
+        return []
+    try:
+        prs = Presentation(path)
+    except Exception:
+        return []
+    out: List[bytes] = []
+    for slide in prs.slides:
+        for shape in _walk_shapes(slide.shapes):
+            if len(out) >= max_images:
+                return out
+            try:
+                blob = shape.image.blob  # raises AttributeError on non-image shapes
+            except Exception:
+                continue
+            png = _blob_to_png(blob)
+            if png:
+                out.append(png)
+    return out
+
+
+def _blob_to_png(blob: bytes) -> Optional[bytes]:
+    """Normalize an image blob to PNG bytes (the vision path serves image/png data
+    URIs). Falls back to passing through blobs that are already PNG if Pillow is
+    absent; drops anything it can't handle."""
+    try:
+        import io
+        from PIL import Image
+    except ImportError:
+        return blob if blob[:8] == b"\x89PNG\r\n\x1a\n" else None
+    try:
+        im = Image.open(io.BytesIO(blob))
+        buf = io.BytesIO()
+        im.convert("RGB").save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:  # pragma: no cover - defensive (unsupported/corrupt image)
+        return None
+
+
+class PPTXAdapter(InputAdapter):
+    """Load a submission from a PowerPoint .pptx (text + tables, plus embedded
+    images for the vision path)."""
+
+    def load(self, source: str) -> NormalizedInput:
+        result = NormalizedInput(source=source)
+        result.text = extract_pptx_text(source, result.notes)
+        result.video_url = find_youtube_url(result.text)
+        result.page_images = extract_pptx_images(source, result.notes)
+        if not result.page_images:
+            result.notes.append("No embedded images in .pptx — vision grading has no "
+                                "slides to see; grade via the text path instead.")
+        return result
+
+
 def get_adapter(source: str) -> InputAdapter:
-    """Select an adapter for a submission source. Only PDF for the demo; the
+    """Select an adapter for a submission source. PDF and PPTX are supported; the
     Google Slides path is a deliberate, clearly-signposted extension point."""
     s = source.lower()
     if s.endswith(".pdf"):
         return PDFAdapter()
+    if s.endswith(".pptx"):
+        return PPTXAdapter()
     if "docs.google.com/presentation" in s or "slides.google.com" in s:
         raise NotImplementedError(
-            "Google Slides adapter is future work; only PDF is supported for the demo."
+            "Google Slides adapter is future work; export to PDF or PPTX for now."
         )
     raise ValueError(f"No input adapter for source: {source}")

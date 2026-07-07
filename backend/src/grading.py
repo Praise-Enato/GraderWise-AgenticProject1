@@ -173,6 +173,54 @@ def parse_grader_response(raw_content: str, rubric: List[RubricItem]) -> GradeDa
     )
 
 
+def find_missing_criteria(assessments: List[CriterionAssessment],
+                          rubric: List[RubricItem]) -> List[str]:
+    """Return the names of rubric criteria NOT covered by any assessment (matched by
+    1-based index or by case-insensitive name).
+
+    A single grader call can silently drop criteria on a long rubric, yielding an
+    artificially low total that still passes score-bounds validation. The Judge uses
+    this to reject an incomplete grade and retry, so every criterion is scored.
+    """
+    n = len(rubric)
+    names = {item.criteria.strip().lower(): i for i, item in enumerate(rubric)}
+    covered = set()
+    for a in assessments:
+        nm = (getattr(a, "criteria_name", "") or "").strip().lower()
+        idx = getattr(a, "criteria_index", None)
+        # Trust an in-range index ONLY when the name agrees with that slot. parse_grader_
+        # response defaults a missing index to the list position, so a phantom/mislabeled
+        # entry ("Overall", no index) would otherwise get a positional index that silently
+        # covers a genuinely dropped criterion — defeating this very check.
+        if (isinstance(idx, int) and 1 <= idx <= n
+                and nm == rubric[idx - 1].criteria.strip().lower()):
+            covered.add(idx - 1)
+            continue
+        if nm in names:
+            covered.add(names[nm])
+    return [rubric[i].criteria for i in range(n) if i not in covered]
+
+
+def summarize_performance(assessments: List[CriterionAssessment],
+                          strong: float = 0.8, weak: float = 0.6):
+    """Split criteria into (strengths, gaps) by the fraction of max points earned.
+    Deterministic — it reads the actual per-criterion scores rather than asking the
+    LLM — so feedback about what went well/poorly cannot hallucinate. Criteria with
+    no resolvable max are skipped."""
+    strengths: List[str] = []
+    gaps: List[str] = []
+    for a in assessments:
+        mx = getattr(a, "max_points", 0) or 0
+        if mx <= 0:
+            continue
+        frac = a.awarded_points / mx
+        if frac >= strong:
+            strengths.append(a.criteria_name)
+        elif frac < weak:
+            gaps.append(a.criteria_name)
+    return strengths, gaps
+
+
 def to_grade_result(
     grade_data: GradeData,
     feedback: str,

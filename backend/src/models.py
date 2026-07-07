@@ -10,6 +10,11 @@ class RubricItem(BaseModel):
     developing_description: Optional[str] = Field(None, description="Description for partial or developing mastery")
     zero_points: Optional[float] = Field(0.0, description="Points for zero mastery (usually 0)")
     zero_description: Optional[str] = Field(None, description="Description for zero mastery or missing criteria")
+    course_guide: Optional[str] = Field(
+        None,
+        description="Teaching note on what this criterion means / what 'good' looks like, "
+                    "injected into the grader prompt to ground scoring in the criterion's intent.",
+    )
 
 
 class CriterionAssessment(BaseModel):

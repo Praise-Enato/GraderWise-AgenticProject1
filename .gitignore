@@ -43,8 +43,17 @@ backend/data/
 backend/logs/
 *.log
 
-# Applicant plan submissions (contain personal info / bank statements) — never commit
+# Applicant plan submissions (contain personal info / bank statements) — never commit.
+# `/*.pdf` alone only matched root-level PDFs; applicant plans also arrive as .pptx/.docx
+# and in general_business_plans/. Cover where submissions actually land: repo root and
+# the applicant folder. (The BYUMS rubric CSV + judging .md stay tracked — they're config.)
 /*.pdf
+/*.pptx
+/*.docx
+general_business_plans/
+# Human-score answer key (applicant name + expert judge scores); used only to (re)build
+# the already-committed backend/data/bpc/few_shot_examples.json.
+few_shot_example*.csv
 
 # Temp Scripts
 verify_backend.py
