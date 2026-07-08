@@ -56,7 +56,7 @@ export default function BpcGradingPage() {
     };
 
     const grade = async () => {
-        if (files.length === 0) { setError("Upload a plan PDF first."); return; }
+        if (files.length === 0) { setError("Upload a plan first (PDF, PPTX, or DOCX)."); return; }
         if (rubric.length === 0) { setError("Rubric not loaded yet."); return; }
         setIsGrading(true);
         setError(null);
@@ -65,7 +65,13 @@ export default function BpcGradingPage() {
             let data;
             if (vision) {
                 if (!files[0]?.file) {
-                    setError("Vision mode needs the original PDF — please re-upload it.");
+                    setError("Vision mode needs the original file — please re-upload it.");
+                    setIsGrading(false);
+                    return;
+                }
+                const vsuf = (files[0].file.name.split(".").pop() || "").toLowerCase();
+                if (vsuf !== "pdf" && vsuf !== "pptx") {
+                    setError("Vision mode reads slide images — it needs a PDF or PPTX. For DOCX, uncheck vision to grade the text.");
                     setIsGrading(false);
                     return;
                 }
@@ -145,8 +151,8 @@ export default function BpcGradingPage() {
                         />
                         <label className="cursor-pointer px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                             {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                            Upload plan PDF
-                            <input type="file" className="hidden" multiple accept=".pdf,.docx,.txt,.md" onChange={handleUpload} />
+                            Upload plan (PDF, PPTX, DOCX)
+                            <input type="file" className="hidden" multiple accept=".pdf,.pptx,.docx,.txt,.md" onChange={handleUpload} />
                         </label>
                     </div>
 

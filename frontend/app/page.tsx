@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle, GraduationCap, LayoutDashboard, Shield, Zap, BookOpen, Users, Brain } from "lucide-react";
+import { ArrowRight, CheckCircle, GraduationCap, LayoutDashboard, Shield, Zap, BookOpen, Users, Brain, Briefcase } from "lucide-react";
 import { motion } from "framer-motion";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Logo } from "@/components/Logo";
@@ -117,11 +117,30 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+              className="flex flex-col items-center gap-5"
             >
-              <Link href="/signup" className="w-full sm:w-auto px-8 py-4 text-white font-semibold rounded-full shadow-xl shadow-blue-600/20 hover:shadow-blue-600/30 transition-all flex items-center justify-center gap-2 group bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700">
-                Start Grading for Free
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform animate-bounce" />
+              <p className="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Choose your workspace</p>
+              <div className="flex flex-col sm:flex-row items-stretch justify-center gap-4 w-full sm:w-auto">
+                <Link href="/dashboard" className="group flex items-center gap-3 px-7 py-4 rounded-2xl text-white font-semibold shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all hover:-translate-y-0.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
+                  <GraduationCap className="w-5 h-5" />
+                  <span className="text-left">
+                    <span className="block leading-tight">Educator</span>
+                    <span className="block text-xs font-normal text-emerald-100/90">Academic grading</span>
+                  </span>
+                  <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link href="/business" className="group flex items-center gap-3 px-7 py-4 rounded-2xl text-white font-semibold shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all hover:-translate-y-0.5 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700">
+                  <Briefcase className="w-5 h-5" />
+                  <span className="text-left">
+                    <span className="block leading-tight">Business Plan</span>
+                    <span className="block text-xs font-normal text-indigo-100/90">Competition & general</span>
+                  </span>
+                  <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+              <Link href="/signup" className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-flex items-center gap-1">
+                New here? Create a free account
+                <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </motion.div>
 

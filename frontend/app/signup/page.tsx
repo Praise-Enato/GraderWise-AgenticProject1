@@ -23,7 +23,7 @@ export default function SignupPage() {
     useEffect(() => {
         const profile = localStorage.getItem('userProfile');
         if (profile) {
-            router.replace('/dashboard');
+            router.replace('/select');
         }
     }, [router]);
 
@@ -66,9 +66,9 @@ export default function SignupPage() {
         setIsLoading(false);
         setIsSuccess(true);
 
-        // Redirect
+        // Redirect to the workspace chooser (one login → either workspace)
         setTimeout(() => {
-            router.push('/dashboard');
+            router.push('/select');
         }, 1500);
     };
 
