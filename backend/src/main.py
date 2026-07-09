@@ -28,15 +28,29 @@ os.environ["OTEL_PYTHON_DISABLED"] = "True"
 
 app = FastAPI(title="GradeWise API")
 
-# --- CORS CONFIGURATION (THE FIX) ---
+# --- CORS CONFIGURATION ---
+# Overridable via ALLOWED_ORIGINS (comma-separated). Default stays "*" so
+# existing deployments don't break, but a judge-facing deployment SHOULD lock
+# this down by setting ALLOWED_ORIGINS to its known frontends (eng review).
+_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
+ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()] or ["*"]
+if ALLOWED_ORIGINS == ["*"]:
+    print("WARNING: CORS allow_origins is '*' (open to any site). "
+          "Set ALLOWED_ORIGINS before judge-facing use.")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # <--- CHANGED FROM "localhost:3000" TO "*"
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 # ------------------------------------
+
+
+@app.get("/health")
+def health():
+    """Liveness/readiness probe for the Docker/compose stack."""
+    return {"status": "ok"}
 
 class SubmissionFile(BaseModel):
     filename: str
@@ -146,59 +160,6 @@ async def grade_submission(request: GradeRequest):
     except Exception as e:
         print(f"Error grading submission: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# @app.post("/chat", response_model=ChatResponse)
-# async def chat_endpoint(request: ChatRequest):
-#     """
-#     RAG-powered chat for discussing feedback.
-#     """
-#     try:
-#         context = rag.retrieve_context(request.question)
-        
-#         system_prompt = """You are an intelligent Academic Tutor and Feedback Coach.
-#         Your goal is to help the student understand their feedback and improve their work.
-        
-#         RULES:
-#         - Explain regarding the SPECIFIC feedback provided.
-#         - Use the Course Context to backup your explanations.
-#         - Do NOT give the direct answer if it's a specific problem (Socratic method).
-#         - If the user asks for general help, verify it aligns with the course context.
-#         - Be encouraging but professional.
-#         """
-        
-#         user_prompt = f"""
-#         STUDENT QUESTION: {request.question}
-        
-#         COURSE CONTEXT (RAG):
-#         {chr(10).join(context)}
-        
-#         GRADING RUBRIC:
-#         {request.rubric}
-        
-#         SUBMISSION EXCERPT:
-#         {request.submission_text[:2000]}...
-        
-#         GRADER FEEDBACK:
-#         {request.feedback}
-        
-#         """
-        
-#         prompt = ChatPromptTemplate.from_messages([
-#             ("system", system_prompt),
-#             ("user", user_prompt)
-#         ])
-        
-#         chain = prompt | agent.llm | StrOutputParser()
-#         response = chain.invoke({})
-        
-#         return ChatResponse(
-#             response=response,
-#             sources=context
-#         )
-        
-#     except Exception as e:
-#         print(f"Error in chat: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
 
 # Path (relative to the repo-root CWD the backend runs from) to the competition
 # rubric CSV and the judges' guideline. Overridable via env for other deployments.

@@ -8,7 +8,11 @@ fastapi
 uvicorn
 python-multipart
 pydantic
-langgraph
+# Pinned: the streaming work (Phase 3) builds on the langgraph astream API surface,
+# which is version-sensitive; pin so a resolver bump can't silently change it.
+langgraph==1.2.8
+# SSE for the streaming grade endpoint (Phase 3 GradingTheater).
+sse-starlette
 
 # --- AI & RAG ---
 
