@@ -6,10 +6,11 @@
     "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@prisma/client": "5.22.0",
     "@tailwindcss/typography": "^0.5.19",
     "axios": "^1.13.2",
     "framer-motion": "^12.23.26",
@@ -17,21 +18,26 @@
     "next": "16.1.1",
     "next-themes": "^0.4.6",
     "postcss": "^8.5.6",
-    "prisma": "5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "jsdom": "^26",
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3"
   }
 }
