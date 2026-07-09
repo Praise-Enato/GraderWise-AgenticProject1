@@ -29,6 +29,11 @@ describe("nextStage", () => {
   it("ignores an unknown event and keeps the current stage", () => {
     expect(nextStage("reading", { stage: "who-knows" })).toBe("reading");
   });
+
+  it("does not crash on a missing/undefined frame", () => {
+    // guards against a bad frame (e.g. an off-by-one in a caller) crashing the UI
+    expect(nextStage("reading", undefined as never)).toBe("reading");
+  });
 });
 
 describe("STAGE_ORDER / stageIndex", () => {
@@ -75,6 +80,11 @@ describe("applyEvent (stream accumulation)", () => {
     const err = applyEvent(initialStreamState, { stage: "error", message: "boom" });
     expect(err.stage).toBe("error");
     expect(err.error).toBe("boom");
+  });
+
+  it("returns state unchanged on a missing/undefined frame", () => {
+    const s = applyEvent(initialStreamState, undefined as never);
+    expect(s).toBe(initialStreamState);
   });
 
   it("threads a full happy-path sequence", () => {

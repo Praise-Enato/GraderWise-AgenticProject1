@@ -22,33 +22,40 @@ const SCRIPT: StageEvent[] = [
 
 export default function TheaterPreview() {
   const [state, setState] = useState<StreamState>(initialStreamState);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-
   const [step, setStep] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const idx = useRef(0); // authoritative index; a state updater must not read a moving closure var
 
   const play = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
+    idx.current = 0;
     setState(initialStreamState);
     setStep(0);
-    let i = 0;
     timer.current = setInterval(() => {
-      setState((s) => applyEvent(s, SCRIPT[i]));
-      i += 1;
-      setStep(i);
-      if (i >= SCRIPT.length && timer.current) clearInterval(timer.current);
+      const ev = SCRIPT[idx.current]; // capture BEFORE scheduling so the updater closes over a stable value
+      if (!ev) {
+        if (timer.current) clearInterval(timer.current);
+        timer.current = null;
+        return;
+      }
+      setState((s) => applyEvent(s, ev));
+      idx.current += 1;
+      setStep(idx.current);
     }, 1400);
   }, []);
 
   // Deterministic single-step advance (used for design QA / screenshots).
   const next = useCallback(() => {
-    setStep((i) => {
-      if (i >= SCRIPT.length) {
-        setState(initialStreamState);
-        return 0;
-      }
-      setState((s) => applyEvent(s, SCRIPT[i]));
-      return i + 1;
-    });
+    if (idx.current >= SCRIPT.length) {
+      idx.current = 0;
+      setState(initialStreamState);
+      setStep(0);
+      return;
+    }
+    const ev = SCRIPT[idx.current];
+    setState((s) => applyEvent(s, ev));
+    idx.current += 1;
+    setStep(idx.current);
   }, []);
 
   return (

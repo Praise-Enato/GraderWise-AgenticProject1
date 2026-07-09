@@ -29,6 +29,7 @@ export interface StageEvent {
 }
 
 export function nextStage(current: Stage, event: StageEvent): Stage {
+  if (!event) return current; // ignore a missing/malformed frame rather than crash
   switch (event.stage) {
     case "screening":
       return "screening";
@@ -75,6 +76,7 @@ export const initialStreamState: StreamState = {
 };
 
 export function applyEvent(state: StreamState, event: StageEvent): StreamState {
+  if (!event) return state; // no-op on a missing/malformed frame
   const next: StreamState = { ...state, stage: nextStage(state.stage, event) };
   switch (event.stage) {
     case "screening":
