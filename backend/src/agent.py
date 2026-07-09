@@ -45,6 +45,8 @@ from backend.src.grading import (
     to_grade_result,
     find_missing_criteria,
     summarize_performance,
+    aggregate_grade_data,
+    unsupported_evidence,
 )
 from backend.src.eligibility import screen_eligibility
 
@@ -104,6 +106,13 @@ class AgentState(TypedDict, total=False):
                                       # StateGraph drops it from the input and the gates never fire.
     use_grounding: bool               # retrieve the static grounding corpus into grader context (default
                                       # False; degrades to no-op if the corpus/embedding model is absent).
+    use_evidence: bool                # ask the grader for a verbatim evidence quote per criterion and have
+                                      # the Judge reject hallucinated quotes (default False; opt-in until the
+                                      # eval gate passes, so /grade behavior is unchanged).
+    ensemble_n: int                   # grade N times and aggregate per-criterion by median (default 1 =
+                                      # single pass, current behavior).
+    ensemble_temperature: float       # fixed sampling temperature for ensemble runs (X1: a single moderate
+                                      # temperature, NOT a spread; default 0.4). Ignored when ensemble_n <= 1.
 
 
 # --- Helpers ---------------------------------------------------------------- #
@@ -305,9 +314,26 @@ _FEEDBACK_VOCAB = {
 }
 
 
-def grader_system(competition: bool = True) -> str:
-    """Resolve GRADER_SYSTEM for competition (True) or general (False) mode."""
-    return GRADER_SYSTEM.replace("__GRADER_INTRO__", _GRADER_INTRO[bool(competition)])
+_EVIDENCE_CLAUSE = """
+
+EVIDENCE FIELD (REQUIRED THIS RUN):
+For every criterion, add an "evidence" field to the JSON object: the EXACT,
+VERBATIM quote copied from the SUBMISSION text that justifies the award (max
+~200 characters). Copy it character-for-character; do NOT paraphrase, summarize,
+or invent. If nothing in the submission text supports the award, set "evidence"
+to an empty string "". A quote that does not appear in the submission will be
+rejected."""
+
+
+def grader_system(competition: bool = True, include_evidence: bool = False) -> str:
+    """Resolve GRADER_SYSTEM for competition (True) or general (False) mode.
+
+    include_evidence appends the evidence-quote instruction (opt-in): with it
+    False the prompt is unchanged, so `/grade` behaves exactly as before."""
+    prompt = GRADER_SYSTEM.replace("__GRADER_INTRO__", _GRADER_INTRO[bool(competition)])
+    if include_evidence:
+        prompt = prompt + _EVIDENCE_CLAUSE
+    return prompt
 
 
 def feedback_system(competition: bool = True) -> str:
@@ -403,29 +429,45 @@ def grade_submission(state: AgentState) -> dict:
             _load_fewshot_examples(), exclude_filenames=submission_names
         )
 
-    system_prompt = grader_system(competition=state.get("use_calibration", True))
+    system_prompt = grader_system(
+        competition=state.get("use_calibration", True),
+        include_evidence=state.get("use_evidence", False),
+    )
     prompt = ChatPromptTemplate.from_messages([("system", system_prompt), ("user", GRADER_USER)])
+    invoke_inputs = {
+        "prior_feedback": prior_feedback,
+        "rubric_str": rubric_str,
+        "guideline": guideline,
+        "calibration": calibration_block,
+        "context_str": context_str,
+        "submission": formatted,
+    }
+
+    def _run_once(temperature: float) -> GradeData:
+        llm = get_llm("grade", temperature=temperature).bind(response_format={"type": "json_object"})
+        response = (prompt | llm).invoke(invoke_inputs)
+        return parse_grader_response(response.content, rubric)
+
+    n = max(1, int(state.get("ensemble_n", 1)))
     try:
-        llm = get_llm("grade").bind(response_format={"type": "json_object"})
-        response = (prompt | llm).invoke({
-            "prior_feedback": prior_feedback,
-            "rubric_str": rubric_str,
-            "guideline": guideline,
-            "calibration": calibration_block,
-            "context_str": context_str,
-            "submission": formatted,
-        })
-        grade_data = parse_grader_response(response.content, rubric)
-        log_agent_action("GRADER", f"score={grade_data.score} graded_ok={grade_data.graded_ok}")
+        if n == 1:
+            grade_data = _run_once(0.0)  # single deterministic pass — unchanged default behavior
+        else:
+            # X1: a fixed MODERATE temperature x N (not a temperature spread); the
+            # disagreement across samples is the signal, aggregated by median.
+            temp = float(state.get("ensemble_temperature", 0.4))
+            grade_data = aggregate_grade_data([_run_once(temp) for _ in range(n)])
+        log_agent_action("GRADER", f"score={grade_data.score} graded_ok={grade_data.graded_ok} runs={n}")
     except Exception as e:
         log_agent_action("GRADER", f"grader call failed: {e}")
         grade_data = GradeData(score=0.0, graded_ok=False, error=f"Grader call failed: {e}")
 
+    note = f"Graded {len(state['submission_files'])} file(s); score={grade_data.score}."
+    if n > 1:
+        note += f" (ensemble of {n}, median-aggregated)"
     return {
         "grade_data": grade_data,
-        "thinking_process": state.get("thinking_process", []) + [
-            f"Graded {len(state['submission_files'])} file(s); score={grade_data.score}."
-        ],
+        "thinking_process": state.get("thinking_process", []) + [note],
     }
 
 
@@ -456,6 +498,19 @@ def validate_grade(state: AgentState) -> dict:
                 f"(missing: {shown}). Return exactly one assessment for EVERY criterion; "
                 f"award 0 for any that are absent — do not omit them."
             )
+        elif state.get("use_evidence", False):
+            # Evidence guard (OV#7): reject a grade whose evidence quotes are not
+            # actually in the submission, so "evidence-linked" feedback can't cite
+            # hallucinated text. Uses the fuzzy matcher, so OCR/quote drift is tolerated.
+            _, combined = _assemble_submission(state["submission_files"])
+            bad = unsupported_evidence(gd.assessments, combined)
+            if bad:
+                shown = ", ".join(bad[:8]) + ("; ..." if len(bad) > 8 else "")
+                valid, reason = False, (
+                    f"unsupported evidence: the quote(s) for [{shown}] do not appear in the "
+                    f"submission. Copy the EXACT text from the submission for each criterion's "
+                    f"evidence, or set evidence to an empty string."
+                )
 
     if valid:
         log_agent_action("JUDGE", "grade validated")

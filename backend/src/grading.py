@@ -155,6 +155,7 @@ def parse_grader_response(raw_content: str, rubric: List[RubricItem]) -> GradeDa
             awarded_points=clamped,
             max_points=max_points,
             reason=reason,
+            evidence=str(item.get("evidence", "")).strip(),
         ))
         rubric_performance[name] = f"{clamped} pts - {reason}"
         if clamped == 0.0:
@@ -170,6 +171,74 @@ def parse_grader_response(raw_content: str, rubric: List[RubricItem]) -> GradeDa
         graded_ok=True,
         error=None,
         general_feedback=str(parsed.get("general_feedback", "")),
+    )
+
+
+def unsupported_evidence(assessments: List[CriterionAssessment], submission_text: str) -> List[str]:
+    """Names of criteria whose (non-empty) evidence quote is NOT found in the
+    submission — hallucinated support the Judge should reject (OV#7). Criteria
+    with no evidence quote are skipped (absence is not hallucination). Uses the
+    fuzzy, normalized matcher so OCR/quote drift doesn't cause false rejections."""
+    from backend.src.evidence import evidence_supported  # local import: keep module load light
+    bad: List[str] = []
+    for a in assessments:
+        quote = (getattr(a, "evidence", "") or "").strip()
+        if not quote:
+            continue
+        if not evidence_supported(quote, submission_text):
+            bad.append(a.criteria_name)
+    return bad
+
+
+def aggregate_grade_data(grade_datas: List["GradeData"], flag_threshold: float = 2.0) -> "GradeData":
+    """Combine N ensemble runs into one GradeData: per-criterion MEDIAN award,
+    total = sum of medians, high grader disagreement noted in the critique
+    (A4/CQ1/X1). Only runs that graded_ok are aggregated; if none did, the
+    result is graded_ok=False (flagged for human review, never a fake 0)."""
+    from backend.src.aggregate import aggregate_ensemble  # local import: avoids load-time coupling
+
+    usable = [g for g in grade_datas if g.graded_ok]
+    if not usable:
+        return GradeData(score=0.0, graded_ok=False, error="all ensemble runs failed to grade")
+
+    runs = [{a.criteria_name: a.awarded_points for a in g.assessments} for g in usable]
+    ens = aggregate_ensemble(runs, flag_threshold=flag_threshold)
+
+    # Carry criterion metadata (max/reason/evidence/index) from the first run that has it.
+    meta: Dict[str, CriterionAssessment] = {}
+    for g in usable:
+        for a in g.assessments:
+            meta.setdefault(a.criteria_name, a)
+
+    assessments: List[CriterionAssessment] = []
+    critique_points: List[str] = []
+    rubric_performance: Dict[str, str] = {}
+    for name, agg in ens.per_criterion.items():
+        m = meta.get(name)
+        reason = m.reason if m else ""
+        assessments.append(CriterionAssessment(
+            criteria_index=m.criteria_index if m else 0,
+            criteria_name=name,
+            awarded_points=agg.median,
+            max_points=m.max_points if m else 0.0,
+            reason=reason,
+            evidence=getattr(m, "evidence", "") if m else "",
+        ))
+        rubric_performance[name] = f"{agg.median} pts - {reason}"
+        if agg.flagged:
+            critique_points.append(f"⚖️ {name}: graders disagreed (spread {agg.spread})")
+        if agg.median == 0.0:
+            critique_points.append(f"❌ {name}: {reason}")
+        elif agg.median < _LOW_AWARD_THRESHOLD:
+            critique_points.append(f"⚠️ {name}: {reason}")
+
+    return GradeData(
+        score=ens.total,
+        assessments=assessments,
+        critique_points=critique_points,
+        rubric_performance=rubric_performance,
+        graded_ok=True,
+        general_feedback=usable[0].general_feedback,
     )
 
 

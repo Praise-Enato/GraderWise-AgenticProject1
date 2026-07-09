@@ -30,6 +30,11 @@ class CriterionAssessment(BaseModel):
     awarded_points: float = Field(..., description="Points awarded for this criterion")
     max_points: float = Field(..., description="Maximum points possible for this criterion")
     reason: str = Field("", description="Justification citing the rubric line or measured quantity")
+    evidence: str = Field(
+        "",
+        description="Exact quote from the submission that justifies the award. Validated against "
+                    "the submission text (fuzzy) by the Judge; empty when the grader gave none.",
+    )
 
 
 # Eligibility status constants. A plan is screened for competition disqualifiers

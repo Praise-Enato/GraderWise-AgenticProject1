@@ -52,6 +52,9 @@ class GradeRequest(BaseModel):
     max_retries: Optional[int] = Field(None, description="Max Judge retries (capped for batch, full for live)")
     use_calibration: Optional[bool] = Field(None, description="Apply few-shot calibration (BYUMS-specific). Set False for the general rubric.")
     use_grounding: Optional[bool] = Field(None, description="Ground the grader in the static reference corpus (financial/market/quality guides). No-op if the corpus is not ingested.")
+    use_evidence: Optional[bool] = Field(None, description="Ask the grader for a verbatim evidence quote per criterion; the Judge rejects quotes not found in the submission. Opt-in (default off).")
+    ensemble_n: Optional[int] = Field(None, description="Grade N times and aggregate per criterion by median; reports grader disagreement. Default 1 (single pass).")
+    ensemble_temperature: Optional[float] = Field(None, description="Fixed sampling temperature for ensemble runs (default 0.4). Ignored when ensemble_n <= 1.")
 
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest(files: List[UploadFile] = File(...)):
@@ -131,6 +134,12 @@ async def grade_submission(request: GradeRequest):
             inputs["use_calibration"] = request.use_calibration
         if request.use_grounding is not None:
             inputs["use_grounding"] = request.use_grounding
+        if request.use_evidence is not None:
+            inputs["use_evidence"] = request.use_evidence
+        if request.ensemble_n is not None:
+            inputs["ensemble_n"] = request.ensemble_n
+        if request.ensemble_temperature is not None:
+            inputs["ensemble_temperature"] = request.ensemble_temperature
 
         result = await run_in_threadpool(agent.app.invoke, inputs)
         return result["grade_result"]
