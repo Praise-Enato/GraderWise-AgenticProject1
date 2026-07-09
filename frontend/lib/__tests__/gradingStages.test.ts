@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-import { nextStage, STAGE_ORDER, stageIndex, type Stage } from "@/lib/gradingStages";
+import {
+  nextStage, STAGE_ORDER, stageIndex, applyEvent, initialStreamState, type Stage,
+} from "@/lib/gradingStages";
 
 // Pure stage machine driving the GradingTheater. It is fed the SSE events the
 // backend emits (screening -> reading -> judging -> coaching -> done), plus the
@@ -37,5 +39,55 @@ describe("STAGE_ORDER / stageIndex", () => {
   it("stageIndex returns position for a pipeline stage and -1 otherwise", () => {
     expect(stageIndex("judging")).toBe(2);
     expect(stageIndex("retrying" as Stage)).toBe(-1); // transient, not a progress step
+  });
+});
+
+describe("applyEvent (stream accumulation)", () => {
+  it("captures screening eligibility and flags", () => {
+    const s = applyEvent(initialStreamState, {
+      stage: "screening", eligibility_status: "needs_review",
+      dq_reasons: ["missing license"], ai_content_flag: true,
+    });
+    expect(s.stage).toBe("screening");
+    expect(s.screening).toEqual({
+      eligibility_status: "needs_review", dq_reasons: ["missing license"], ai_content_flag: true,
+    });
+  });
+
+  it("accumulates reading progress and running score", () => {
+    const s = applyEvent(initialStreamState, { stage: "reading", criteria_scored: 4, score: 22 });
+    expect(s.criteriaScored).toBe(4);
+    expect(s.score).toBe(22);
+  });
+
+  it("records a judge rejection (moves to retrying, keeps the reason)", () => {
+    const s = applyEvent(initialStreamState, {
+      stage: "judging", is_valid: false, reason: "incomplete grade", revision_number: 1,
+    });
+    expect(s.stage).toBe("retrying");
+    expect(s.judge).toEqual({ is_valid: false, reason: "incomplete grade", revision_number: 1 });
+  });
+
+  it("captures the final result on done and an error message on error", () => {
+    const done = applyEvent(initialStreamState, { stage: "done", grade_result: { score: 7 } } as never);
+    expect(done.stage).toBe("done");
+    expect(done.result).toEqual({ score: 7 });
+    const err = applyEvent(initialStreamState, { stage: "error", message: "boom" });
+    expect(err.stage).toBe("error");
+    expect(err.error).toBe("boom");
+  });
+
+  it("threads a full happy-path sequence", () => {
+    const events = [
+      { stage: "screening", eligibility_status: "eligible" },
+      { stage: "reading", criteria_scored: 12, score: 74 },
+      { stage: "judging", is_valid: true, revision_number: 0 },
+      { stage: "coaching" },
+      { stage: "done", grade_result: { score: 74 } },
+    ];
+    const final = events.reduce(applyEvent, initialStreamState);
+    expect(final.stage).toBe("done");
+    expect(final.criteriaScored).toBe(12);
+    expect(final.result).toEqual({ score: 74 });
   });
 });

@@ -51,3 +51,56 @@ export function nextStage(current: Stage, event: StageEvent): Stage {
 export function stageIndex(stage: Stage): number {
   return STAGE_ORDER.indexOf(stage);
 }
+
+// Accumulated view of a grading stream, built purely from the events so the
+// hook (useGradingStream) is thin wiring and this stays unit-testable.
+export interface StreamState {
+  stage: Stage;
+  screening: { eligibility_status: string; dq_reasons: string[]; ai_content_flag: boolean } | null;
+  criteriaScored: number;
+  score: number | null;
+  judge: { is_valid: boolean; reason: string; revision_number: number } | null;
+  result: unknown | null;
+  error: string | null;
+}
+
+export const initialStreamState: StreamState = {
+  stage: "idle",
+  screening: null,
+  criteriaScored: 0,
+  score: null,
+  judge: null,
+  result: null,
+  error: null,
+};
+
+export function applyEvent(state: StreamState, event: StageEvent): StreamState {
+  const next: StreamState = { ...state, stage: nextStage(state.stage, event) };
+  switch (event.stage) {
+    case "screening":
+      next.screening = {
+        eligibility_status: String(event.eligibility_status ?? "eligible"),
+        dq_reasons: (event.dq_reasons as string[]) ?? [],
+        ai_content_flag: Boolean(event.ai_content_flag),
+      };
+      break;
+    case "reading":
+      next.criteriaScored = Number(event.criteria_scored ?? state.criteriaScored);
+      next.score = event.score == null ? state.score : Number(event.score);
+      break;
+    case "judging":
+      next.judge = {
+        is_valid: Boolean(event.is_valid),
+        reason: String(event.reason ?? ""),
+        revision_number: Number(event.revision_number ?? 0),
+      };
+      break;
+    case "done":
+      next.result = (event as { grade_result?: unknown }).grade_result ?? null;
+      break;
+    case "error":
+      next.error = String(event.message ?? "Grading failed");
+      break;
+  }
+  return next;
+}

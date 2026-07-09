@@ -204,7 +204,9 @@ async def grade_stream(job_id: str):
                         yield {"event": "stage", "data": _json.dumps(ev)}
             yield {"event": "done", "data": _json.dumps({"stage": "done", "grade_result": final})}
         except Exception as e:  # a mid-stream failure must be a visible event, not a silent hang
-            yield {"event": "error", "data": _json.dumps({"stage": "error", "message": str(e)})}
+            # Named "grade_error" (not "error") so it doesn't collide with the browser
+            # EventSource's built-in connection-error event, which carries no data.
+            yield {"event": "grade_error", "data": _json.dumps({"stage": "error", "message": str(e)})}
 
     # X-Accel-Buffering: no prevents nginx from buffering the stream (eng review:
     # the deployed stack sits behind nginx and would otherwise hang the theater).
