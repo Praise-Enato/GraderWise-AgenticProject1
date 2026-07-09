@@ -93,6 +93,29 @@ class AuditEvent(Base):
     created_at: Mapped[_dt.datetime] = mapped_column(DateTime, default=_utcnow)
 
 
+class BatchJob(Base):
+    """A batch grading run. Per-item state lives in JobItem so a crash/redeploy
+    can resume (eng review A2)."""
+    __tablename__ = "batch_jobs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(256), default="")
+    status: Mapped[str] = mapped_column(String(32), default="pending")  # pending|running|done|error
+    created_at: Mapped[_dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    items: Mapped[List["JobItem"]] = relationship(back_populates="job", cascade="all, delete-orphan")
+
+
+class JobItem(Base):
+    __tablename__ = "job_items"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey("batch_jobs.id"))
+    key: Mapped[str] = mapped_column(String(512))                       # identifies the work (filename / hash)
+    status: Mapped[str] = mapped_column(String(32), default="pending")  # pending|done|error
+    grade_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    job: Mapped["BatchJob"] = relationship(back_populates="items")
+
+
 # --- Engine / session ------------------------------------------------------- #
 def make_engine(url: Optional[str] = None):
     """Create an engine. SQLite gets WAL (concurrent readers under the worker
