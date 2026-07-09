@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { useEffect, useState, type CSSProperties, type PointerEvent } from "react";
+import { motion, AnimatePresence, useReducedMotion, useMotionValue, useSpring } from "framer-motion";
 
 import { STAGE_ORDER, stageIndex, type Stage, type StreamState } from "@/lib/gradingStages";
 
@@ -55,6 +55,21 @@ export function GradingTheater({ state }: { state: StreamState }) {
   const copy = SCENE_COPY[stage] ?? SCENE_COPY.idle;
   const activeIndex = stageIndex(stage === "retrying" ? "judging" : stage);
 
+  // Pointer-parallax tilt: the scene turns toward the cursor in 3D (springed).
+  const tiltX = useSpring(useMotionValue(0), { stiffness: 150, damping: 15 });
+  const tiltY = useSpring(useMotionValue(0), { stiffness: 150, damping: 15 });
+  const onMove = (e: PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    tiltY.set(px * 28);
+    tiltX.set(-py * 28);
+  };
+  const onLeave = () => {
+    tiltX.set(0);
+    tiltY.set(0);
+  };
+
   return (
     <div
       className="flex w-full flex-col items-center gap-6 p-8"
@@ -90,18 +105,47 @@ export function GradingTheater({ state }: { state: StreamState }) {
         })}
       </ol>
 
-      {/* Scene */}
-      <div className="relative flex h-48 w-48 items-center justify-center">
+      {/* Scene — a 3D stage: perspective + pointer-parallax tilt + depth layers */}
+      <div
+        data-testid="theater-stage"
+        className="relative flex h-52 w-52 items-center justify-center"
+        style={{ perspective: 900 }}
+        onPointerMove={reduce ? undefined : onMove}
+        onPointerLeave={reduce ? undefined : onLeave}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={stage}
-            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.92, y: 10 }}
-            animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: -10 }}
-            transition={{ type: "spring", bounce: 0.35, duration: 0.55 }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, rotateX: -45, y: 26 }}
+            animate={reduce ? { opacity: 1 } : { opacity: 1, rotateX: 0, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, rotateX: 32, y: -22 }}
+            transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
+            style={reduce ? undefined : { rotateX: tiltX, rotateY: tiltY, transformStyle: "preserve-3d" }}
             className="absolute inset-0 flex items-center justify-center"
           >
-            <Scene stage={stage} state={state} reduce={reduce} />
+            {/* receding back panel (parallax depth) */}
+            {!reduce && (
+              <div
+                aria-hidden
+                className="absolute h-36 w-36 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner dark:from-slate-800 dark:to-slate-900"
+                style={{ transform: "translateZ(-60px)" }}
+              />
+            )}
+            {/* the motif, lifted toward the viewer */}
+            <div
+              className="drop-shadow-xl"
+              style={reduce ? undefined : { transform: "translateZ(45px)", transformStyle: "preserve-3d" }}
+            >
+              <Scene stage={stage} state={state} reduce={reduce} />
+            </div>
+            {/* floor shadow grounds the motif */}
+            {!reduce && (
+              <div
+                aria-hidden
+                className="absolute -bottom-1 h-4 w-28 rounded-[50%] bg-black/25 blur-md dark:bg-black/50"
+                style={{ transform: "translateZ(-30px)" }}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
