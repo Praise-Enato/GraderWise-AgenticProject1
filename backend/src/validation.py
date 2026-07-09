@@ -17,8 +17,9 @@ from __future__ import annotations
 import csv
 import json
 import math
+import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence
 
 
 # --------------------------------------------------------------------------- #
@@ -145,6 +146,62 @@ def _inv_norm_cdf(p: float) -> float:
            (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
 
 
+def _percentile(sorted_values: Sequence[float], pct: float) -> float:
+    """Linear-interpolated percentile of an ALREADY-SORTED sequence. pct in [0, 100]."""
+    if not sorted_values:
+        raise ValueError("empty sequence")
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    rank = (pct / 100.0) * (len(sorted_values) - 1)
+    lo_i = int(math.floor(rank))
+    hi_i = int(math.ceil(rank))
+    if lo_i == hi_i:
+        return sorted_values[lo_i]
+    frac = rank - lo_i
+    return sorted_values[lo_i] * (1 - frac) + sorted_values[hi_i] * frac
+
+
+def bootstrap_ci(
+    xs: Sequence[float],
+    ys: Sequence[float],
+    statistic: Callable[[Sequence[float], Sequence[float]], Optional[float]],
+    n_resamples: int = 1000,
+    confidence: float = 0.95,
+    seed: Optional[int] = None,
+) -> Optional[tuple]:
+    """Percentile bootstrap confidence interval for a paired statistic.
+
+    Resamples the paired (x, y) observations with replacement `n_resamples`
+    times, recomputes `statistic` on each resample, and returns the
+    (low, high) percentile interval. Unlike the Fisher CI this assumes no
+    distribution, which is the honest choice on a tiny ground-truth set (OV#3).
+
+    Resamples where the statistic is undefined (e.g. a constant draw makes a
+    correlation undefined) are skipped. Returns None when fewer than 2 usable
+    resample statistics remain or when there are fewer than 2 observations.
+    `seed` makes the result deterministic (required for tests and reproducible
+    reports).
+    """
+    _check_pair(xs, ys)
+    n = len(xs)
+    if n < 2:
+        return None
+    rng = random.Random(seed)
+    stats: List[float] = []
+    for _ in range(n_resamples):
+        idx = [rng.randrange(n) for _ in range(n)]
+        s = statistic([xs[i] for i in idx], [ys[i] for i in idx])
+        if s is not None:
+            stats.append(s)
+    if len(stats) < 2:
+        return None
+    stats.sort()
+    alpha = 1.0 - confidence
+    lo = _percentile(stats, alpha / 2.0 * 100.0)
+    hi = _percentile(stats, (1.0 - alpha / 2.0) * 100.0)
+    return (lo, hi)
+
+
 def leave_one_out_indices(n: int) -> List[List[int]]:
     """For each item i in 0..n-1, the indices of every OTHER item.
 
@@ -175,13 +232,15 @@ class AgreementResult:
     pearson: Optional[float]
     mae: Optional[float]
     ci95: Optional[tuple]  # Fisher CI on the Spearman correlation
+    boot_ci95: Optional[tuple] = None  # percentile bootstrap CI on Spearman (top-level only)
     per_criterion: Dict[str, "AgreementResult"] = field(default_factory=dict)
 
     def summary(self) -> str:
         def f(x):
             return "n/a" if x is None else f"{x:.3f}"
         ci = "n/a" if not self.ci95 else f"[{self.ci95[0]:.2f}, {self.ci95[1]:.2f}]"
-        return (f"n={self.n} spearman={f(self.spearman)} (95% CI {ci}) "
+        boot = "" if not self.boot_ci95 else f" (bootstrap [{self.boot_ci95[0]:.2f}, {self.boot_ci95[1]:.2f}])"
+        return (f"n={self.n} spearman={f(self.spearman)} (95% CI {ci}){boot} "
                 f"pearson={f(self.pearson)} mae={f(self.mae)}")
 
 
@@ -191,10 +250,13 @@ def compute_agreement(
     per_criterion_ai: Optional[Dict[str, Sequence[float]]] = None,
     per_criterion_human: Optional[Dict[str, Sequence[float]]] = None,
     confidence: float = 0.95,
+    bootstrap_resamples: int = 0,
+    bootstrap_seed: Optional[int] = None,
 ) -> AgreementResult:
     """Agreement between AI and human scores, with an optional per-criterion
     breakdown. Correlation is reported with a Fisher CI so small-n uncertainty
-    is explicit."""
+    is explicit; pass bootstrap_resamples > 0 to also attach a distribution-free
+    percentile bootstrap CI (top-level only — not recomputed per criterion)."""
     _check_pair(ai_scores, human_scores)
     n = len(ai_scores)
     sp = spearman(ai_scores, human_scores)
@@ -206,12 +268,19 @@ def compute_agreement(
         # CI is on the Spearman correlation, so use the rank-correlation variance
         # correction (1.03) rather than the Pearson SE — a slightly wider, honest interval.
         ci95=fisher_ci(sp, n, confidence, variance_factor=1.03),
+        boot_ci95=(
+            bootstrap_ci(ai_scores, human_scores, spearman,
+                         n_resamples=bootstrap_resamples, confidence=confidence,
+                         seed=bootstrap_seed)
+            if bootstrap_resamples > 0 else None
+        ),
     )
     if per_criterion_ai and per_criterion_human:
         for name, ai_vals in per_criterion_ai.items():
             human_vals = per_criterion_human.get(name)
             if human_vals is None:
                 continue
+            # per-criterion bootstrap is intentionally skipped (cost); Fisher CI only.
             result.per_criterion[name] = compute_agreement(ai_vals, human_vals, confidence=confidence)
     return result
 
@@ -227,10 +296,12 @@ class GroundTruthRecord:
     human_plan: Optional[float] = None   # 80% component, when the org separates it
     human_video: Optional[float] = None  # 20% component
     criteria: Dict[str, float] = field(default_factory=dict)  # per-criterion human scores (optional)
+    raters: Dict[str, float] = field(default_factory=dict)    # per-rater total for this plan (optional)
 
 
 _RESERVED = {"filename", "human_total", "human_plan", "human_video"}
 _CRIT_PREFIXES = ("crit_", "human_crit_", "criterion_")
+_RATER_PREFIX = "rater_"
 
 
 def _to_float(value) -> Optional[float]:
@@ -279,12 +350,18 @@ def _load_json(path: str) -> List[GroundTruthRecord]:
             fv = _to_float(v)
             if fv is not None:
                 criteria[k] = fv
+        raters = {}
+        for k, v in (row.get("raters") or {}).items():
+            fv = _to_float(v)
+            if fv is not None:
+                raters[k] = fv
         records.append(GroundTruthRecord(
             filename=row["filename"],
             human_total=_to_float(row.get("human_total")),
             human_plan=_to_float(row.get("human_plan")),
             human_video=_to_float(row.get("human_video")),
             criteria=criteria,
+            raters=raters,
         ))
     return records
 
@@ -348,6 +425,8 @@ def join_and_aggregate(
     ground_truth: List["GroundTruthRecord"],
     component: str = "total",
     confidence: float = 0.95,
+    bootstrap_resamples: int = 0,
+    bootstrap_seed: Optional[int] = None,
 ) -> ValidationReport:
     """Join AI grades to human ground truth by filename and compute agreement
     over the scored (eligible + graded_ok) plans only."""
@@ -383,6 +462,8 @@ def join_and_aggregate(
         per_criterion_ai=per_crit_ai or None,
         per_criterion_human=per_crit_human or None,
         confidence=confidence,
+        bootstrap_resamples=bootstrap_resamples,
+        bootstrap_seed=bootstrap_seed,
     )
     return ValidationReport(
         agreement=agreement,
@@ -402,17 +483,25 @@ def _load_csv(path: str) -> List[GroundTruthRecord]:
             raise ValueError("manifest CSV must have a 'filename' column")
         for row in reader:
             criteria = {}
+            raters = {}
             for col, val in row.items():
+                if not col:
+                    continue
                 cname = _criterion_name(col)
                 if cname is not None:
                     fv = _to_float(val)
                     if fv is not None:
                         criteria[cname] = fv
+                elif col.startswith(_RATER_PREFIX):
+                    fv = _to_float(val)
+                    if fv is not None:
+                        raters[col[len(_RATER_PREFIX):]] = fv
             records.append(GroundTruthRecord(
                 filename=(row.get("filename") or "").strip(),
                 human_total=_to_float(row.get("human_total")),
                 human_plan=_to_float(row.get("human_plan")),
                 human_video=_to_float(row.get("human_video")),
                 criteria=criteria,
+                raters=raters,
             ))
     return records

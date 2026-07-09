@@ -59,6 +59,28 @@ def compute_interrater(raters: Sequence[Sequence[float]]) -> InterRaterResult:
     )
 
 
+def human_ceiling(records: Sequence) -> InterRaterResult:
+    """Human ceiling from a ground-truth manifest's per-rater scores.
+
+    `records` is a list of objects with a `.raters` dict ({rater_name: score}),
+    e.g. validation.GroundTruthRecord. Uses COMPLETE CASES — only the plans
+    that every rater scored — so the pairwise correlations align on the same
+    items. Returns an InterRaterResult; mean_pairwise_spearman is None when
+    fewer than 2 raters are present.
+    """
+    rater_names: list = []
+    for rec in records:
+        for name in getattr(rec, "raters", {}):
+            if name not in rater_names:
+                rater_names.append(name)
+    complete = [
+        rec for rec in records
+        if all(name in getattr(rec, "raters", {}) for name in rater_names)
+    ]
+    vectors = [[rec.raters[name] for rec in complete] for name in rater_names]
+    return compute_interrater(vectors)
+
+
 def interpret_vs_ceiling(
     ai_vs_human: Optional[float],
     human_ceiling: Optional[float],

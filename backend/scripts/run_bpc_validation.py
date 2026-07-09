@@ -35,6 +35,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from backend.src import validation as V
+from backend.src import interrater as IR
 from backend.src.input_adapter import get_adapter
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -124,7 +125,7 @@ class _Retry(Exception):
     pass
 
 
-async def _run(args) -> V.ValidationReport:
+async def _run(args):
     import httpx
     ground_truth = V.load_ground_truth(args.manifest)
     rubric = _load_rubric(args.rubric)
@@ -141,10 +142,17 @@ async def _run(args) -> V.ValidationReport:
         ]
         grades = await asyncio.gather(*tasks)
 
-    return V.join_and_aggregate(list(grades), ground_truth, component=args.component)
+    report = V.join_and_aggregate(
+        list(grades), ground_truth, component=args.component,
+        bootstrap_resamples=args.bootstrap, bootstrap_seed=args.bootstrap_seed,
+    )
+    # Human ceiling from per-rater manifest scores (empty verdict when the
+    # manifest carries no per-rater columns — degrades gracefully).
+    ceiling = IR.human_ceiling(ground_truth)
+    return report, ceiling
 
 
-def _print_report(report: V.ValidationReport, min_spearman: float) -> int:
+def _print_report(report: V.ValidationReport, min_spearman: float, ceiling=None) -> int:
     ag = report.agreement
     print("\n" + "=" * 64)
     print("RELIABILITY REPORT (honest — small n, wide CI expected)")
@@ -162,6 +170,22 @@ def _print_report(report: V.ValidationReport, min_spearman: float) -> int:
         print("  per-criterion:")
         for name, sub in ag.per_criterion.items():
             print(f"    - {name}: {sub.summary()}")
+
+    # Human ceiling: agreement is only meaningful relative to how much the
+    # human judges agree with each other (OV#3). Printed only when the manifest
+    # carried per-rater scores.
+    if ceiling is not None and ceiling.mean_pairwise_spearman is not None:
+        hc = ceiling.mean_pairwise_spearman
+        verdict = IR.interpret_vs_ceiling(ag.spearman, hc)
+        readable = {
+            "below_ceiling": "BELOW the human ceiling — real room to improve",
+            "at_ceiling": "AT the human ceiling — effectively as good as a human judge",
+            "above_ceiling_watch": "ABOVE the human ceiling — WATCH: likely overfitting one rater",
+            "no_baseline": "no baseline",
+        }.get(verdict, verdict)
+        print(f"\n  human ceiling (inter-rater): spearman={hc:.3f} "
+              f"over {ceiling.n_items} plans, {ceiling.n_raters} raters")
+        print(f"  AI vs ceiling: {readable}")
 
     print("\n  NOTE: with a small n the confidence interval is wide. Report this as an")
     print("  ENCOURAGING SIGNAL, not proof. Lean on per-criterion agreement and reading")
@@ -189,10 +213,14 @@ def main(argv=None):
     p.add_argument("--concurrency", type=int, default=4)
     p.add_argument("--max-retries", type=int, default=1, help="Judge retries per plan (batch: keep low)")
     p.add_argument("--min-spearman", type=float, default=0.7, help="advisory go/no-go threshold")
+    p.add_argument("--bootstrap", type=int, default=0,
+                   help="bootstrap resamples for a distribution-free CI on Spearman (0 = off)")
+    p.add_argument("--bootstrap-seed", type=int, default=None,
+                   help="seed for a reproducible bootstrap CI")
     args = p.parse_args(argv)
 
-    report = asyncio.run(_run(args))
-    return _print_report(report, args.min_spearman)
+    report, ceiling = asyncio.run(_run(args))
+    return _print_report(report, args.min_spearman, ceiling)
 
 
 if __name__ == "__main__":
