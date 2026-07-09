@@ -2,9 +2,15 @@ import os
 import json as _json
 import tempfile
 import uuid
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends
 from sse_starlette.sse import EventSourceResponse
 from backend.src.stream_events import stage_event
+from backend.src import persistence as _persist
+from backend.src import grade_record as _gr
+from backend.src import aggregate as _agg
+from backend.src import fairness as _fair
+from backend.src import batch as _batch
+from backend.src.llm import get_model_config
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -54,6 +60,61 @@ app.add_middleware(
 def health():
     """Liveness/readiness probe for the Docker/compose stack."""
     return {"status": "ok"}
+
+
+# --- Backend-owned persistence (A3): the engine + a per-request session ------ #
+_DB_ENGINE = _persist.make_engine()
+_persist.init_db(_DB_ENGINE)
+_SessionLocal = _persist.make_session_factory(_DB_ENGINE)
+
+
+def get_session():
+    """FastAPI dependency yielding a DB session (overridable in tests)."""
+    session = _SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+def _submission_text(request: "GradeRequest") -> str:
+    if request.submission_text:
+        return request.submission_text
+    return "\n".join(f.content for f in (request.submission_files or []))
+
+
+def _rubric_dicts(request: "GradeRequest") -> list:
+    return [r.model_dump() if hasattr(r, "model_dump") else r for r in request.rubric]
+
+
+def _grade_of_record_dict(request: "GradeRequest", result: GradeResult) -> dict:
+    """Pin the canonical grade for dispute defense (X4). Temperatures reflect the
+    ensemble settings; the input hash is derived from the exact rubric + text."""
+    n = request.ensemble_n or 1
+    temps = [request.ensemble_temperature or 0.4] * n if n > 1 else [0.0]
+    rec = _gr.record_for(
+        _rubric_dicts(request), _submission_text(request),
+        model=get_model_config("grade").model, temperatures=temps,
+        assessments=result.assessments, total=result.score, ai_flag=result.ai_content_flag,
+    )
+    return rec.to_dict()
+
+
+def _persist_grade(session, request: "GradeRequest", result: GradeResult):
+    """Record the submission + grade + per-criterion breakdown in the backend
+    store (A3). Best-effort: a persistence failure never fails the grade."""
+    filename = request.submission_files[0].filename if request.submission_files else "submission.txt"
+    sub = _persist.add_submission(session, team=request.student_id,
+                                  filename=filename, content=_submission_text(request), status="graded")
+    _persist.save_grade(
+        session, sub.id, score=result.score,
+        total_points=sum(a.max_points for a in result.assessments),
+        feedback=result.feedback, assessments=[a.model_dump() for a in result.assessments],
+        confidence_score=result.confidence_score, graded_ok=result.graded_ok,
+        eligibility_status=result.eligibility_status, ai_content_flag=result.ai_content_flag,
+        grade_of_record=result.grade_of_record,
+    )
+    return sub
 
 class SubmissionFile(BaseModel):
     filename: str
@@ -144,20 +205,121 @@ def _build_grade_inputs(request: "GradeRequest") -> dict:
 
 
 @app.post("/grade", response_model=GradeResult)
-async def grade_submission(request: GradeRequest):
+async def grade_submission(request: GradeRequest, session=Depends(get_session)):
     """
-    Grades a student submission using the agentic workflow.
+    Grades a student submission using the agentic workflow, pins a grade-of-record
+    for dispute defense, and persists the result in the backend store.
     """
     # Validate before the try so the 422 is not swallowed and re-raised as a 500.
     if not request.submission_files and not request.submission_text:
         raise HTTPException(status_code=422, detail="Provide submission_files or submission_text.")
     try:
         inputs = _build_grade_inputs(request)
-        result = await run_in_threadpool(agent.app.invoke, inputs)
-        return result["grade_result"]
+        invoked = await run_in_threadpool(agent.app.invoke, inputs)
+        result: GradeResult = invoked["grade_result"]
+        result.grade_of_record = _grade_of_record_dict(request, result)
+        try:
+            await run_in_threadpool(_persist_grade, session, request, result)
+        except Exception as pe:  # persistence must never fail a grade
+            print(f"WARN: could not persist grade: {pe}")
+        return result
     except Exception as e:
         print(f"Error grading submission: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Judge leaderboard: ranking + tie-band (OV#2) + fairness (OV#13) -------- #
+@app.get("/leaderboard")
+def leaderboard(shortlist: int = 10, band: float = 1.0, session=Depends(get_session)):
+    """Rank persisted, eligible grades; flag the statistical tie zone at the
+    shortlist cutoff; summarize fairness across submission groups."""
+    rows = _persist.leaderboard(session)  # [(submission, grade)] desc by score
+    scored = [(str(sub.id), grade.score) for sub, grade in rows]
+    tie = _agg.cutoff_tie_zone(scored, k=shortlist, band=band)
+    records = [
+        _fair.GroupRecord(
+            group=(sub.group or "unspecified"), score=grade.score,
+            flagged=(grade.eligibility_status != "eligible"), ai_flag=grade.ai_content_flag,
+        )
+        for sub, grade in rows
+    ]
+    flag_rates = _fair.flag_rate_by_group(records)
+    return {
+        "ranking": [
+            {"rank": i + 1, "submission_id": sub.id, "team": sub.team,
+             "score": grade.score, "in_tie_zone": str(sub.id) in tie}
+            for i, (sub, grade) in enumerate(rows)
+        ],
+        "tie_zone_at_cutoff": tie,
+        "fairness": {
+            "flag_rate_by_group": flag_rates,
+            "disparate_impact_ratio": _fair.disparate_impact_ratio(flag_rates),
+            "mean_score_by_group": _fair.mean_score_by_group(records),
+        },
+    }
+
+
+# --- Batch grading (A2): persist each submission, then run the resumable job - #
+class BatchRequest(BaseModel):
+    submissions: List[SubmissionFile]
+    rubric: List[RubricItem]
+    guideline: Optional[str] = None
+    use_calibration: Optional[bool] = None
+    use_evidence: Optional[bool] = None
+    ensemble_n: Optional[int] = None
+    ensemble_temperature: Optional[float] = None
+    max_retries: Optional[int] = None
+
+
+def _batch_grade_item(session, submission_id: int, rubric, options: dict) -> int:
+    """Grade one persisted submission and save its grade; returns the grade id.
+    Module-level so tests can substitute it without invoking the LLM."""
+    sub = _persist.get_submission(session, submission_id)
+    req = GradeRequest(
+        submission_files=[SubmissionFile(filename=sub.filename, content=sub.content)],
+        rubric=rubric, student_id=sub.team, **options,
+    )
+    result: GradeResult = agent.app.invoke(_build_grade_inputs(req))["grade_result"]
+    result.grade_of_record = _grade_of_record_dict(req, result)
+    grade = _persist.save_grade(
+        session, submission_id, score=result.score,
+        total_points=sum(a.max_points for a in result.assessments),
+        feedback=result.feedback, assessments=[a.model_dump() for a in result.assessments],
+        confidence_score=result.confidence_score, graded_ok=result.graded_ok,
+        eligibility_status=result.eligibility_status, ai_content_flag=result.ai_content_flag,
+        grade_of_record=result.grade_of_record,
+    )
+    return grade.id
+
+
+@app.post("/grade/batch")
+def grade_batch(request: BatchRequest, session=Depends(get_session)):
+    """Persist every submission, create a resumable job, and grade them. Note:
+    for a very large field this should move to a background worker; it runs in
+    the request here for a single-box deployment."""
+    if not request.submissions:
+        raise HTTPException(status_code=422, detail="Provide at least one submission.")
+    subs = [
+        _persist.add_submission(session, team="batch", filename=s.filename, content=s.content, status="pending")
+        for s in request.submissions
+    ]
+    job = _batch.create_job(session, keys=[str(s.id) for s in subs], name="grade-batch")
+    options = {k: v for k, v in {
+        "guideline": request.guideline, "use_calibration": request.use_calibration,
+        "use_evidence": request.use_evidence, "ensemble_n": request.ensemble_n,
+        "ensemble_temperature": request.ensemble_temperature, "max_retries": request.max_retries,
+    }.items() if v is not None}
+    _batch.process_pending(session, job.id,
+                           lambda key: _batch_grade_item(session, int(key), request.rubric, options))
+    return {"job_id": job.id, **_batch.job_progress(session, job.id)}
+
+
+@app.get("/grade/batch/{job_id}")
+def grade_batch_status(job_id: int, session=Depends(get_session)):
+    job = _batch.get_job(session, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Unknown batch job id.")
+    return {"job_id": job_id, "status": job.status, **_batch.job_progress(session, job_id)}
 
 
 # --- Live Grading Theater stream (Phase 3, eng review A1) ------------------- #

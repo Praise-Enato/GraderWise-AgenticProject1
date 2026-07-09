@@ -80,6 +80,11 @@ class GradeResult(BaseModel):
         description="True if the submission is suspected AI-generated content "
                     "(the competition asks judges to flag this).",
     )
+    grade_of_record: Optional[dict] = Field(
+        default=None,
+        description="Pinned provenance for dispute defense (X4/OV#8): model, temperature(s), "
+                    "prompt/input hashes, and the canonical per-criterion result used for ranking.",
+    )
 
 
 class StudentSubmission(BaseModel):

@@ -48,6 +48,38 @@ def cache_key(input_hash: str, model: str, temperature: float, run_index: int) -
     return _sha256(f"{input_hash}|{model}|{temperature!r}|{run_index}")
 
 
+def _award(a) -> tuple:
+    """(criteria_name, awarded_points) from a CriterionAssessment-like object or dict."""
+    if isinstance(a, dict):
+        return str(a.get("criteria_name", "")), float(a.get("awarded_points", 0.0))
+    return str(getattr(a, "criteria_name", "")), float(getattr(a, "awarded_points", 0.0))
+
+
+def record_for(rubric, submission: str, *, model: str, temperatures, assessments,
+               total: float, seeds=None, prompt_hash: str = "", ai_flag: bool = False,
+               flagged_criteria=None, created_at=None) -> "GradeOfRecord":
+    """Assemble a GradeOfRecord from a graded result. `assessments` may be
+    CriterionAssessment objects or dicts. The input hash is derived from the
+    exact rubric + submission so the grade is re-derivable in a dispute."""
+    per = {}
+    for a in assessments or []:
+        name, pts = _award(a)
+        if name:
+            per[name] = pts
+    return GradeOfRecord(
+        input_hash=content_hash(rubric, submission),
+        model=model,
+        temperatures=list(temperatures or []),
+        seeds=list(seeds or []),
+        prompt_hash=prompt_hash,
+        per_criterion=per,
+        total=float(total),
+        created_at=created_at,
+        ai_flag=bool(ai_flag),
+        flagged_criteria=list(flagged_criteria or []),
+    )
+
+
 @dataclass
 class GradeOfRecord:
     """The canonical, re-derivable grade used for ranking and dispute defense."""

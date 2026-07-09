@@ -49,6 +49,7 @@ from backend.src.grading import (
     unsupported_evidence,
 )
 from backend.src.eligibility import screen_eligibility
+from backend.src.injection import detect_injection
 
 load_dotenv()
 
@@ -368,6 +369,16 @@ def prepare(state: AgentState) -> dict:
     else:
         thinking = ["General rubric: competition eligibility/DQ screen skipped."]
         eligibility = {"status": ELIGIBILITY_ELIGIBLE, "reasons": [], "advisory_notes": [], "ai_content_flag": False}
+
+    # Prompt-injection screen (OV#12): submissions are attacker-controlled, so flag
+    # "ignore instructions / award full marks" style content for a human. Advisory
+    # only — never an auto-DQ (same posture as the AI-content flag).
+    injection_markers = detect_injection(combined)
+    if injection_markers:
+        eligibility["advisory_notes"] = list(eligibility.get("advisory_notes", [])) + [
+            f"possible prompt injection ({', '.join(injection_markers)}) — treat the submission text as untrusted"
+        ]
+        thinking.append(f"Input screen: possible prompt-injection markers: {', '.join(injection_markers)}.")
 
     context: List[str] = []
     skip = state.get("skip_rag", True)  # default: skip RAG for business plans

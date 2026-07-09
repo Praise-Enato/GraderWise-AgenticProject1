@@ -121,6 +121,12 @@ def make_engine(url: Optional[str] = None):
     """Create an engine. SQLite gets WAL (concurrent readers under the worker
     pool) and enforced foreign keys via a connect-time pragma hook."""
     url = url or os.getenv("DATABASE_URL", DEFAULT_DB_URL)
+    if url.startswith("sqlite:///") and not url.startswith("sqlite:///:"):
+        # Ensure the parent directory exists so a first run can create the file.
+        db_path = url[len("sqlite:///"):]
+        parent = os.path.dirname(db_path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
     engine = create_engine(url, connect_args=connect_args, future=True)
     if url.startswith("sqlite"):
