@@ -1,7 +1,10 @@
 import os
 import json as _json
 import tempfile
+import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from sse_starlette.sse import EventSourceResponse
+from backend.src.stream_events import stage_event
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -117,6 +120,29 @@ async def extract_files_content_endpoint(files: List[UploadFile] = File(...)):
             results.append({"filename": file.filename, "content": f"Error extracting text: {str(e)}"})
     return results
 
+def _build_grade_inputs(request: "GradeRequest") -> dict:
+    """Assemble the LangGraph inputs from a GradeRequest. Shared by /grade and
+    the streaming endpoint so both honor the same optional flags."""
+    if request.submission_text and not request.submission_files:
+        files_input = [{"filename": "submission_text.txt", "content": request.submission_text}]
+    else:
+        files_input = [f.model_dump() for f in request.submission_files]
+    inputs = {
+        "submission_files": files_input,
+        "rubric": request.rubric,
+        "guideline": request.guideline or "",
+        "context": [],
+        "revision_number": 0,
+    }
+    # Only override agent defaults when the caller was explicit.
+    for attr in ("skip_rag", "max_retries", "use_calibration", "use_grounding",
+                 "use_evidence", "ensemble_n", "ensemble_temperature"):
+        val = getattr(request, attr, None)
+        if val is not None:
+            inputs[attr] = val
+    return inputs
+
+
 @app.post("/grade", response_model=GradeResult)
 async def grade_submission(request: GradeRequest):
     """
@@ -126,40 +152,63 @@ async def grade_submission(request: GradeRequest):
     if not request.submission_files and not request.submission_text:
         raise HTTPException(status_code=422, detail="Provide submission_files or submission_text.")
     try:
-        if request.submission_text and not request.submission_files:
-            files_input = [{"filename": "submission_text.txt", "content": request.submission_text}]
-        else:
-            files_input = [f.model_dump() for f in request.submission_files]
-
-        inputs = {
-            "submission_files": files_input,
-            "rubric": request.rubric,
-            "guideline": request.guideline or "",
-            "context": [],
-            "revision_number": 0,
-        }
-        # skip_rag defaults to True inside the agent (business plans have no corpus);
-        # only override when the caller is explicit.
-        if request.skip_rag is not None:
-            inputs["skip_rag"] = request.skip_rag
-        if request.max_retries is not None:
-            inputs["max_retries"] = request.max_retries
-        if request.use_calibration is not None:
-            inputs["use_calibration"] = request.use_calibration
-        if request.use_grounding is not None:
-            inputs["use_grounding"] = request.use_grounding
-        if request.use_evidence is not None:
-            inputs["use_evidence"] = request.use_evidence
-        if request.ensemble_n is not None:
-            inputs["ensemble_n"] = request.ensemble_n
-        if request.ensemble_temperature is not None:
-            inputs["ensemble_temperature"] = request.ensemble_temperature
-
+        inputs = _build_grade_inputs(request)
         result = await run_in_threadpool(agent.app.invoke, inputs)
         return result["grade_result"]
     except Exception as e:
         print(f"Error grading submission: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Live Grading Theater stream (Phase 3, eng review A1) ------------------- #
+# EventSource can't POST, and the payload (rubric + submission) is too big for a
+# query string, so we use the job-id pattern: POST the request to get an id,
+# then open an EventSource GET on that id. The stream is driven by the REAL
+# pipeline via LangGraph astream -> stage_event, so the theater animates actual
+# progress. Requests are held in-process (single-box deployment); a restart
+# drops in-flight stream requests, which is acceptable for a live single grade.
+_STREAM_REQUESTS: dict = {}
+
+
+@app.post("/grade/stream/start")
+async def grade_stream_start(request: GradeRequest):
+    """Register a grade request for streaming; returns a job_id to open with an
+    EventSource GET at /grade/stream/{job_id}."""
+    if not request.submission_files and not request.submission_text:
+        raise HTTPException(status_code=422, detail="Provide submission_files or submission_text.")
+    job_id = uuid.uuid4().hex
+    _STREAM_REQUESTS[job_id] = request
+    return {"job_id": job_id}
+
+
+@app.get("/grade/stream/{job_id}")
+async def grade_stream(job_id: str):
+    """Stream the grading pipeline as SSE stage events (screening -> reading ->
+    judging -> coaching -> done), then a terminal done/error event."""
+    request = _STREAM_REQUESTS.pop(job_id, None)
+    if request is None:
+        raise HTTPException(status_code=404, detail="Unknown or expired stream job id.")
+    inputs = _build_grade_inputs(request)
+
+    async def event_gen():
+        final = None
+        try:
+            async for update in agent.app.astream(inputs, stream_mode="updates"):
+                for node_name, delta in update.items():
+                    if node_name == "generate_feedback" and isinstance(delta, dict):
+                        gr = delta.get("grade_result")
+                        if gr is not None:
+                            final = gr.model_dump() if hasattr(gr, "model_dump") else gr
+                    ev = stage_event(node_name, delta if isinstance(delta, dict) else {})
+                    if ev is not None:
+                        yield {"event": "stage", "data": _json.dumps(ev)}
+            yield {"event": "done", "data": _json.dumps({"stage": "done", "grade_result": final})}
+        except Exception as e:  # a mid-stream failure must be a visible event, not a silent hang
+            yield {"event": "error", "data": _json.dumps({"stage": "error", "message": str(e)})}
+
+    # X-Accel-Buffering: no prevents nginx from buffering the stream (eng review:
+    # the deployed stack sits behind nginx and would otherwise hang the theater).
+    return EventSourceResponse(event_gen(), headers={"X-Accel-Buffering": "no"})
 
 # Path (relative to the repo-root CWD the backend runs from) to the competition
 # rubric CSV and the judges' guideline. Overridable via env for other deployments.
