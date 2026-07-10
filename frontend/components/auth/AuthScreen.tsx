@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Github, Mail, Lock, User, Loader2, CheckCircle, Eye, EyeOff, Scale, Quote } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { ModeToggle } from "@/components/ModeToggle";
@@ -33,6 +33,7 @@ export function AuthScreen({ mode }: { mode: Mode }) {
   const router = useRouter();
   const isLogin = mode === "signin";
   const copy = COPY[mode];
+  const reduce = useReducedMotion();
 
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -112,10 +113,25 @@ export function AuthScreen({ mode }: { mode: Mode }) {
       </aside>
 
       {/* Form */}
-      <main className="relative flex items-center justify-center bg-background px-6 py-12">
-        <div className="absolute right-4 top-4"><ModeToggle /></div>
+      <main className="relative flex items-center justify-center overflow-hidden bg-background px-6 py-12">
+        {/* ambient gradient — drifting blobs + corner glow, no container */}
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-emerald-400/25 blur-3xl dark:bg-emerald-500/15"
+          animate={reduce ? undefined : { x: [0, 22, 0], y: [0, 18, 0] }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-blue-400/20 blur-3xl dark:bg-blue-500/12"
+          animate={reduce ? undefined : { x: [0, -18, 0], y: [0, -16, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(40%_35%_at_92%_8%,rgba(16,185,129,0.10),transparent_60%)]" />
 
-        <div className="w-full max-w-sm">
+        <div className="absolute right-4 top-4 z-20"><ModeToggle /></div>
+
+        <div className="relative z-10 w-full max-w-sm">
           {/* mobile logo */}
           <Link href="/" className="mb-8 inline-flex items-center gap-2 lg:hidden">
             <Logo className="h-8 w-8" showText={false} />
