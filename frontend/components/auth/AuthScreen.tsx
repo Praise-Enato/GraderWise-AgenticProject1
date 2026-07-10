@@ -68,8 +68,11 @@ export function AuthScreen({ mode }: { mode: Mode }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Branded panel */}
-      <aside className="relative hidden overflow-hidden bg-ink-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_50%_at_20%_0%,rgba(16,185,129,0.18),transparent_60%),radial-gradient(50%_40%_at_100%_100%,rgba(224,169,46,0.14),transparent_60%)]" />
+      <aside className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between bg-[linear-gradient(135deg,#065f46_0%,#0f766e_32%,#1d4ed8_68%,#0b1220_100%)]">
+        {/* colorful glows for depth */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_45%_at_15%_5%,rgba(52,211,153,0.45),transparent_60%),radial-gradient(55%_45%_at_95%_15%,rgba(56,189,248,0.30),transparent_60%),radial-gradient(60%_50%_at_80%_100%,rgba(224,169,46,0.22),transparent_60%)]" />
+        <div className="pointer-events-none absolute -left-24 top-1/3 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-gold-500/20 blur-3xl" />
         <div className="relative">
           <Link href="/" className="inline-flex items-center gap-3">
             <Logo className="h-9 w-9" showText={false} />

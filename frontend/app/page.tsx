@@ -314,6 +314,104 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Capability strip + Evidence scorecard showcase */}
+      <section className="py-24 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-white/5 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-20">
+            {[
+              { v: "cited", k: "Every point" },
+              { v: "5× / plan", k: "Graded" },
+              { v: "CSV·PDF·DOCX", k: "Rubric in" },
+              { v: "slides + figures", k: "Reads" },
+            ].map((s) => (
+              <div key={s.k} className="text-center">
+                <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600">{s.v}</div>
+                <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{s.k}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-6">
+                <Quote className="w-3.5 h-3.5" /> Evidence-linked
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Every point, cited to the plan.</h2>
+              <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
+                No hand-wavy scores. Each criterion carries the exact quote from the submission that earned or lost the marks — and a quote that isn&apos;t really in the plan is rejected. Disputes resolve in seconds, and your panel debates substance, not the tool.
+              </p>
+              <div className="mt-6 flex items-center gap-2 text-sm font-medium text-slate-500">
+                <Scale className="w-4 h-4 text-emerald-500" /> Graded 5× · agrees with the human panel
+              </div>
+            </div>
+
+            {/* scorecard */}
+            <div className="relative">
+              <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-tr from-emerald-500/20 to-teal-500/10 blur-3xl" />
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">AgriConnect — Business Plan</div>
+                    <div className="text-xs text-slate-500">Scored against the 80-pt rubric</div>
+                  </div>
+                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Eligible</span>
+                </div>
+                <div className="px-6 py-5 space-y-4">
+                  {[
+                    { name: "Problem & pain", score: 8, max: 8 },
+                    { name: "Market sizing", score: 6, max: 8, ev: "“2.3 million smallholder farmers in the northern corridor…”" },
+                    { name: "Financials", score: 4, max: 6 },
+                    { name: "Team", score: 5, max: 6 },
+                  ].map((r, i) => (
+                    <div key={r.name}>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-700 dark:text-slate-200">{r.name}</span>
+                        <span className="font-semibold tabular-nums text-slate-900 dark:text-white">{r.score}/{r.max}</span>
+                      </div>
+                      <div className="mt-1.5 h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                        <motion.div className="h-full rounded-full bg-emerald-500"
+                          initial={{ width: 0 }} whileInView={{ width: `${(r.score / r.max) * 100}%` }}
+                          viewport={{ once: true }} transition={{ duration: 0.7, delay: i * 0.1 }} />
+                      </div>
+                      {r.ev && <p className="mt-2 rounded-lg border-l-2 border-amber-400 bg-amber-50 dark:bg-amber-900/10 px-3 py-2 text-xs italic text-slate-600 dark:text-slate-300">{r.ev}</p>}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-medium text-slate-500">Confidence from 5 runs</span>
+                  <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">71<span className="text-base text-slate-400">/80</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Business pipeline — five stages */}
+      <section className="py-24 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-white/5 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">The judging pipeline, out loud</h2>
+            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">The same five stages you watch in the Grading Theater — every plan moves through them in order.</p>
+          </div>
+          <ol className="grid md:grid-cols-5 gap-6">
+            {[
+              { n: "01", t: "Screen the gate", d: "Eligibility, disqualifiers, and AI-content flags before ranking." },
+              { n: "02", t: "Read the plan", d: "Score each criterion on the evidence actually present." },
+              { n: "03", t: "Second opinion", d: "A Judge checks it and sends it back to re-score if it's off." },
+              { n: "04", t: "Coach the team", d: "Specific, encouraging feedback for the founders." },
+              { n: "05", t: "Verdict", d: "A defensible score plus a pinned grade-of-record." },
+            ].map((s) => (
+              <li key={s.n} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6">
+                <span className="text-3xl font-black text-emerald-600/25 dark:text-emerald-400/25">{s.n}</span>
+                <h3 className="mt-2 font-bold text-slate-900 dark:text-white">{s.t}</h3>
+                <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{s.d}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       {/* Educator Dashboard Ecosystem Section - MODIFIED */}
       <section className="py-24 bg-white dark:bg-slate-950 transition-colors border-t border-slate-100 dark:border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -519,6 +617,48 @@ export default function LandingPage() {
                 <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{t.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Voices */}
+      <section className="py-24 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-white/5 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-3">Trusted with the hard calls</h2>
+            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">From classrooms to competition panels.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { q: "For the first time the shortlist held up under questioning. Every score pointed to a line in the plan — the panel debated substance, not the tool.", n: "Amara Okonkwo", r: "Lead Judge · Business Plan Competition" },
+              { q: "We screened three hundred plans in an afternoon and still hand-reviewed every flagged one. The tie band at the cutoff saved us a genuinely unfair call.", n: "Kwabena Mensah", r: "Programme Director" },
+              { q: "I grade five classes of essays a week. GradeWise does the first pass and I keep the final word — hours back, every Sunday.", n: "Dr. Ngozi Eze", r: "Senior Lecturer" },
+            ].map((v) => (
+              <figure key={v.n} className="flex flex-col p-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60">
+                <Quote className="w-6 h-6 text-emerald-500" />
+                <blockquote className="mt-4 flex-1 text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">{v.q}</blockquote>
+                <figcaption className="mt-6">
+                  <div className="font-bold text-slate-900 dark:text-white">{v.n}</div>
+                  <div className="text-sm text-slate-500">{v.r}</div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="py-24 bg-gradient-to-br from-blue-600 via-indigo-600 to-emerald-600 transition-colors">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-5">Grade the next batch on evidence.</h2>
+          <p className="text-lg text-white/90 mb-9 max-w-xl mx-auto">Set your rubric, upload the work — a pop quiz or a whole competition field — and let GradeWise do the first pass while you keep the final word.</p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link href="/signup" className="px-8 py-4 rounded-full bg-white text-slate-900 font-semibold shadow-xl hover:shadow-2xl transition-all inline-flex items-center justify-center gap-2 group">
+              Get started free <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link href="/theater-preview" className="px-8 py-4 rounded-full border border-white/40 text-white font-semibold hover:bg-white/10 transition-all inline-flex items-center justify-center gap-2">
+              Watch a plan get graded
+            </Link>
           </div>
         </div>
       </section>
