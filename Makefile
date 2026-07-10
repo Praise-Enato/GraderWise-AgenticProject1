@@ -1,27 +1,35 @@
 # Variables
-PYTHON = python
 UV = uv
 VENV = .venv
 VENV_PYTHON = $(VENV)/bin/python
-VENV_ACTIVATE = $(VENV)/bin/activate
+# Pinned because torch==2.4.0+cpu only ships wheels up to Python 3.12.
+PY = 3.11
 
-.PHONY: install run clean venv
+.PHONY: env venv install install-backend install-frontend install-dev \
+        run run-backend run-frontend dev test clean commit stop
 
-# Step 0: Create virtual environment
+# --- Env scaffolding (optional helper; never overwrites an existing .env) ---
+env:
+	@if [ ! -f .env ]; then \
+		printf 'DEEPSEEK_API_KEY=\nGROQ_API_KEY=\n' > .env; \
+		echo "Created .env — fill in DEEPSEEK_API_KEY (required)."; \
+	else \
+		echo ".env already exists; leaving it untouched."; \
+	fi
+
+# --- Install ---
 venv:
-	@if [ ! -f "$(VENV)/bin/python" ]; then \
-		echo "Creating virtual environment..."; \
-		$(UV) venv $(VENV); \
-		echo "Virtual environment created at $(VENV)"; \
+	@if [ ! -x "$(VENV_PYTHON)" ]; then \
+		echo "Creating virtual environment with uv (Python $(PY))..."; \
+		$(UV) venv --python $(PY) $(VENV); \
 	else \
 		echo "Virtual environment already exists at $(VENV)"; \
 	fi
 
-# Step 1: Create venv and install dependencies
+# uv installs straight into the venv — no separate pip bootstrap needed.
 install-backend: venv
-	@echo "Installing stable dependencies..."
-	$(VENV_PYTHON) -m pip install --upgrade pip
-	$(VENV_PYTHON) -m pip install -r requirements.txt
+	@echo "Installing backend dependencies with uv..."
+	$(UV) pip install --python $(VENV_PYTHON) --index-strategy unsafe-best-match -r requirements.txt
 	@echo "Backend installation complete."
 
 install-frontend:
@@ -29,11 +37,16 @@ install-frontend:
 	cd frontend && npm install
 	@echo "Frontend installation complete."
 
+# Light test-only deps (pytest + pydantic); no torch/langgraph needed.
+install-dev: venv
+	@echo "Installing dev/test dependencies with uv..."
+	$(UV) pip install --python $(VENV_PYTHON) -r requirements-dev.txt
+	@echo "Dev dependencies installed."
+
 install: install-backend install-frontend
 	@echo "All dependencies installed successfully!"
 
-# Step 2: Start the Server
-
+# --- Run ---
 run-backend:
 	$(VENV_PYTHON) -m uvicorn backend.src.main:app --reload --port 8000
 
@@ -47,7 +60,12 @@ run: run-backend
 dev:
 	$(MAKE) -j 2 run-backend run-frontend
 
-# Optional: Cleanup cache
+# --- Test ---
+# Runs the backend unit suite (config in pytest.ini). Requires `make install-dev`.
+test:
+	$(VENV_PYTHON) -m pytest
+
+# --- Utilities ---
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
@@ -60,9 +78,10 @@ commit:
 	git add .
 	git commit -m "$(msg)"
 
-# Stop development servers
+# Stop development servers (fuser is always present on Ubuntu and
+# handles the "no process on port" case cleanly)
 stop:
-	@echo "Stopping servers..."
-	-lsof -ti :8000 | xargs kill -9
-	-lsof -ti :3000 | xargs kill -9
+	@echo "Stopping servers on :8000 and :3000..."
+	-fuser -k 8000/tcp 2>/dev/null
+	-fuser -k 3000/tcp 2>/dev/null
 	@echo "Servers stopped."
