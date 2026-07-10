@@ -110,20 +110,33 @@ export function AuthScreen({ mode }: { mode: Mode }) {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Branded panel (left) */}
-      <aside className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between bg-[linear-gradient(145deg,#064e3b_0%,#0f766e_34%,#155e75_66%,#0b1220_100%)]">
+      {/* Branded panel (left) — same ambient + motion language as the form side */}
+      <motion.aside variants={container} initial="hidden" animate="show"
+        className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between bg-[linear-gradient(145deg,#064e3b_0%,#0f766e_34%,#155e75_66%,#0b1220_100%)]">
+        {/* hairline top accent (uniform with the form side) */}
+        <div className="absolute inset-x-0 top-0 z-10 h-0.5 bg-gradient-to-r from-emerald-400 via-sky-400 to-emerald-400" />
+        {/* base color glows + grid */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_12%_8%,rgba(52,211,153,0.40),transparent_60%),radial-gradient(50%_40%_at_92%_12%,rgba(56,189,248,0.22),transparent_60%),radial-gradient(55%_50%_at_82%_100%,rgba(224,169,46,0.18),transparent_60%)]" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
-        <div className="pointer-events-none absolute -left-24 top-1/3 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-gold-500/20 blur-3xl" />
-        <div className="relative">
+        {/* drifting aurora blobs (match the form side) */}
+        <motion.div aria-hidden initial={false} className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-emerald-400/25 blur-3xl"
+          animate={reduce ? undefined : { x: [0, 22, 0], y: [0, 18, 0] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} />
+        <motion.div aria-hidden initial={false} className="pointer-events-none absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl"
+          animate={reduce ? undefined : { x: [0, -18, 0], y: [0, -16, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }} />
+        {/* faint cap watermark */}
+        <svg aria-hidden viewBox="0 0 100 100" className="pointer-events-none absolute -right-12 bottom-[-8%] h-[420px] w-[420px] text-white/[0.05]">
+          <path d="M32 50 L50 58 L68 50 L68 66 C68 72 60 75.5 50 75.5 C40 75.5 32 72 32 66 Z" fill="currentColor" />
+          <path d="M50 20 L94 40 L50 60 L6 40 Z" fill="currentColor" />
+        </svg>
+
+        <motion.div variants={item} className="relative">
           <Link href="/" className="inline-flex items-center gap-3">
             <Logo className="h-9 w-9" showText={false} />
             <span className="text-xl font-bold tracking-tight">GradeWise</span>
           </Link>
-        </div>
-        <div className="relative">
-          <h2 className="font-display text-4xl font-semibold leading-tight">Judge the field.<br />Defend the shortlist.</h2>
+        </motion.div>
+        <motion.div variants={item} className="relative">
+          <h2 className="bg-gradient-to-r from-emerald-300 to-sky-300 bg-clip-text font-display text-4xl font-semibold leading-tight text-transparent">Judge the field.<br />Defend the shortlist.</h2>
           <ul className="mt-8 space-y-3 text-slate-300">
             {["Every point cited to the plan", "Graded 5× for a real confidence", "A shortlist your panel can stand behind"].map((t) => (
               <li key={t} className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-emerald-400" /> {t}</li>
@@ -134,9 +147,9 @@ export function AuthScreen({ mode }: { mode: Mode }) {
             <blockquote className="mt-3 text-sm leading-relaxed text-slate-200">For the first time the shortlist held up under questioning. Every score pointed to a line in the plan.</blockquote>
             <figcaption className="mt-4 text-sm"><span className="font-semibold text-white">Amara Okonkwo</span><span className="text-slate-400"> · Lead Judge</span></figcaption>
           </figure>
-        </div>
-        <div className="relative inline-flex items-center gap-2 text-xs text-slate-400"><Scale className="h-4 w-4 text-emerald-400" /> Calibrated against your human panel</div>
-      </aside>
+        </motion.div>
+        <motion.div variants={item} className="relative inline-flex items-center gap-2 text-xs text-slate-400"><Scale className="h-4 w-4 text-emerald-400" /> Calibrated against your human panel</motion.div>
+      </motion.aside>
 
       {/* Form (right) */}
       <main className="relative flex items-center justify-center overflow-hidden bg-background px-6 py-12">
