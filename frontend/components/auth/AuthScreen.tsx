@@ -68,9 +68,11 @@ export function AuthScreen({ mode }: { mode: Mode }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Branded panel */}
-      <aside className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between bg-[linear-gradient(135deg,#065f46_0%,#0f766e_32%,#1d4ed8_68%,#0b1220_100%)]">
-        {/* colorful glows for depth */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_45%_at_15%_5%,rgba(52,211,153,0.45),transparent_60%),radial-gradient(55%_45%_at_95%_15%,rgba(56,189,248,0.30),transparent_60%),radial-gradient(60%_50%_at_80%_100%,rgba(224,169,46,0.22),transparent_60%)]" />
+      <aside className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col lg:justify-between bg-[linear-gradient(145deg,#064e3b_0%,#0f766e_34%,#155e75_66%,#0b1220_100%)]">
+        {/* depth glows */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_12%_8%,rgba(52,211,153,0.40),transparent_60%),radial-gradient(50%_40%_at_92%_12%,rgba(56,189,248,0.22),transparent_60%),radial-gradient(55%_50%_at_82%_100%,rgba(224,169,46,0.18),transparent_60%)]" />
+        {/* faint grid for a premium, professional finish */}
+        <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
         <div className="pointer-events-none absolute -left-24 top-1/3 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-gold-500/20 blur-3xl" />
         <div className="relative">
@@ -109,11 +111,12 @@ export function AuthScreen({ mode }: { mode: Mode }) {
         </div>
       </aside>
 
-      {/* Form */}
-      <main className="relative flex items-center justify-center bg-background px-6 py-12">
-        <div className="absolute right-4 top-4"><ModeToggle /></div>
+      {/* Form side — subtle brand-tinted gradient; form sits in an elevated card */}
+      <main className="relative flex items-center justify-center overflow-hidden px-6 py-12 bg-gradient-to-br from-emerald-50 via-white to-blue-50 dark:from-ink-950 dark:via-ink-900 dark:to-emerald-950/25">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_35%_at_85%_0%,rgba(16,185,129,0.12),transparent_60%)]" />
+        <div className="absolute right-4 top-4 z-20"><ModeToggle /></div>
 
-        <div className="w-full max-w-sm">
+        <div className="relative z-10 w-full max-w-md rounded-2xl border border-black/5 bg-white/85 p-8 shadow-2xl shadow-ink-950/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/70 sm:p-10">
           {/* mobile logo */}
           <Link href="/" className="mb-8 inline-flex items-center gap-2 lg:hidden">
             <Logo className="h-8 w-8" showText={false} />
@@ -152,7 +155,7 @@ export function AuthScreen({ mode }: { mode: Mode }) {
                 <input
                   type={showPassword ? "text" : "password"} required placeholder="••••••••"
                   value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-10 py-3 font-medium text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-10 py-3 font-medium text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
                 />
                 <button type="button" onClick={() => setShowPassword((s) => !s)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" aria-label={showPassword ? "Hide password" : "Show password"}>
@@ -182,6 +185,12 @@ export function AuthScreen({ mode }: { mode: Mode }) {
             {copy.alt}{" "}
             <Link href={copy.altHref} className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400">{copy.altLabel}</Link>
           </p>
+
+          <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
+            By continuing you agree to our{" "}
+            <a href="#" className="underline decoration-slate-300 underline-offset-2 hover:text-slate-500">Terms</a> and{" "}
+            <a href="#" className="underline decoration-slate-300 underline-offset-2 hover:text-slate-500">Privacy Policy</a>.
+          </p>
         </div>
       </main>
     </div>
@@ -203,7 +212,7 @@ function Field({
         <input
           type={type} required={required} placeholder={placeholder} value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white px-10 py-3 font-medium text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-10 py-3 font-medium text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
         />
       </div>
     </div>
