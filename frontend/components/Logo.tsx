@@ -11,9 +11,10 @@ interface LogoProps {
 }
 
 /**
- * GradeWise mark: a graduation cap on a rounded gradient tile. The blue→emerald
- * gradient bridges the two modes (classroom + business). Clean enough to read at
- * favicon size; see app/icon.tsx for the matching favicon.
+ * GradeWise mark: a standalone graduation cap (no container). The board carries
+ * a blue→emerald gradient (bridging the two modes), the head is a darker teal
+ * for separation, and the tassel is gold — so the mark reads on light or dark.
+ * The favicon (app/icon.tsx) uses the same shape.
  */
 export const Logo: React.FC<LogoProps> = ({
   className = "w-10 h-10",
@@ -21,8 +22,7 @@ export const Logo: React.FC<LogoProps> = ({
   textClassName = "text-xl font-bold text-slate-900 dark:text-white",
 }) => {
   const id = useId();
-  const tile = `tile-${id}`;
-  const sheen = `sheen-${id}`;
+  const board = `board-${id}`;
 
   return (
     <div className="flex items-center gap-2.5 group">
@@ -31,36 +31,25 @@ export const Logo: React.FC<LogoProps> = ({
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        whileHover={{ y: -1 }}
+        whileHover={{ y: -1, rotate: -2 }}
       >
-        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full drop-shadow-md">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-full w-full drop-shadow-sm">
           <defs>
-            <linearGradient id={tile} x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+            <linearGradient id={board} x1="6" y1="20" x2="94" y2="60" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="55%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#0d9488" />
-            </linearGradient>
-            <linearGradient id={sheen} x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.28" />
-              <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
+              <stop offset="100%" stopColor="#10b981" />
             </linearGradient>
           </defs>
 
-          {/* Rounded tile */}
-          <rect x="6" y="6" width="88" height="88" rx="24" fill={`url(#${tile})`} />
-          <rect x="6" y="6" width="88" height="88" rx="24" fill={`url(#${sheen})`} />
-
-          {/* Graduation cap (white) */}
-          <g fill="#ffffff">
-            {/* mortarboard */}
-            <path d="M50 28 L82 43 L50 58 L18 43 Z" />
-            {/* head / cap base */}
-            <path d="M35 50.5 L50 57.5 L65 50.5 V61 C65 66.5 56 69 50 69 C44 69 35 66.5 35 61 Z" fillOpacity="0.92" />
-          </g>
+          {/* head / cap base (darker, sits under the board) */}
+          <path d="M32 50 L50 58 L68 50 L68 66 C68 72 60 75.5 50 75.5 C40 75.5 32 72 32 66 Z" fill="#0f766e" />
+          {/* mortarboard */}
+          <path d="M50 20 L94 40 L50 60 L6 40 Z" fill={`url(#${board})`} />
+          {/* button */}
+          <circle cx="50" cy="40" r="3" fill="#e0a92e" />
           {/* tassel */}
-          <path d="M72 46 V60" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" />
-          <circle cx="72" cy="63" r="3.2" fill="#fde68a" />
-          <circle cx="50" cy="43" r="2.6" fill="#ffffff" />
+          <path d="M50 40 C 70 40, 79 48, 79 62" stroke="#e0a92e" strokeWidth="2.6" strokeLinecap="round" fill="none" />
+          <circle cx="79" cy="64" r="3.8" fill="#f5c451" />
         </svg>
       </motion.div>
 
