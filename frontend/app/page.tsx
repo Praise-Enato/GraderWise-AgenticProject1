@@ -1,392 +1,576 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight, CheckCircle, GraduationCap, LayoutDashboard, Shield, Zap, BookOpen, Users, Brain, Trophy, Clapperboard, Quote, Scale, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import {
-  ArrowRight, Check, Quote, Scale, Trophy, ShieldCheck, Images, Clapperboard,
-  Sparkles, FileSpreadsheet, Gavel,
-} from "lucide-react";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Logo } from "@/components/Logo";
-
-const FEATURES = [
-  {
-    icon: Clapperboard,
-    title: "Live Grading Theater",
-    body: "Watch the real pipeline judge each plan, stage by stage — screening, reading, the second-opinion re-score, the verdict. Not a spinner: the actual work, streamed.",
-  },
-  {
-    icon: Quote,
-    title: "Evidence-linked scoring",
-    body: "Every point is cited to the exact passage in the plan. A quote that isn't in the submission is rejected, so a score is never hand-wavy — and disputes are resolvable.",
-  },
-  {
-    icon: Scale,
-    title: "Real calibration & confidence",
-    body: "Each plan is graded several times and the spread becomes an honest confidence — measured against your human panel's own agreement, never a number we invented.",
-  },
-  {
-    icon: Trophy,
-    title: "Defensible leaderboard",
-    body: "Rank the whole field with a tie band at the shortlist cutoff, so a sub-point gap inside the noise never decides a prize. Flagged plans go to a review queue, not the bin.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Fairness & integrity",
-    body: "Eligibility and AI-content screening on every submission, plus disparate-impact checks across language and region — surfaced to a human, never an automatic disqualification.",
-  },
-  {
-    icon: Images,
-    title: "Reads the whole plan",
-    body: "Text, slides, and the figures inside images — financial tables, licences, bank letters. Parses your rubric straight from CSV, PDF, or DOCX.",
-  },
-];
-
-const STAGES = [
-  { n: "01", title: "Screen the gate", body: "Eligibility, disqualifiers, and AI-content flags before a plan is ever ranked." },
-  { n: "02", title: "Read the plan", body: "Score each rubric criterion on the evidence actually present — no credit for a heading with nothing under it." },
-  { n: "03", title: "Second opinion", body: "A Judge checks the grade for consistency and completeness, and sends it back to re-score if it's off." },
-  { n: "04", title: "Coach the team", body: "Specific, encouraging feedback written to the founders in plain language." },
-  { n: "05", title: "Verdict", body: "A defensible score plus a pinned grade-of-record — the exact inputs, re-derivable in an appeal." },
-];
-
-const VOICES = [
-  {
-    quote: "For the first time the shortlist held up under questioning. Every score pointed to a line in the plan — the panel debated substance, not the tool.",
-    name: "Amara Okonkwo",
-    role: "Lead Judge · Africa Business Plan Competition",
-  },
-  {
-    quote: "We screened three hundred plans in an afternoon and still hand-reviewed every flagged one. The tie band at the cutoff saved us a genuinely unfair call.",
-    name: "Kwabena Mensah",
-    role: "Programme Director",
-  },
-  {
-    quote: "The feedback was specific and kind. Finalists felt judged fairly even when they didn't advance — that's rare.",
-    name: "Zainab Bello",
-    role: "Mentor & Past Finalist",
-  },
-];
+import { RubricParserDemo } from "@/components/landing/RubricParserDemo";
+import { InfoTooltip } from "@/components/InfoTooltip";
+import { FileCode, FileSpreadsheet, FileText } from "lucide-react"; // Import new icons for Hero
 
 export default function LandingPage() {
+  const features = [
+    {
+      icon: Brain,
+      title: "4-Node Multi-Agent System",
+      description: "LangGraph orchestrates Retrieve, Grade, Validate, and Mentor nodes with self-correction loops for accuracy."
+    },
+    {
+      icon: Shield,
+      title: "Privacy-First Architecture",
+      description: "Local ChromaDB vector store with HuggingFace embeddings. Your course materials and student data never leave your control."
+    },
+    {
+      icon: Zap,
+      title: "Mass Grading at Scale",
+      description: "Upload dozens of submissions at once. The agent processes them in parallel with consistent rubric application."
+    },
+    {
+      icon: BookOpen,
+      title: "RAG-Powered Context",
+      description: "Automatically retrieves relevant context from your textbooks and lecture notes to fact-check student answers."
+    }
+  ];
+
+  const stats = [
+    { label: "Grading Time Saved", value: "90%" },
+    { label: "Feedback Accuracy", value: "99.9%" },
+    { label: "Active Educators", value: "500+" },
+    { label: "Essays Graded", value: "10k+" }
+  ];
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Nav */}
-      <nav className="fixed inset-x-0 top-0 z-50 border-b border-black/5 bg-background/80 backdrop-blur-md dark:border-white/10">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Logo className="h-9 w-9" />
-          <div className="hidden items-center gap-8 text-sm font-medium text-slate-600 dark:text-slate-300 md:flex">
-            <a href="#features" className="hover:text-emerald-700 dark:hover:text-emerald-400">Features</a>
-            <a href="#how" className="hover:text-emerald-700 dark:hover:text-emerald-400">How it works</a>
-            <a href="#judges" className="hover:text-emerald-700 dark:hover:text-emerald-400">For judges</a>
+    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-500">
+      {/* Navigation */}
+      <nav className="fixed w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-white/10 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Logo className="w-10 h-10" />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600 dark:text-slate-300">
+            <a href="#modes" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Two modes</a>
+            <a href="#features" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Features</a>
+            <a href="#business" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">For competitions</a>
+            <a href="#how-it-works" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">How it Works</a>
+          </div>
+          <div className="flex items-center gap-4">
             <ModeToggle />
-            <Link href="/signin" className="text-sm font-medium text-slate-600 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400">
+            <Link href="/signin" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
               Sign in
             </Link>
-            <Link href="/signup" className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700">
-              Get started
+            <Link href="/signup" className="px-5 py-2.5 text-white text-sm font-medium rounded-full shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 transition-all bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700">
+              Get Started
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden pt-32 pb-24">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_70%_0%,rgba(16,185,129,0.10),transparent_60%),radial-gradient(40%_40%_at_10%_10%,rgba(224,169,46,0.08),transparent_55%)]" />
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
-          <div>
-            <motion.span
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gold-600 dark:text-gold-400"
-            >
-              <Gavel className="h-3.5 w-3.5" /> Built for business-plan competitions
-            </motion.span>
-            <motion.h1
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }}
-              className="font-display mt-6 text-5xl font-semibold leading-[1.05] tracking-tight text-ink-900 dark:text-white md:text-6xl"
-            >
-              Judge every plan like your <span className="text-emerald-600 dark:text-emerald-400">fairest human judge</span> — at the scale of the whole field.
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
-              className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-300"
-            >
-              GradeWise screens, scores, and ranks hundreds of business plans against your rubric.
-              Every point is cited to the plan, graded several times for a real confidence, and
-              calibrated against your own judges — with a shortlist you can defend.
-            </motion.p>
+      {/* Hero Section */}
+      <section className="pt-32 pb-20 overflow-hidden relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 transition-colors">
+        {/* Moving Training Animation Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div
+            animate={{
+              backgroundPosition: ["0% 0%", "100% 100%"],
+              opacity: [0.3, 0.5, 0.3]
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+            className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,_rgba(99,102,241,0.1)_0%,_transparent_50%)] dark:bg-[radial-gradient(circle_at_center,_rgba(99,102,241,0.05)_0%,_transparent_50%)]"
+          />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center max-w-4xl mx-auto">
             <motion.div
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }}
-              className="mt-9 flex flex-col gap-3 sm:flex-row"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs font-semibold uppercase tracking-wider mb-6"
             >
-              <Link href="/signup" className="group inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-7 py-3.5 font-semibold text-white shadow-xl shadow-emerald-600/20 transition hover:bg-emerald-700">
-                Start judging <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-              <Link href="/theater-preview" className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 px-7 py-3.5 font-semibold text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-200 dark:hover:text-emerald-400">
-                <Sparkles className="h-4 w-4" /> Watch it grade
+              <span className="flex h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse"></span>
+              Powered by DeepSeek V3 • Multi-Agent Architecture
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-white tracking-tight mb-8"
+            >
+              Intelligent grading for <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 animate-gradient-x">every rubric</span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-xl text-slate-600 dark:text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed"
+            >
+              From a physics exam to a startup&apos;s pitch deck, GradeWise learns your rubric and grades against it — a self-correcting multi-agent AI with two purpose-built modes: a classroom test grader and a business-plan competition judge.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            >
+              <Link href="/signup" className="w-full sm:w-auto px-8 py-4 text-white font-semibold rounded-full shadow-xl shadow-blue-600/20 hover:shadow-blue-600/30 transition-all flex items-center justify-center gap-2 group bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700">
+                Start Grading for Free
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform animate-bounce" />
               </Link>
             </motion.div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
-              {["Every point cited to the plan", "Graded 5× for real confidence", "A shortlist you can defend"].map((t) => (
-                <span key={t} className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-emerald-500" />{t}</span>
-              ))}
+
+            <div className="mt-12 flex items-center justify-center gap-6 text-sm text-slate-500 dark:text-slate-500">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>Grounded, Consistent, and Reliable</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span>Privacy-First Design</span>
+              </div>
             </div>
           </div>
-
-          {/* Signature: a live judge scorecard */}
-          <ScorecardHero />
         </div>
       </section>
 
-      {/* Capability strip */}
-      <section className="border-y border-black/5 bg-white/60 py-10 dark:border-white/10 dark:bg-white/[0.02]">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 sm:px-6 md:grid-cols-4 lg:px-8">
-          {[
-            { k: "Every point", v: "cited" },
-            { k: "Graded", v: "5× / plan" },
-            { k: "Rubric in", v: "CSV·PDF·DOCX" },
-            { k: "Reads", v: "slides + figures" },
-          ].map((s) => (
-            <div key={s.k} className="text-center">
-              <div className="font-display text-2xl font-semibold text-ink-900 dark:text-white">{s.v}</div>
-              <div className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{s.k}</div>
+      {/* Two Modes Section */}
+      <section id="modes" className="py-24 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-white/5 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">One grader, two modes</h2>
+            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">GradeWise grades anything you can put a rubric on. Pick the mode that fits the work — the same self-correcting engine underneath.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Classroom mode */}
+            <div className="rounded-3xl border border-blue-100 dark:border-blue-900/40 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 p-8 hover:shadow-xl hover:shadow-blue-900/10 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/20 mb-6">
+                <GraduationCap className="w-6 h-6" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Classroom &amp; tests</h3>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+                Grade essays, exams, and assignments against your rubric. Pulls context from your course materials, writes Socratic feedback, and flags low-confidence results for a human look.
+              </p>
+              <ul className="space-y-2 mb-8">
+                {["Rubric-aligned scoring", "RAG course context", "Socratic feedback", "Mass grading + analytics"].map(t => (
+                  <li key={t} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><CheckCircle className="w-4 h-4 text-blue-500" />{t}</li>
+                ))}
+              </ul>
+              <Link href="/signup" className="inline-flex items-center gap-2 font-semibold text-blue-600 dark:text-blue-400 hover:gap-3 transition-all">
+                Open the classroom grader <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-          ))}
+
+            {/* Business mode */}
+            <div className="rounded-3xl border border-emerald-100 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 p-8 hover:shadow-xl hover:shadow-emerald-900/10 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/20 mb-6">
+                <Trophy className="w-6 h-6" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Business plans &amp; competitions</h3>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+                Screen and rank a whole field of business plans. Every point is cited to the plan, graded several times for a real confidence, with a shortlist your panel can defend.
+              </p>
+              <ul className="space-y-2 mb-8">
+                {["Live grading theater", "Evidence-linked scoring", "Leaderboard with a tie band", "Fairness & eligibility screening"].map(t => (
+                  <li key={t} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"><CheckCircle className="w-4 h-4 text-emerald-500" />{t}</li>
+                ))}
+              </ul>
+              <Link href="/theater-preview" className="inline-flex items-center gap-2 font-semibold text-emerald-600 dark:text-emerald-400 hover:gap-3 transition-all">
+                Watch it grade a plan <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <h2 className="font-display text-4xl font-semibold tracking-tight text-ink-900 dark:text-white">A judge that shows its work</h2>
-            <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">Everything a competition needs to score a field quickly and defend the result afterwards.</p>
-          </div>
-          <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f, i) => (
-              <motion.div
-                key={f.title}
-                initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.4, delay: (i % 3) * 0.06 }}
-                className="rounded-2xl border border-black/5 bg-white p-7 shadow-sm transition hover:shadow-lg hover:shadow-emerald-900/5 dark:border-white/10 dark:bg-white/[0.03]"
-              >
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-400">
-                  <f.icon className="h-5 w-5" />
+      {/* Technical Specs Section */}
+      <section className="py-12 bg-white dark:bg-slate-950 border-y border-slate-100 dark:border-white/5 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { label: "LLM Engine", value: "DeepSeek V3", tooltip: "State-of-the-art reasoning model with 671B parameters" },
+              { label: "Agent Architecture", value: "4-Node LangGraph", tooltip: "Multi-agent system: Retrieve → Grade → Validate → Mentor" },
+              { label: "Vector Database", value: "ChromaDB", tooltip: "Local embeddings with HuggingFace all-MiniLM-L6-v2 for privacy-first RAG" },
+              { label: "File Support", value: "20+ Formats", tooltip: "PDF, DOCX, CSV, XLSX, Python, JavaScript, and more" }
+            ].map((stat, i) => (
+              <div key={i} className="text-center group cursor-default">
+                <div className="flex items-center gap-2 justify-center">
+                  <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-blue-800 to-slate-700 dark:from-white dark:via-blue-200 dark:to-slate-300 group-hover:from-blue-600 group-hover:via-indigo-600 group-hover:to-violet-600 transition-all duration-300">
+                    {stat.value}
+                  </span>
+                  {stat.tooltip && <InfoTooltip content={stat.tooltip} side="bottom" />}
                 </div>
-                <h3 className="mt-5 text-lg font-semibold text-ink-900 dark:text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{f.body}</p>
-              </motion.div>
+                <div className="text-sm font-medium text-slate-500 dark:text-slate-500 uppercase tracking-wide mt-1">{stat.label}</div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How it works — the real pipeline, a genuine sequence */}
-      <section id="how" className="border-y border-black/5 bg-white/60 py-24 dark:border-white/10 dark:bg-white/[0.02]">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <h2 className="font-display text-4xl font-semibold tracking-tight text-ink-900 dark:text-white">Five stages, out loud</h2>
-            <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">The same pipeline you watch in the Grading Theater. Each plan moves through it in order.</p>
+      {/* Features Grid */}
+      <section id="features" className="py-24 bg-slate-50/50 dark:bg-slate-900/50 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">Everything You Need to Scale</h2>
+            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">Powerful tools built specifically for high-volume grading environments.</p>
           </div>
-          <ol className="mt-14 grid gap-6 md:grid-cols-5">
-            {STAGES.map((s) => (
-              <li key={s.n} className="relative rounded-2xl border border-black/5 bg-white p-6 dark:border-white/10 dark:bg-white/[0.03]">
-                <span className="font-display text-3xl font-semibold text-emerald-600/30 dark:text-emerald-400/30">{s.n}</span>
-                <h3 className="mt-3 font-semibold text-ink-900 dark:text-white">{s.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{s.body}</p>
-              </li>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              { ...features[0], gradient: "from-blue-50 to-indigo-50 border-blue-100 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800" },
+              { ...features[1], gradient: "from-indigo-50 to-purple-50 border-indigo-100 dark:from-indigo-900/20 dark:to-purple-900/20 dark:border-indigo-800" },
+              { ...features[2], gradient: "from-purple-50 to-pink-50 border-purple-100 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-purple-800" },
+              { ...features[3], gradient: "from-emerald-50 to-teal-50 border-emerald-100 dark:from-emerald-900/20 dark:to-teal-900/20 dark:border-emerald-800" }
+            ].map((feature, i) => (
+              <div key={i} className={`p-8 rounded-2xl border ${feature.gradient} bg-gradient-to-br hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-indigo-900/20 transition-all group relative overflow-hidden`}>
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 shadow-lg shadow-blue-500/20">
+                    <feature.icon className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">{feature.title}</h3>
+                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{feature.description}</p>
+                </div>
+              </div>
             ))}
-          </ol>
+          </div>
         </div>
       </section>
 
-      {/* For judges — leaderboard mock */}
-      <section id="judges" className="py-24">
-        <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">For judges</span>
-            <h2 className="font-display mt-5 text-4xl font-semibold tracking-tight text-ink-900 dark:text-white">Screen the field. Defend the shortlist.</h2>
-            <p className="mt-4 text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-              Grade the whole competition in one run and watch the ranking form live. Plans clustered
-              at the cutoff are flagged as a statistical tie for a human to break; ineligible or
-              AI-flagged plans go to a review queue. Export a committee-ready report when you're done.
+
+      {/* Business Grader Deep-Dive */}
+      <section id="business" className="py-24 bg-slate-50/50 dark:bg-slate-900/50 border-y border-slate-100 dark:border-white/5 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-6">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-400"></span>
+                For competitions
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Screen the field. Defend the shortlist.</h2>
+              <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-8">
+                The business mode grades a whole competition in one run and forms the ranking live. It cites every point to the plan, screens eligibility and AI content, and flags a statistical tie at the cutoff so a sub-point gap never decides a prize.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-5">
+                {[
+                  { icon: Clapperboard, title: "Live grading theater", desc: "Watch the real pipeline judge each plan, stage by stage." },
+                  { icon: Quote, title: "Evidence-linked scoring", desc: "Every point cites the exact passage in the plan." },
+                  { icon: Trophy, title: "Defensible leaderboard", desc: "Ranking with a tie band at the shortlist cutoff." },
+                  { icon: ShieldCheck, title: "Fairness & integrity", desc: "Eligibility, AI-content, and disparate-impact checks." },
+                ].map((f) => (
+                  <div key={f.title} className="flex gap-3">
+                    <div className="w-10 h-10 shrink-0 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <f.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-900 dark:text-white text-sm">{f.title}</h4>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/theater-preview" className="mt-8 inline-flex items-center gap-2 font-semibold text-emerald-600 dark:text-emerald-400 hover:gap-3 transition-all">
+                Watch a plan get graded <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Leaderboard mock */}
+            <div className="relative">
+              <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-tl from-emerald-500/20 to-teal-500/10 blur-3xl" />
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-sm font-bold text-slate-900 dark:text-white">Leaderboard · 300 plans</span>
+                  <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Top 3 advance</span>
+                </div>
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {[
+                    { rank: 1, team: "Okavango Solar", score: 88 },
+                    { rank: 2, team: "MamaMarket", score: 82 },
+                    { rank: 3, team: "AgriConnect", score: 71, tie: true },
+                    { rank: 4, team: "ClinicLink", score: 70.5, tie: true },
+                    { rank: 5, team: "PayGrid", score: 63, flagged: true },
+                  ].map((r) => (
+                    <div key={r.rank} className={"flex items-center gap-4 px-6 py-3 " + (r.tie ? "bg-amber-50/60 dark:bg-amber-900/10" : "")}>
+                      <span className="w-6 text-lg font-bold text-slate-300 dark:text-slate-600 tabular-nums">{r.rank}</span>
+                      <span className="flex-1 text-sm font-medium text-slate-900 dark:text-white">{r.team}</span>
+                      {r.flagged && <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">needs review</span>}
+                      <span className="font-bold text-slate-900 dark:text-white tabular-nums">{r.score}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-amber-500" /> Ranks 3 &amp; 4 are within the noise — a human breaks the tie.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Educator Dashboard Ecosystem Section - MODIFIED */}
+      <section className="py-24 bg-white dark:bg-slate-950 transition-colors border-t border-slate-100 dark:border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Analytics & Performance Tracking</h2>
+            <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+              Monitor class performance, identify struggling students, and track AI confidence scores in real-time.
             </p>
-            <ul className="mt-6 space-y-3 text-slate-700 dark:text-slate-300">
-              {["Animated leaderboard with a moving shortlist line", "Tie band so noise never decides a prize", "Needs-review queue for flagged plans", "One-click committee report pack"].map((t) => (
-                <li key={t} className="flex items-center gap-3"><Check className="h-5 w-5 shrink-0 text-emerald-500" />{t}</li>
+          </div>
+
+          {/* Educator Dashboard Block */}
+          <div className="flex flex-col md:flex-row items-center gap-16">
+            <div className="w-full md:w-1/2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-6">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-400"></span>
+                For Educators
+              </div>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
+                Total Control at <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">Scale</span>
+              </h3>
+              <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+                Manage rubrics, review AI grades with confidence scores, track class performance, and identify low-confidence results for manual review—all from one unified dashboard.
+              </p>
+
+              <div className="space-y-8">
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                    <LayoutDashboard className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Analytics Dashboard</h4>
+                    <p className="text-slate-600 dark:text-slate-400">View grade distributions, average scores, and identify outliers. Track class performance over time.</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <Brain className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Confidence Scoring</h4>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      The Judge agent assigns confidence scores (0-100%). Low-confidence results are flagged for your review.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 group">
+                  <div className="w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                    <Zap className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Mass Grading</h4>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Process dozens of submissions simultaneously. Upload ZIP files with multiple student works for batch grading.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-10">
+                <Link href="/signup" className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold hover:gap-3 transition-all">
+                  View Educator Portal <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="w-full md:w-1/2 relative">
+              <div className="absolute inset-0 bg-gradient-to-tl from-emerald-500/20 to-teal-500/20 rounded-3xl blur-3xl -z-10" />
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden transform md:-rotate-1 hover:rotate-0 transition-transform duration-500">
+                {/* Mock UI for Educator Dashboard */}
+                <div className="flex items-center justify-between mb-8 border-b border-slate-200 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-400" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                    <div className="w-3 h-3 rounded-full bg-green-400" />
+                  </div>
+                  <div className="text-xs text-slate-400 font-mono">educator.graderwise.com</div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Stats Row Mock */}
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                      <div className="text-xs text-slate-500 uppercase">Avg Confidence</div>
+                      <div className="text-2xl font-bold text-emerald-600">94%</div>
+                    </div>
+                    <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                      <div className="text-xs text-slate-500 uppercase">Class Avg</div>
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white">78.2</div>
+                    </div>
+                  </div>
+
+                  {/* List Item Mock */}
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex items-center justify-between shadow-sm border-l-4 border-l-yellow-500">
+                    <div>
+                      <div className="text-sm font-bold text-slate-900 dark:text-white">Praise E. - Physics 101</div>
+                      <div className="text-xs text-slate-500">Needs Review • Confidence: 68%</div>
+                    </div>
+                    <button className="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs rounded-lg font-medium">
+                      Review
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Live Demo Section - NEW */}
+      <RubricParserDemo />
+
+      {/* How It Works Section - Multi-Agent Architecture */}
+      <section id="how-it-works" className="py-24 bg-white dark:bg-slate-950 border-y border-slate-200 dark:border-white/5 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">The Multi-Agent Workflow</h2>
+            <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">Four specialized AI agents work together to ensure grading accuracy</p>
+          </div>
+
+          <div className="relative">
+            {/* Connector Line */}
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-slate-200 via-blue-200 to-slate-200 dark:from-slate-800 dark:via-indigo-900 dark:to-slate-800 -translate-y-1/2 hidden md:block z-0"></div>
+
+            <div className="grid md:grid-cols-4 gap-8 relative z-10">
+              {[
+                {
+                  step: "01",
+                  title: "Retrieve Agent",
+                  desc: "RAG queries ChromaDB to fetch relevant context from your course materials based on rubric criteria.",
+                  icon: BookOpen
+                },
+                {
+                  step: "02",
+                  title: "Grader Agent",
+                  desc: "DeepSeek V3 evaluates the submission against your rubric with quantitative scaling and explicit scoring.",
+                  icon: Brain
+                },
+                {
+                  step: "03",
+                  title: "Judge Agent",
+                  desc: "Quality assurance layer validates scoring consistency. Rejects and loops back if errors are detected.",
+                  icon: Shield
+                },
+                {
+                  step: "04",
+                  title: "Mentor Agent",
+                  desc: "Generates Socratic feedback to guide students without giving away answers. Encourages critical thinking.",
+                  icon: GraduationCap
+                }
+              ].map((item, i) => (
+                <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm text-center relative group hover:border-blue-300 dark:hover:border-indigo-700 transition-colors">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white">
+                    <item.icon className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{item.title}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{item.desc}</p>
+                  <span className="absolute -top-3 -right-3 text-5xl font-black text-slate-100 dark:text-slate-800 group-hover:text-blue-50 dark:group-hover:text-indigo-900/20 transition-colors -z-10">{item.step}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
-          <LeaderboardMock />
         </div>
       </section>
 
-      {/* Voices */}
-      <section className="bg-ink-950 py-24 text-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display max-w-2xl text-4xl font-semibold tracking-tight">Trusted with the hard calls</h2>
-          <div className="mt-14 grid gap-6 md:grid-cols-3">
-            {VOICES.map((v) => (
-              <figure key={v.name} className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-7">
-                <Quote className="h-6 w-6 text-gold-400" />
-                <blockquote className="mt-4 flex-1 text-[15px] leading-relaxed text-slate-200">{v.quote}</blockquote>
-                <figcaption className="mt-6">
-                  <div className="font-semibold text-white">{v.name}</div>
-                  <div className="text-sm text-slate-400">{v.role}</div>
-                </figcaption>
-              </figure>
+      {/* Use Cases Section (Replaces Testimonials) */}
+      <section className="py-24 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 dark:from-indigo-950 dark:via-purple-950 dark:to-slate-950 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-white mb-2">Built for Academia</h2>
+            <p className="text-indigo-100 dark:text-indigo-200 mt-2">Designed to support every role in the grading workflow.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                role: "University Professors",
+                desc: "Focus on research and lectures while GradeWise handles the grading of hundreds of weekly assignments.",
+                tags: ["Scale", "Consistency"],
+                gradient: "from-blue-100 to-indigo-100 border-blue-200 dark:from-blue-900/40 dark:to-indigo-900/40 dark:border-indigo-700"
+              },
+              {
+                role: "Teaching Assistants",
+                desc: "Ensure grading consistency across multiple TAs. Use GradeWise as a 'first pass' to standardize feedback.",
+                tags: ["Fairness", "Speed"],
+                gradient: "from-violet-100 to-purple-100 border-violet-200 dark:from-violet-900/40 dark:to-purple-900/40 dark:border-violet-700"
+              },
+              {
+                role: "Dept. Heads",
+                desc: "Maintain rigorous academic standards with localized privacy. No data leaves your institution's control.",
+                tags: ["Privacy", "Standards"],
+                gradient: "from-fuchsia-100 to-pink-100 border-fuchsia-200 dark:from-fuchsia-900/40 dark:to-pink-900/40 dark:border-fuchsia-700"
+              }
+            ].map((t, i) => (
+              <div key={i} className={`p-8 rounded-2xl border ${t.gradient} bg-gradient-to-br hover:shadow-2xl hover:shadow-black/20 hover:-translate-y-1 transition-all group`}>
+                <div className="flex gap-2 mb-6">
+                  {t.tags.map(tag => (
+                    <span key={tag} className="px-2 py-1 rounded bg-white/60 dark:bg-black/40 text-indigo-950 dark:text-indigo-100 text-xs font-semibold shadow-sm backdrop-blur-sm">{tag}</span>
+                  ))}
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3 group-hover:text-indigo-800 dark:group-hover:text-indigo-300 transition-colors">{t.role}</h3>
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{t.desc}</p>
+              </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-24">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <h2 className="font-display text-4xl font-semibold tracking-tight text-ink-900 dark:text-white md:text-5xl">Run your next competition on evidence.</h2>
-          <p className="mx-auto mt-5 max-w-xl text-lg text-slate-600 dark:text-slate-300">Set your rubric, upload the field, and let GradeWise do the first pass — while your judges keep the final word.</p>
-          <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href="/signup" className="group inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-8 py-4 font-semibold text-white shadow-xl shadow-emerald-600/20 transition hover:bg-emerald-700">
-              Create your judging workspace <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link href="/theater-preview" className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 px-8 py-4 font-semibold text-slate-700 transition hover:border-emerald-500 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-200">
-              Watch a plan get graded
-            </Link>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-black/5 bg-white/60 pt-16 pb-8 dark:border-white/10 dark:bg-white/[0.02]">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-12 md:grid-cols-4">
-            <div className="md:col-span-2">
-              <Logo className="h-8 w-8" textClassName="ml-2 text-xl font-bold text-ink-900 dark:text-white" />
-              <p className="mt-4 max-w-sm text-slate-500 dark:text-slate-400">An AI judge for business-plan competitions — evidence-linked scores, real calibration, and a shortlist your panel can stand behind.</p>
+      <footer className="bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-white/10 pt-16 pb-8 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div className="col-span-1 md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Logo className="w-8 h-8" textClassName="text-xl font-bold text-slate-900 dark:text-white ml-2" />
+              </div>
+              <p className="text-slate-500 dark:text-slate-400 max-w-sm">Empowering educators with AI-powered tools to automate admin tasks, track student progress, and focus on inspiring the next generation.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-ink-900 dark:text-white">Product</h4>
-              <ul className="mt-4 space-y-2 text-sm text-slate-500 dark:text-slate-400">
-                <li><a href="#features" className="hover:text-emerald-700 dark:hover:text-emerald-400">Features</a></li>
-                <li><a href="#how" className="hover:text-emerald-700 dark:hover:text-emerald-400">How it works</a></li>
-                <li><Link href="/theater-preview" className="hover:text-emerald-700 dark:hover:text-emerald-400">Grading Theater</Link></li>
+              <h4 className="font-bold text-slate-900 dark:text-white mb-4">Features</h4>
+              <ul className="space-y-2 text-slate-500 dark:text-slate-400 text-sm">
+                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Teacher Dashboard</a></li>
+                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">AI Grading</a></li>
+                <li><a href="#" className="hover:text-blue-600 dark:hover:text-blue-400">Analytics</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-ink-900 dark:text-white">Contact</h4>
-              <ul className="mt-4 space-y-3 text-sm text-slate-500 dark:text-slate-400">
+              <h4 className="font-bold text-slate-900 dark:text-white mb-4">Contact Us</h4>
+              <ul className="space-y-3 text-slate-500 dark:text-slate-400 text-sm">
                 <li>
                   <div className="font-medium text-slate-700 dark:text-slate-300">Praise Enato</div>
-                  <a href="mailto:praisenato@gmail.com" className="hover:text-emerald-700 dark:hover:text-emerald-400">praisenato@gmail.com</a>
+                  <a href="mailto:praisenato@gmail.com" className="hover:text-blue-600 dark:hover:text-blue-400">praisenato@gmail.com</a>
+                  <div className="text-xs mt-0.5">
+                    <a href="https://wa.me/2348142064996" target="_blank" rel="noopener noreferrer" className="hover:text-green-600 dark:hover:text-green-400">
+                      +234 814 206 4996
+                    </a>
+                  </div>
                 </li>
-                <li>
+                <li className="pt-2">
                   <div className="font-medium text-slate-700 dark:text-slate-300">Felix Gbedemah</div>
-                  <a href="mailto:afrogbede09@gmail.com" className="hover:text-emerald-700 dark:hover:text-emerald-400">afrogbede09@gmail.com</a>
+                  <a href="mailto:afrogbede09@gmail.com" className="hover:text-blue-600 dark:hover:text-blue-400">afrogbede09@gmail.com</a>
+                  <div className="text-xs mt-0.5">
+                    <a href="https://wa.me/233556427542" target="_blank" rel="noopener noreferrer" className="hover:text-green-600 dark:hover:text-green-400">
+                      +233 55 642 7542
+                    </a>
+                  </div>
                 </li>
               </ul>
             </div>
           </div>
-          <div className="mt-12 flex flex-col items-center justify-between gap-2 border-t border-black/5 pt-8 text-sm text-slate-400 dark:border-white/10 md:flex-row">
+          <div className="border-t border-slate-200 dark:border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between text-sm text-slate-400">
             <p>© 2026 GradeWise. All rights reserved.</p>
-            <p>Judge the field. Defend the shortlist.</p>
+            <p>Designed for Modern Education</p>
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-// --- Signature hero: a judge scorecard scoring a plan --------------------- //
-function ScorecardHero() {
-  const rows = [
-    { name: "Problem & pain", score: 8, max: 8 },
-    { name: "Market sizing", score: 6, max: 8, evidence: "“2.3 million smallholder farmers in the northern corridor…”" },
-    { name: "Financials", score: 4, max: 6 },
-    { name: "Team", score: 5, max: 6 },
-  ];
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-      className="relative"
-    >
-      <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-tr from-emerald-500/10 to-gold-500/10 blur-2xl" />
-      <div className="rounded-2xl border border-black/5 bg-white shadow-2xl shadow-ink-950/10 dark:border-white/10 dark:bg-ink-900">
-        <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-white/10">
-          <div>
-            <div className="text-sm font-semibold text-ink-900 dark:text-white">AgriConnect — Business Plan</div>
-            <div className="text-xs text-slate-500">Scored against the 80-pt rubric</div>
-          </div>
-          <span className="rounded-full bg-emerald-600/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">Eligible</span>
-        </div>
-        <div className="space-y-4 px-6 py-5">
-          {rows.map((r, i) => (
-            <div key={r.name}>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-700 dark:text-slate-200">{r.name}</span>
-                <span className="font-semibold tabular-nums text-ink-900 dark:text-white">{r.score}/{r.max}</span>
-              </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                <motion.div
-                  className="h-full rounded-full bg-emerald-500"
-                  initial={{ width: 0 }} animate={{ width: `${(r.score / r.max) * 100}%` }}
-                  transition={{ duration: 0.7, delay: 0.3 + i * 0.12, ease: "easeOut" }}
-                />
-              </div>
-              {r.evidence && (
-                <motion.p
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }}
-                  className="mt-2 rounded-lg border-l-2 border-gold-500 bg-gold-500/5 px-3 py-2 text-xs italic text-slate-600 dark:text-slate-300"
-                >
-                  {r.evidence}
-                </motion.p>
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between border-t border-black/5 px-6 py-4 dark:border-white/10">
-          <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
-            <Scale className="h-4 w-4 text-emerald-500" /> Agrees with the human panel · graded 5×
-          </span>
-          <span className="font-display text-2xl font-semibold text-ink-900 dark:text-white tabular-nums">71<span className="text-base text-slate-400">/80</span></span>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// --- For-judges: a leaderboard with a tie zone at the cutoff -------------- //
-function LeaderboardMock() {
-  const rows = [
-    { rank: 1, team: "Okavango Solar", score: 88 },
-    { rank: 2, team: "MamaMarket", score: 82 },
-    { rank: 3, team: "AgriConnect", score: 71, tie: true },
-    { rank: 4, team: "ClinicLink", score: 70.5, tie: true },
-    { rank: 5, team: "PayGrid", score: 63, flagged: true },
-  ];
-  return (
-    <div className="relative">
-      <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-tl from-gold-500/10 to-emerald-500/10 blur-2xl" />
-      <div className="rounded-2xl border border-black/5 bg-white shadow-2xl shadow-ink-950/10 dark:border-white/10 dark:bg-ink-900">
-        <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-white/10">
-          <span className="text-sm font-semibold text-ink-900 dark:text-white">Leaderboard · 300 plans</span>
-          <span className="rounded-full bg-gold-500/15 px-2.5 py-1 text-xs font-semibold text-gold-600 dark:text-gold-400">Top 3 advance</span>
-        </div>
-        <div className="divide-y divide-black/5 dark:divide-white/10">
-          {rows.map((r) => (
-            <div key={r.rank} className={"flex items-center gap-4 px-6 py-3 " + (r.tie ? "bg-gold-500/[0.06]" : "")}>
-              <span className="w-6 font-display text-lg font-semibold text-slate-400 tabular-nums">{r.rank}</span>
-              <span className="flex-1 text-sm font-medium text-ink-900 dark:text-white">{r.team}</span>
-              {r.flagged && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">needs review</span>}
-              <span className="font-semibold tabular-nums text-ink-900 dark:text-white">{r.score}</span>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-black/5 px-6 py-3 text-xs text-slate-500 dark:border-white/10">
-          <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-gold-500" /> Tie band at the cutoff — ranks 3 & 4 are within the noise; a human decides.</span>
-        </div>
-      </div>
     </div>
   );
 }
