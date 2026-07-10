@@ -137,8 +137,8 @@ export default function BpcScreeningPage() {
                 <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 space-y-4">
                     <div className="flex flex-wrap items-center gap-3">
                         <label className="cursor-pointer px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
-                            <Upload className="w-4 h-4" /> Add plan PDFs
-                            <input type="file" className="hidden" multiple accept=".pdf" onChange={addFiles} />
+                            <Upload className="w-4 h-4" /> Add plans (PDF, PPTX, DOCX)
+                            <input type="file" className="hidden" multiple accept=".pdf,.pptx,.docx,.txt" onChange={addFiles} />
                         </label>
                         <span className="text-sm text-slate-500">{files.length} plan{files.length === 1 ? "" : "s"} queued</span>
                         <div className="ml-auto flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">

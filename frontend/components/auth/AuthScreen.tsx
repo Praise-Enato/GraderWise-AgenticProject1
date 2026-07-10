@@ -61,7 +61,7 @@ export function AuthScreen({ mode }: { mode: Mode }) {
   const [social, setSocial] = useState<Social | null>(null);
 
   useEffect(() => {
-    if (localStorage.getItem("userProfile")) router.replace("/dashboard");
+    if (localStorage.getItem("userProfile")) router.replace("/select");
   }, [router]);
 
   const emailValid = EMAIL_RE.test(formData.email);
@@ -79,7 +79,7 @@ export function AuthScreen({ mode }: { mode: Mode }) {
       }));
     }
     setIsSuccess(true);
-    setTimeout(() => router.push("/dashboard"), 900);
+    setTimeout(() => router.push("/select"), 900);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

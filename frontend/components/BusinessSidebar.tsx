@@ -4,54 +4,50 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard, LogOut, ChevronLeft, ChevronRight,
-    BookOpen, PenTool, BarChart3, Layers, X, LayoutGrid
+    Briefcase, Trophy, Swords, X, LayoutGrid
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { UnsavedChangesModal } from "@/components/UnsavedChangesModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 
-// Props definition
 interface SidebarProps {
     collapsed?: boolean;
     setCollapsed?: (v: boolean) => void;
-    isMobile?: boolean;      // New prop
-    onClose?: () => void;    // New prop
+    isMobile?: boolean;
+    onClose?: () => void;
 }
 
-export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onClose }: SidebarProps) {
+// Business Plan workspace sidebar. Mirrors the educator Sidebar structure but
+// carries only the competition-suite nav and an indigo/violet accent so the two
+// workspaces read as distinct products. "Switch workspace" returns to /select.
+export default function BusinessSidebar({ collapsed, setCollapsed, isMobile = false, onClose }: SidebarProps) {
     const pathname = usePathname();
     const [isInternalCollapsed, setIsInternalCollapsed] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-    // Force expanded on mobile
     const isCollapsed = isMobile ? false : (collapsed !== undefined ? collapsed : isInternalCollapsed);
-    
+
     const toggleCollapse = () => {
-        if (isMobile) return; // Disable toggle on mobile
-        if (setCollapsed) {
-            setCollapsed(!isCollapsed);
-        } else {
-            setIsInternalCollapsed(!isInternalCollapsed);
-        }
+        if (isMobile) return;
+        if (setCollapsed) setCollapsed(!isCollapsed);
+        else setIsInternalCollapsed(!isInternalCollapsed);
     };
 
-    const [user, setUser] = useState({ firstName: "Educator", lastName: "Admin", email: "educator@example.com" });
+    const [user, setUser] = useState({ firstName: "Business", lastName: "User", email: "user@example.com" });
 
     useEffect(() => {
         const profile = localStorage.getItem('userProfile');
         if (profile) {
-            const data = JSON.parse(profile);
-            if (data.role === 'educator') setUser(data);
+            try { setUser(JSON.parse(profile)); } catch { /* ignore */ }
         }
     }, []);
 
     const navItems = [
-        { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-        { icon: PenTool, label: "Grading Tool", href: "/grading" },
-        { icon: Layers, label: "Mass Grading", href: "/mass-grading" },
-        { icon: BookOpen, label: "Grading Results", href: "/submissions" },
-        { icon: BarChart3, label: "Analytics", href: "/analytics" },
+        { icon: LayoutDashboard, label: "Dashboard", href: "/business" },
+        { icon: Briefcase, label: "Business Plan Grader", href: "/business/grading" },
+        { icon: Trophy, label: "Competition Screening", href: "/business/screening" },
+        { icon: Swords, label: "AI vs Human", href: "/business/ai-vs-human" },
     ];
 
     return (
@@ -79,7 +75,7 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
                 </Link>
 
                 {isMobile && onClose && (
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-1 -mr-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                         aria-label="Close menu"
@@ -92,7 +88,7 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
             <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
                 <div className="mb-6 px-2">
                     {!isCollapsed && (
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Educator</p>
+                        <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">Business Plan</p>
                     )}
                 </div>
                 {navItems.map((link) => {
@@ -101,13 +97,13 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
                         <Link
                             key={link.href}
                             href={link.href}
-                            onClick={() => isMobile && onClose && onClose()} // Close on click for mobile
+                            onClick={() => isMobile && onClose && onClose()}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group relative overflow-hidden ${isActive
-                                ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-semibold"
+                                ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-semibold"
                                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                         >
-                            <link.icon className={`w-5 h-5 flex-shrink-0 transition-colors ${isActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"}`} />
+                            <link.icon className={`w-5 h-5 flex-shrink-0 transition-colors ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"}`} />
                             {!isCollapsed && (
                                 <motion.span
                                     initial={{ opacity: 0, x: -10 }}
@@ -120,19 +116,19 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
                             )}
                             {isActive && (
                                 <motion.div
-                                    layoutId="activeTab"
-                                    className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-600 rounded-r-full"
+                                    layoutId="activeTabBiz"
+                                    className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 rounded-r-full"
                                 />
                             )}
                         </Link>
-                    )
+                    );
                 })}
 
                 {/* Switch workspace — same login, different product */}
                 <Link
                     href="/select"
                     onClick={() => isMobile && onClose && onClose()}
-                    className="flex items-center gap-3 px-4 py-3 mt-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all group"
+                    className="flex items-center gap-3 px-4 py-3 mt-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 transition-all group"
                 >
                     <LayoutGrid className="w-5 h-5 flex-shrink-0" />
                     {!isCollapsed && <span className="whitespace-nowrap text-sm font-medium">Switch workspace</span>}
@@ -141,25 +137,15 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
 
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 transition-colors">
                 <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''} mb-4 overflow-hidden`}>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
-                        {user.firstName[0]}{user.lastName[0]}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
+                        {(user.firstName?.[0] || "B")}{(user.lastName?.[0] || "U")}
                     </div>
                     {!isCollapsed && (
                         <div className="overflow-hidden">
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="font-semibold text-sm text-slate-900 dark:text-white truncate"
-                            >
+                            <div className="font-semibold text-sm text-slate-900 dark:text-white truncate">
                                 {user.firstName} {user.lastName}
-                            </motion.div>
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="text-xs text-slate-500 truncate w-32"
-                            >
-                                {user.email}
-                            </motion.div>
+                            </div>
+                            <div className="text-xs text-slate-500 truncate w-32">{user.email}</div>
                         </div>
                     )}
                 </div>
@@ -174,7 +160,6 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
                             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                         </button>
                     )}
-
                     <button
                         onClick={() => setIsLogoutModalOpen(true)}
                         className="flex-1 flex items-center justify-center p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
@@ -193,6 +178,6 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
                     window.location.replace('/signup');
                 }}
             />
-        </motion.aside >
+        </motion.aside>
     );
 }
