@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { GradeResult, CriterionAssessment } from "@/lib/api";
 import {
-    CheckCircle, AlertTriangle, ShieldAlert, Bot, ChevronRight, ChevronDown, Sparkles,
+    CheckCircle, AlertTriangle, XCircle, ShieldAlert, Bot, ChevronRight, ChevronDown, Sparkles,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -15,33 +15,64 @@ export function sectionOf(name: string): string {
 export function labelOf(name: string): string {
     return name.includes(" - ") ? name.split(" - ").slice(1).join(" - ").trim() : name;
 }
+
+// Trim float artifacts from summed scores (e.g. 8.499999 -> 8.5, 6 -> 6).
+function fmt(n: number): string {
+    const r = Math.round(n * 100) / 100;
+    return Number.isInteger(r) ? r.toString() : r.toString();
+}
+
+type Kind = "full" | "zero" | "partial";
+function kindOf(a: CriterionAssessment): Kind {
+    if (a.max_points > 0 && a.awarded_points >= a.max_points) return "full";
+    if (a.awarded_points <= 0) return "zero";
+    return "partial";
+}
 function awardColor(a: CriterionAssessment): string {
-    if (a.max_points > 0 && a.awarded_points >= a.max_points) return "text-emerald-600 dark:text-emerald-400";
-    if (a.awarded_points <= 0) return "text-red-500 dark:text-red-400";
+    const k = kindOf(a);
+    if (k === "full") return "text-emerald-600 dark:text-emerald-400";
+    if (k === "zero") return "text-red-500 dark:text-red-400";
     return "text-amber-600 dark:text-amber-400";
 }
 function barColor(a: CriterionAssessment): string {
-    if (a.max_points > 0 && a.awarded_points >= a.max_points) return "bg-emerald-500";
-    if (a.awarded_points <= 0) return "bg-red-400";
+    const k = kindOf(a);
+    if (k === "full") return "bg-emerald-500";
+    if (k === "zero") return "bg-red-400";
     return "bg-amber-500";
+}
+// Zero-score rows have a 0%-wide fill, so tint the whole track red — otherwise
+// a red item reads as an empty grey line and disappears next to partial (amber) ones.
+function trackClass(a: CriterionAssessment): string {
+    return kindOf(a) === "zero"
+        ? "bg-red-100 dark:bg-red-900/30"
+        : "bg-slate-100 dark:bg-slate-800";
+}
+function StatusIcon({ a, className = "w-3.5 h-3.5" }: { a: CriterionAssessment; className?: string }) {
+    const k = kindOf(a);
+    if (k === "full") return <CheckCircle className={`${className} text-emerald-500 dark:text-emerald-400 shrink-0`} />;
+    if (k === "zero") return <XCircle className={`${className} text-red-500 dark:text-red-400 shrink-0`} />;
+    return <AlertTriangle className={`${className} text-amber-500 dark:text-amber-400 shrink-0`} />;
+}
+// Section-level scorecard colour: a %-gradient (partial is the norm for a whole
+// section, so the per-criterion full/zero/partial logic would make everything amber).
+function pctClasses(pct: number): { bar: string; text: string } {
+    if (pct >= 80) return { bar: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" };
+    if (pct >= 50) return { bar: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" };
+    return { bar: "bg-red-400", text: "text-red-500 dark:text-red-400" };
 }
 
 /**
- * Renders the rich detail of a GradeResult: eligibility banner, per-criterion
- * breakdown grouped by rubric section, participant feedback, and the agent log.
+ * Renders the rich detail of a GradeResult: eligibility banner, a section scorecard,
+ * the participant summary, a "where points were lost" recap, the collapsible
+ * per-criterion breakdown, and the agent log. Everything is derived from the
+ * GradeResult data, so it renders identically for any rubric (BYUMS or general).
  * Shared by the single-plan grader and the screening dashboard drill-down.
  */
 export default function GradeBreakdown({ result }: { result: GradeResult }) {
+    // Detail sections collapse by default — the scorecard is the at-a-glance entry
+    // point, so we no longer auto-expand weak sections (that was the "overwhelming" view).
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-    // Recompute default-open sections whenever the result changes (so a reused
-    // component instance never shows a previous plan's open/closed state).
-    useEffect(() => {
-        const o: Record<string, boolean> = {};
-        (result.assessments || []).forEach((a) => {
-            if (a.awarded_points < a.max_points) o[sectionOf(a.criteria_name)] = true;
-        });
-        setOpenSections(o);
-    }, [result]);
+    useEffect(() => { setOpenSections({}); }, [result]);
 
     const eligibility = result.eligibility_status || "eligible";
     const eligStyle =
@@ -51,10 +82,18 @@ export default function GradeBreakdown({ result }: { result: GradeResult }) {
                 ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
                 : "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300";
 
-    const sections = (result.assessments || []).reduce<Record<string, CriterionAssessment[]>>((acc, a) => {
+    const assessments = result.assessments || [];
+    const sections = assessments.reduce<Record<string, CriterionAssessment[]>>((acc, a) => {
         (acc[sectionOf(a.criteria_name)] ||= []).push(a);
         return acc;
     }, {});
+    const sectionEntries = Object.entries(sections);
+
+    // Factual recap: every criterion that did not earn full marks, worst gap first.
+    // Surfaces only the grader's existing rationale — no generated advice.
+    const weak = assessments
+        .filter((a) => a.awarded_points < a.max_points)
+        .sort((a, b) => (b.max_points - b.awarded_points) - (a.max_points - a.awarded_points));
 
     return (
         <div className="space-y-4">
@@ -79,9 +118,72 @@ export default function GradeBreakdown({ result }: { result: GradeResult }) {
                 )}
             </div>
 
-            {Object.keys(sections).length > 0 && (
+            {/* Scorecard — at-a-glance section totals (the "cover letter" overview) */}
+            {sectionEntries.length > 0 && (
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-sm">Scorecard</h4>
+                    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
+                        {sectionEntries.map(([section, items]) => {
+                            const awarded = items.reduce((s, a) => s + a.awarded_points, 0);
+                            const max = items.reduce((s, a) => s + a.max_points, 0);
+                            const pct = max > 0 ? (awarded / max) * 100 : 0;
+                            const c = pctClasses(pct);
+                            return (
+                                <div key={section} className="space-y-1">
+                                    <div className="flex items-center justify-between gap-2 text-sm">
+                                        <span className="text-slate-700 dark:text-slate-300 truncate">{section}</span>
+                                        <span className={`font-mono font-semibold shrink-0 ${c.text}`}>{fmt(awarded)} / {fmt(max)}</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                        <div className={`h-full ${c.bar}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Participant summary — moved up to sit under the scorecard as the cover letter */}
+            {result.feedback && (
+                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-2 text-sm">Participant feedback</h4>
+                    <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                        <ReactMarkdown components={{
+                            p: ({ node, ...props }) => <p className="mb-2 leading-relaxed" {...props} />,
+                            ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2 space-y-1" {...props} />,
+                            li: ({ node, ...props }) => <li {...props} />,
+                            strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900 dark:text-white" {...props} />,
+                        }}>{result.feedback}</ReactMarkdown>
+                    </div>
+                </div>
+            )}
+
+            {/* Where points were lost — factual recap, worst gap first */}
+            {weak.length > 0 && (
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-3 text-sm">Where points were lost</h4>
+                    <div className="space-y-3">
+                        {weak.map((a, i) => (
+                            <div key={i} className="flex items-start gap-2.5">
+                                <span className="mt-0.5"><StatusIcon a={a} /></span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className={`text-sm font-medium ${awardColor(a)}`}>{a.criteria_name}</span>
+                                        <span className={`text-sm font-mono font-semibold shrink-0 ${awardColor(a)}`}>{fmt(a.awarded_points)} / {fmt(a.max_points)}</span>
+                                    </div>
+                                    {a.reason && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{a.reason}</p>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Full per-criterion breakdown — collapsed by default */}
+            {sectionEntries.length > 0 && (
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
-                    {Object.entries(sections).map(([section, items]) => {
+                    {sectionEntries.map(([section, items]) => {
                         const awarded = items.reduce((s, a) => s + a.awarded_points, 0);
                         const max = items.reduce((s, a) => s + a.max_points, 0);
                         const open = openSections[section];
@@ -95,7 +197,7 @@ export default function GradeBreakdown({ result }: { result: GradeResult }) {
                                         {open ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
                                         {section}
                                     </span>
-                                    <span className="text-sm font-mono text-slate-500">{awarded} / {max}</span>
+                                    <span className="text-sm font-mono text-slate-500">{fmt(awarded)} / {fmt(max)}</span>
                                 </button>
                                 <AnimatePresence>
                                     {open && (
@@ -104,10 +206,12 @@ export default function GradeBreakdown({ result }: { result: GradeResult }) {
                                                 {items.map((a, i) => (
                                                     <div key={i} className="pl-6">
                                                         <div className="flex items-center justify-between gap-3">
-                                                            <span className="text-sm text-slate-700 dark:text-slate-300">{labelOf(a.criteria_name)}</span>
-                                                            <span className={`text-sm font-mono font-semibold shrink-0 ${awardColor(a)}`}>{a.awarded_points} / {a.max_points}</span>
+                                                            <span className={`flex items-center gap-1.5 text-sm font-medium ${awardColor(a)}`}>
+                                                                <StatusIcon a={a} /> {labelOf(a.criteria_name)}
+                                                            </span>
+                                                            <span className={`text-sm font-mono font-semibold shrink-0 ${awardColor(a)}`}>{fmt(a.awarded_points)} / {fmt(a.max_points)}</span>
                                                         </div>
-                                                        <div className="mt-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                        <div className={`mt-1 h-1.5 rounded-full overflow-hidden ${trackClass(a)}`}>
                                                             <div className={`h-full ${barColor(a)}`} style={{ width: `${a.max_points > 0 ? Math.min(100, (a.awarded_points / a.max_points) * 100) : 0}%` }} />
                                                         </div>
                                                         {a.reason && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{a.reason}</p>}
@@ -120,20 +224,6 @@ export default function GradeBreakdown({ result }: { result: GradeResult }) {
                             </div>
                         );
                     })}
-                </div>
-            )}
-
-            {result.feedback && (
-                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-2 text-sm">Participant feedback</h4>
-                    <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-                        <ReactMarkdown components={{
-                            p: ({ node, ...props }) => <p className="mb-2 leading-relaxed" {...props} />,
-                            ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2 space-y-1" {...props} />,
-                            li: ({ node, ...props }) => <li {...props} />,
-                            strong: ({ node, ...props }) => <strong className="font-semibold text-slate-900 dark:text-white" {...props} />,
-                        }}>{result.feedback}</ReactMarkdown>
-                    </div>
                 </div>
             )}
 

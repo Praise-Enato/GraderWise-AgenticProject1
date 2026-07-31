@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GradeWiseAPI, RubricItem, GradeResult, FewShotScore } from "@/lib/api";
+import { GradeWiseAPI, RubricItem, GradeResult, FewShotScore, friendlyApiError } from "@/lib/api";
 import { Upload, Loader2, CheckCircle, AlertTriangle, Swords, Eye, FileText, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import GradeBreakdown, { sectionOf } from "@/components/GradeBreakdown";
@@ -38,7 +38,7 @@ export default function BpcHeadToHeadPage() {
     useEffect(() => {
         GradeWiseAPI.getBpcRubric()
             .then((d) => { setRubric(d.plan); setGuideline(d.guideline || ""); setPlanTotal(d.plan_total); })
-            .catch((e) => setRubricError(e?.message || "Could not load the BYUMS rubric."));
+            .catch((e) => setRubricError(friendlyApiError(e, "Could not load the BYUMS rubric.")));
         GradeWiseAPI.getFewShotScores().then(setRefs).catch(() => setRefs([]));
     }, []);
 

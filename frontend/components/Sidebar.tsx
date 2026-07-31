@@ -164,12 +164,15 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Stack vertically when collapsed so the expand button always fits
+                    the narrow rail (side-by-side would overflow 80px and hide it). */}
+                <div className={`flex gap-2 ${isCollapsed ? "flex-col" : "items-center"}`}>
                     {!isMobile && (
                         <button
                             onClick={toggleCollapse}
-                            className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-500 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all shadow-sm"
-                            title={isCollapsed ? "Expand" : "Collapse"}
+                            className="flex-1 w-full flex items-center justify-center p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 text-slate-500 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all shadow-sm"
+                            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                         >
                             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                         </button>
@@ -177,8 +180,9 @@ export default function Sidebar({ collapsed, setCollapsed, isMobile = false, onC
 
                     <button
                         onClick={() => setIsLogoutModalOpen(true)}
-                        className="flex-1 flex items-center justify-center p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+                        className="flex-1 w-full flex items-center justify-center p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
                         title="Logout"
+                        aria-label="Logout"
                     >
                         <LogOut className="w-4 h-4" />
                     </button>

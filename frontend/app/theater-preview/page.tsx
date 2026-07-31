@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import { GradingTheater } from "@/components/GradingTheater";
 import { applyEvent, initialStreamState, type StageEvent, type StreamState } from "@/lib/gradingStages";
@@ -21,6 +23,13 @@ const SCRIPT: StageEvent[] = [
 ];
 
 export default function TheaterPreview() {
+  const router = useRouter();
+  const goBack = useCallback(() => {
+    // Return to wherever they came from; fall back to home on a direct visit.
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/");
+  }, [router]);
+
   const [state, setState] = useState<StreamState>(initialStreamState);
   const [step, setStep] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -60,6 +69,13 @@ export default function TheaterPreview() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-8 p-8">
+      <button
+        onClick={goBack}
+        aria-label="Go back"
+        className="fixed left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
       <div className="w-full rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <GradingTheater state={state} />
       </div>

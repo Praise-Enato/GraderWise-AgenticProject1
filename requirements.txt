@@ -21,7 +21,10 @@ langchain-huggingface
 langchain-groq
 langchain-openai
 langchain-chroma
-sentence-transformers
+# Pinned to match torch==2.4.0: transformers/sentence-transformers 5.x require
+# torch>=2.5 (DTensor moved to torch.distributed.tensor) and crash on import with 2.4.
+transformers==4.44.2
+sentence-transformers==3.0.1
 python-dotenv
 posthog<3
 
@@ -56,3 +59,5 @@ pypdfium2
 pillow
 # --- PowerPoint (.pptx) plans: text + tables + embedded images (MIT, lightweight) ---
 python-pptx
+# --- PDF report generation (pure-Python, no system libs) for downloadable/emailed reports ---
+fpdf2

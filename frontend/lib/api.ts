@@ -10,6 +10,17 @@ const api = axios.create({
     },
 });
 
+// Normalize an axios/network error into a friendly, generic message. Keeps a
+// deployment mismatch (a route that 404s because the server is outdated) or an
+// unreachable backend from surfacing as a raw "Request failed with status code 404".
+export function friendlyApiError(e: any, fallback = "Something went wrong."): string {
+    const status = e?.response?.status;
+    if (status === 404) return "This feature isn't available on the server yet — the backend may be outdated or still deploying.";
+    if (status === 502 || status === 503 || status === 504) return "The grading service is temporarily unavailable. Please try again shortly.";
+    if (e?.code === "ERR_NETWORK" || (e && !e.response)) return "Can't reach the grading service — check that the backend is running.";
+    return e?.response?.data?.detail || e?.message || fallback;
+}
+
 export interface RubricItem {
     criteria: string;
     max_points: number;
@@ -160,5 +171,22 @@ export const GradeWiseAPI = {
             context_files: []
         };
         return (await api.post<{ response: string, sources: string[] }>('/chat', payload)).data;
-    }
+    },
+
+    // Download the graded result as a server-rendered PDF. Generic across rubrics —
+    // the client posts back the GradeResult it already received.
+    downloadReport: async (result: GradeResult, teamName: string = "", rubricLabel: string = ""): Promise<void> => {
+        const resp = await api.post('/grade/report',
+            { result, team_name: teamName, rubric_label: rubricLabel },
+            { responseType: 'blob' });
+        const base = (teamName || 'business-plan').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'business-plan';
+        const url = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${base}-report.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    },
 };

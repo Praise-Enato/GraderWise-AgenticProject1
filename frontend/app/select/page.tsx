@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { GraduationCap, Briefcase, ArrowRight, Check } from "lucide-react";
+import { GraduationCap, Briefcase, ArrowRight, Check, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { ModeToggle } from "@/components/ModeToggle";
 
 export default function SelectWorkspace() {
+    const router = useRouter();
+    const goBack = () => {
+        // Return to the previous page; fall back to home on a direct visit.
+        if (typeof window !== "undefined" && window.history.length > 1) router.back();
+        else router.push("/");
+    };
     const [firstName, setFirstName] = useState<string | null>(null);
 
     useEffect(() => {
@@ -25,6 +32,15 @@ export default function SelectWorkspace() {
                 <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-indigo-100/50 dark:bg-indigo-900/10 rounded-full blur-3xl" />
             </div>
 
+            <div className="absolute top-4 left-4 z-20">
+                <button
+                    onClick={goBack}
+                    aria-label="Go back"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                    <ArrowLeft className="h-4 w-4" /> Back
+                </button>
+            </div>
             <div className="absolute top-4 right-4 z-20"><ModeToggle /></div>
 
             <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-16">

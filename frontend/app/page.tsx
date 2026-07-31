@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle, GraduationCap, LayoutDashboard, Shield, Zap, BookOpen, Users, Brain, Trophy, Clapperboard, Quote, Scale, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle, GraduationCap, LayoutDashboard, Shield, Zap, BookOpen, Users, Brain, Trophy, Clapperboard, Quote, Scale, ShieldCheck, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 import { ModeToggle } from "@/components/ModeToggle";
 import { Logo } from "@/components/Logo";
@@ -10,6 +11,18 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 import { FileCode, FileSpreadsheet, FileText } from "lucide-react"; // Import new icons for Hero
 
 export default function LandingPage() {
+  // Auth is tracked via the `userProfile` localStorage key (same as the app shell).
+  // Hide "Sign in" and point the CTA to the workspace once the visitor is signed in.
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    setSignedIn(!!localStorage.getItem("userProfile"));
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("userProfile");
+    setSignedIn(false); // header flips back to the signed-out view (Sign in / Get Started)
+  };
+
   const features = [
     {
       icon: Brain,
@@ -56,12 +69,30 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             <ModeToggle />
-            <Link href="/signin" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-              Sign in
-            </Link>
-            <Link href="/signup" className="px-5 py-2.5 text-white text-sm font-medium rounded-full shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 transition-all bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700">
-              Get Started
-            </Link>
+            {signedIn ? (
+              <>
+                <Link href="/select" className="px-5 py-2.5 text-white text-sm font-medium rounded-full shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 transition-all bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700 inline-flex items-center gap-2">
+                  <LayoutDashboard className="w-4 h-4" /> Dashboard
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  title="Log out"
+                  aria-label="Log out"
+                  className="p-2.5 rounded-full text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/signin" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  Sign in
+                </Link>
+                <Link href="/signup" className="px-5 py-2.5 text-white text-sm font-medium rounded-full shadow-lg shadow-blue-600/20 hover:shadow-blue-600/30 transition-all bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-700 hover:via-indigo-700 hover:to-violet-700">
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -699,6 +730,15 @@ export default function LandingPage() {
                   <div className="text-xs mt-0.5">
                     <a href="https://wa.me/233556427542" target="_blank" rel="noopener noreferrer" className="hover:text-green-600 dark:hover:text-green-400">
                       +233 55 642 7542
+                    </a>
+                  </div>
+                </li>
+                <li className="pt-2">
+                  <div className="font-medium text-slate-700 dark:text-slate-300">Nnanna Uko</div>
+                  <a href="mailto:nnannauko@gmail.com" className="hover:text-blue-600 dark:hover:text-blue-400">nnannauko@gmail.com</a>
+                  <div className="text-xs mt-0.5">
+                    <a href="https://wa.me/2349064695956" target="_blank" rel="noopener noreferrer" className="hover:text-green-600 dark:hover:text-green-400">
+                      +234 906 469 5956
                     </a>
                   </div>
                 </li>

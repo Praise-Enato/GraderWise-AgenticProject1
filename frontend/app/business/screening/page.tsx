@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GradeWiseAPI, RubricItem, GradeResult } from "@/lib/api";
+import { GradeWiseAPI, RubricItem, GradeResult, friendlyApiError } from "@/lib/api";
 import {
     Upload, FileText, Loader2, CheckCircle, AlertTriangle, Trophy, Eye, Trash2,
     ChevronDown, ChevronRight, Flag,
@@ -36,7 +36,7 @@ export default function BpcScreeningPage() {
     useEffect(() => {
         GradeWiseAPI.getBpcRubric()
             .then((d) => { setRubric(d.plan); setGuideline(d.guideline || ""); setPlanTotal(d.plan_total); })
-            .catch((e) => setRubricError(e?.message || "Could not load the BYUMS rubric."));
+            .catch((e) => setRubricError(friendlyApiError(e, "Could not load the BYUMS rubric.")));
     }, []);
 
     const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {

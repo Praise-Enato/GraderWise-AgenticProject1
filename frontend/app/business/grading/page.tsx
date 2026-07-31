@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { GradeWiseAPI, RubricItem, GradeResult } from "@/lib/api";
-import { Upload, FileText, Trash2, Sparkles, Loader2, CheckCircle, AlertTriangle, Briefcase, Eye } from "lucide-react";
+import { Upload, FileText, Trash2, Sparkles, Loader2, CheckCircle, AlertTriangle, Briefcase, Eye, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import GradeBreakdown from "@/components/GradeBreakdown";
 
@@ -21,6 +21,10 @@ export default function BpcGradingPage() {
     const [isGrading, setIsGrading] = useState(false);
     const [result, setResult] = useState<GradeResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Report delivery (PDF download)
+    const [action, setAction] = useState<"" | "pdf">("");
+    const rubricLabel = rubricMode === "byums" ? "BYUMS Competition (80)" : "General Business (100)";
 
     useEffect(() => {
         let active = true;  // ignore stale responses if the mode is switched mid-fetch
@@ -90,6 +94,19 @@ export default function BpcGradingPage() {
             setError(err?.response?.data?.detail || err?.message || "Grading failed.");
         } finally {
             setIsGrading(false);
+        }
+    };
+
+    const downloadPdf = async () => {
+        if (!result) return;
+        setAction("pdf");
+        setError(null);
+        try {
+            await GradeWiseAPI.downloadReport(result, teamName || "", rubricLabel);
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || err?.message || "Could not generate the PDF.");
+        } finally {
+            setAction("");
         }
     };
 
@@ -221,6 +238,18 @@ export default function BpcGradingPage() {
                                             {planTotal > 0 ? Math.round((result.score / planTotal) * 100) : 0}%
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Report delivery — download the PDF report */}
+                                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-3">
+                                    <button
+                                        onClick={downloadPdf}
+                                        disabled={action !== ""}
+                                        className="px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {action === "pdf" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                        Download PDF
+                                    </button>
                                 </div>
                             </div>
 

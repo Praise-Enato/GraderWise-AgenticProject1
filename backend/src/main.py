@@ -1,8 +1,9 @@
 import os
+import re
 import json as _json
 import tempfile
 import uuid
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends, Response
 from sse_starlette.sse import EventSourceResponse
 from backend.src.stream_events import stage_event
 from backend.src import persistence as _persist
@@ -25,6 +26,7 @@ from backend.src import general_rubric
 from backend.src.input_adapter import get_adapter
 from backend.src.grading import to_grade_result
 from backend.src.eligibility import screen_eligibility, EligibilityResult
+from backend.src.report import build_report_pdf
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from fastapi.concurrency import run_in_threadpool
@@ -134,6 +136,20 @@ class GradeRequest(BaseModel):
     ensemble_n: Optional[int] = Field(None, description="Grade N times and aggregate per criterion by median; reports grader disagreement. Default 1 (single pass).")
     ensemble_temperature: Optional[float] = Field(None, description="Fixed sampling temperature for ensemble runs (default 0.4). Ignored when ensemble_n <= 1.")
 
+
+class ReportRequest(BaseModel):
+    """A graded result to render as a PDF. `result` is the GradeResult the client
+    already received from /grade (round-trips cleanly). Generic across rubrics."""
+    result: GradeResult
+    team_name: Optional[str] = ""
+    rubric_label: Optional[str] = ""
+
+
+def _report_filename(team_name: str) -> str:
+    base = re.sub(r"[^A-Za-z0-9._-]+", "-", (team_name or "business-plan").strip()).strip("-")
+    return f"{base or 'business-plan'}-report.pdf"
+
+
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest(files: List[UploadFile] = File(...)):
     """
@@ -226,6 +242,22 @@ async def grade_submission(request: GradeRequest, session=Depends(get_session)):
     except Exception as e:
         print(f"Error grading submission: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/grade/report")
+def grade_report(req: ReportRequest):
+    """Render a graded result to a downloadable PDF. Stateless — the client posts
+    back the GradeResult it received. Generic across rubrics."""
+    try:
+        pdf = build_report_pdf(req.result, team_name=req.team_name or "", rubric_label=req.rubric_label or "")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not build the PDF report: {e}")
+    filename = _report_filename(req.team_name or "")
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # --- Judge leaderboard: ranking + tie-band (OV#2) + fairness (OV#13) -------- #

@@ -53,3 +53,20 @@ body {
   font-family: var(--font-display);
   font-optical-sizing: auto;
 }
+
+/* Clickable elements always show the hand cursor so it's obvious they're links/actions.
+   In @layer base so explicit `cursor-*` utilities (e.g. disabled:cursor-not-allowed) still win. */
+@layer base {
+  a[href],
+  button,
+  [role="button"],
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
