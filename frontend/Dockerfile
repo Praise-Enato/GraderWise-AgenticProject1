@@ -13,9 +13,14 @@ RUN npm install
 # Copy the rest of the application code
 COPY . .
 
-# Add these two lines before "RUN npm run build"
+# Bake public build-time config into the Next.js build.
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+# Disable the Educator workspace in the demo deploy (set to "false"). Unset or any
+# other value keeps it enabled (dev default).
+ARG NEXT_PUBLIC_EDUCATOR_ENABLED
+ENV NEXT_PUBLIC_EDUCATOR_ENABLED=${NEXT_PUBLIC_EDUCATOR_ENABLED}
 
 # Build the Next.js application
 RUN npm run build

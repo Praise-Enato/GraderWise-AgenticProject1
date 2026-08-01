@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { GraduationCap, Briefcase, ArrowRight, Check, ArrowLeft } from "lucide-react";
+import { GraduationCap, Briefcase, ArrowRight, Check, ArrowLeft, Lock } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { ModeToggle } from "@/components/ModeToggle";
+
+// Educator workspace is disabled in the demo deploy (set NEXT_PUBLIC_EDUCATOR_ENABLED=false).
+// Business-plan grading runs without the RAG/embedding stack, so the demo fits a 1 GB box.
+const EDUCATOR_ENABLED = process.env.NEXT_PUBLIC_EDUCATOR_ENABLED !== "false";
 
 export default function SelectWorkspace() {
     const router = useRouter();
@@ -75,6 +79,8 @@ export default function SelectWorkspace() {
                         desc="Grade student submissions against your rubrics with course-material context and detailed feedback."
                         features={["Rubric-based grading", "Mass grading & results", "Analytics"]}
                         delay={0.1}
+                        disabled={!EDUCATOR_ENABLED}
+                        disabledNote="Currently unavailable for this demo"
                     />
                     <WorkspaceCard
                         href="/business"
@@ -92,7 +98,7 @@ export default function SelectWorkspace() {
     );
 }
 
-function WorkspaceCard({ href, accent, icon, title, tagline, desc, features, delay }: any) {
+function WorkspaceCard({ href, accent, icon, title, tagline, desc, features, delay, disabled = false, disabledNote }: any) {
     const theme: Record<string, { ring: string; icon: string; btn: string; dot: string }> = {
         emerald: {
             ring: "hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-emerald-500/10",
@@ -108,35 +114,61 @@ function WorkspaceCard({ href, accent, icon, title, tagline, desc, features, del
         },
     };
     const t = theme[accent];
+
+    const inner = (
+        <>
+            <div className={`inline-flex w-14 h-14 items-center justify-center rounded-2xl text-white shadow-lg mb-5 ${t.icon}`}>
+                {icon}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{title}</h2>
+                {disabled && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <Lock className="w-3 h-3" /> Demo
+                    </span>
+                )}
+            </div>
+            <p className="text-sm font-medium text-slate-400 mb-3">{tagline}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-5 flex-1">{desc}</p>
+            <ul className="space-y-2 mb-6">
+                {features.map((f: string, i: number) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                        <Check className={`w-4 h-4 ${t.dot}`} />
+                        {f}
+                    </li>
+                ))}
+            </ul>
+            {disabled ? (
+                <div className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
+                    <Lock className="w-4 h-4" />
+                    {disabledNote || "Currently unavailable"}
+                </div>
+            ) : (
+                <div className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white font-semibold shadow-lg transition-all ${t.btn}`}>
+                    Enter {title}
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+            )}
+        </>
+    );
+
+    const cardBase = "flex flex-col h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-7 shadow-sm transition-all";
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay }}
         >
-            <Link
-                href={href}
-                className={`group flex flex-col h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-7 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 ${t.ring}`}
-            >
-                <div className={`inline-flex w-14 h-14 items-center justify-center rounded-2xl text-white shadow-lg mb-5 ${t.icon}`}>
-                    {icon}
+            {disabled ? (
+                <div aria-disabled="true" className={`${cardBase} opacity-60 cursor-not-allowed grayscale`}>
+                    {inner}
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{title}</h2>
-                <p className="text-sm font-medium text-slate-400 mb-3">{tagline}</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-5 flex-1">{desc}</p>
-                <ul className="space-y-2 mb-6">
-                    {features.map((f: string, i: number) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                            <Check className={`w-4 h-4 ${t.dot}`} />
-                            {f}
-                        </li>
-                    ))}
-                </ul>
-                <div className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white font-semibold shadow-lg transition-all ${t.btn}`}>
-                    Enter {title}
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-            </Link>
+            ) : (
+                <Link href={href} className={`group ${cardBase} hover:shadow-xl hover:-translate-y-1 ${t.ring}`}>
+                    {inner}
+                </Link>
+            )}
         </motion.div>
     );
 }

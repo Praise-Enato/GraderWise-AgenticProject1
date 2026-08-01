@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { BackGuard } from "@/components/BackGuard";
-import { Menu } from "lucide-react";
+import { Menu, Lock, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/Logo";
+
+// Keep in sync with app/select/page.tsx — the educator workspace is disabled in the demo deploy.
+const EDUCATOR_ENABLED = process.env.NEXT_PUBLIC_EDUCATOR_ENABLED !== "false";
 
 export default function DashboardLayout({
     children,
@@ -14,6 +18,33 @@ export default function DashboardLayout({
 }) {
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    // Block direct-URL access to any educator page when the workspace is disabled.
+    // Rendering this instead of {children} means the educator pages never mount and
+    // never call the backend.
+    if (!EDUCATOR_ENABLED) {
+        return (
+            <div className="min-h-screen w-full flex flex-col items-center justify-center px-4 text-center bg-white dark:bg-slate-950">
+                <div className="inline-flex w-14 h-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 mb-6">
+                    <Lock className="w-7 h-7" />
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                    Educator grading is unavailable in this demo
+                </h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-2 mb-8 max-w-md">
+                    This deployment showcases the Business Plan grader. The Educator workspace is
+                    disabled here.
+                </p>
+                <Link
+                    href="/business"
+                    className="inline-flex items-center justify-center gap-2 py-3 px-6 rounded-xl text-white font-semibold shadow-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
+                >
+                    Go to Business Plan grader
+                    <ArrowRight className="w-4 h-4" />
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
