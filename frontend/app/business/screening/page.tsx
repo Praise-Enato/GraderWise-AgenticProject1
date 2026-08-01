@@ -17,7 +17,10 @@ type Row = {
     error?: string;
 };
 
-const CONCURRENCY = 2;
+// How many plans grade at once (client fans out this many concurrent /grade
+// requests; the backend handles them in parallel). On a small box, keep an eye on
+// RAM when Vision mode is on — each concurrent vision grade holds slide images.
+const CONCURRENCY = 4;
 
 export default function BpcScreeningPage() {
     const [rubric, setRubric] = useState<RubricItem[]>([]);
@@ -32,6 +35,7 @@ export default function BpcScreeningPage() {
     const [running, setRunning] = useState(false);
     const [openRow, setOpenRow] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [dragOver, setDragOver] = useState(false);
 
     useEffect(() => {
         GradeWiseAPI.getBpcRubric()
@@ -39,11 +43,17 @@ export default function BpcScreeningPage() {
             .catch((e) => setRubricError(friendlyApiError(e, "Could not load the BYUMS rubric.")));
     }, []);
 
+    // Shared adder used by BOTH the file picker and drag-and-drop, so files queue
+    // even if the browser/an extension swallows the picker's change event.
+    const addFilesList = (list: FileList | File[] | null | undefined) => {
+        const arr = list ? Array.from(list) : [];
+        if (arr.length === 0) return;
+        setFiles((prev) => [...prev, ...arr]);
+        setError(null);
+    };
     const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const list = e.target.files;
-        if (!list) return;
-        setFiles((prev) => [...prev, ...Array.from(list)]);
-        e.target.value = "";
+        addFilesList(e.target.files);
+        e.target.value = "";   // allow re-selecting the same file(s)
     };
     const removeFile = (i: number) => setFiles((prev) => prev.filter((_, j) => j !== i));
 
@@ -134,13 +144,19 @@ export default function BpcScreeningPage() {
                 </header>
 
                 {/* Controls */}
-                <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 space-y-4">
+                <div
+                    onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => { e.preventDefault(); setDragOver(false); addFilesList(e.dataTransfer.files); }}
+                    className={`bg-white dark:bg-slate-900/50 border rounded-2xl shadow-sm p-5 space-y-4 transition-colors ${dragOver ? "border-emerald-400 ring-2 ring-emerald-400/40" : "border-slate-200 dark:border-slate-800"}`}
+                >
                     <div className="flex flex-wrap items-center gap-3">
                         <label className="cursor-pointer px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                             <Upload className="w-4 h-4" /> Add plans (PDF, PPTX, DOCX)
-                            <input type="file" className="hidden" multiple accept=".pdf,.pptx,.docx,.txt" onChange={addFiles} />
+                            <input type="file" className="hidden" multiple accept=".pdf,.pptx,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={addFiles} />
                         </label>
                         <span className="text-sm text-slate-500">{files.length} plan{files.length === 1 ? "" : "s"} queued</span>
+                        <span className="text-xs text-slate-400 hidden sm:inline">or drag &amp; drop here</span>
                         <div className="ml-auto flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                             Shortlist top
                             <input type="number" min={1} value={topN} onChange={(e) => setTopN(Math.max(1, parseInt(e.target.value) || 1))}
