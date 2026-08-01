@@ -1,0 +1,48 @@
+# requirements-demo.txt — Business-Plan-only demo deploy (Educator workspace disabled).
+#
+# The RAG/embedding stack (torch, transformers, sentence-transformers, chromadb,
+# the langchain huggingface/chroma bindings) is DELIBERATELY omitted. Business-plan
+# grading runs with skip_rag=True / use_grounding=False by default and never loads
+# embeddings, and all of those imports are lazy (inside the RAG functions in rag.py /
+# reference_corpus.py — verified). Omitting them keeps the image small and avoids the
+# torch install, so the stack fits a 1 GB Lightsail box without OOM.
+#
+# Do NOT use this file for the Educator workspace — it will ImportError on /ingest
+# and any RAG-enabled grade. Use requirements.txt (the full set) for that.
+#
+# Keep the shared (non-ML) pins below in sync with requirements.txt.
+
+# --- Core Framework ---
+fastapi
+uvicorn
+python-multipart
+pydantic
+langgraph==1.2.8
+sse-starlette
+
+# --- LLM (DeepSeek + Gemini, both via the OpenAI-compatible ChatOpenAI path) ---
+langchain-community
+langchain-openai
+langchain-text-splitters
+python-dotenv
+
+# --- Compatibility pin (kept from requirements.txt) ---
+numpy==1.26.4
+
+# --- Persistence ---
+SQLAlchemy>=2.0
+
+# --- Data & document parsing ---
+pandas
+openpyxl
+httpx
+pypdf
+docx2txt
+
+# --- Vision grading: render PDF/PPTX slides to images (permissive licenses) ---
+pypdfium2
+pillow
+python-pptx
+
+# --- PDF report generation (pure-Python, no system libs) ---
+fpdf2

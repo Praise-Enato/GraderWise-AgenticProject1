@@ -17,7 +17,11 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    ports:             
+      args:
+        # Demo default: Business-Plan only, no torch/RAG stack (fits 1 GB, no OOM).
+        # Set BACKEND_REQUIREMENTS=requirements.txt in .env to re-enable Educator/RAG.
+        - REQUIREMENTS=${BACKEND_REQUIREMENTS:-requirements-demo.txt}
+    ports:
       - "8000:8000"
     volumes:
       - ./backend:/app/backend
@@ -33,10 +37,16 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # This "bakes" the IP into the Next.js build so it stops using 127.0.0.1
-        - NEXT_PUBLIC_API_URL=http://54.160.148.223/api
+        # The public URL is baked into the Next.js build. Set PUBLIC_API_URL in .env
+        # to your host/IP (e.g. http://44.215.169.80/api) — no need to edit this file
+        # on the server anymore. Falls back to localhost for local dev.
+        - NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:-http://127.0.0.1:8000/api}
+        # Demo default: Educator workspace disabled. Set EDUCATOR_ENABLED=true in .env
+        # to re-enable it.
+        - NEXT_PUBLIC_EDUCATOR_ENABLED=${EDUCATOR_ENABLED:-false}
     environment:
-      - NEXT_PUBLIC_API_URL=http://54.160.148.223/api
+      - NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:-http://127.0.0.1:8000/api}
+      - NEXT_PUBLIC_EDUCATOR_ENABLED=${EDUCATOR_ENABLED:-false}
       - BACKEND_INTERNAL_URL=http://backend:8000
     volumes:
       - ./data:/app/data
