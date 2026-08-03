@@ -35,7 +35,12 @@ DEEPSEEK_TEXT = ModelConfig(
     api_key_env="DEEPSEEK_API_KEY", base_url="https://api.deepseek.com",
 )
 GEMINI_MULTIMODAL = ModelConfig(
-    provider="gemini", model="gemini-2.5-flash",
+    provider="gemini",
+    # Model id is env-overridable (GEMINI_MODEL) because Google retires model ids
+    # over time and availability varies by API key/account — e.g. gemini-2.5-flash
+    # was pulled for new keys ("no longer available to new users"). Set GEMINI_MODEL
+    # in .env to swap without a code change. gemini-2.0-flash is a current GA default.
+    model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
     api_key_env="GEMINI_API_KEY",
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",  # OpenAI-compatible endpoint
     supports_vision=True, supports_video=True,
