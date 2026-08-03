@@ -213,19 +213,26 @@ def extract_pptx_images(path: str, notes: Optional[List[str]] = None,
     return out
 
 
-def _blob_to_png(blob: bytes) -> Optional[bytes]:
+def _blob_to_png(blob: bytes, max_edge: int = 1600) -> Optional[bytes]:
     """Normalize an image blob to PNG bytes (the vision path serves image/png data
-    URIs). Falls back to passing through blobs that are already PNG if Pillow is
-    absent; drops anything it can't handle."""
+    URIs). Downscales so the long edge is <= max_edge — embedded PPTX photos can be
+    huge, and full-res blobs blow up both the encode time and the multimodal payload
+    (a PPTX with no LibreOffice render leans on these blobs), making PPTX far slower
+    than a fixed-DPI PDF. Falls back to passing through blobs that are already PNG if
+    Pillow is absent; drops anything it can't handle."""
     try:
         import io
         from PIL import Image
     except ImportError:
         return blob if blob[:8] == b"\x89PNG\r\n\x1a\n" else None
     try:
-        im = Image.open(io.BytesIO(blob))
+        im = Image.open(io.BytesIO(blob)).convert("RGB")
+        w, h = im.size
+        if max(w, h) > max_edge:
+            scale = max_edge / float(max(w, h))
+            im = im.resize((max(1, int(w * scale)), max(1, int(h * scale))))
         buf = io.BytesIO()
-        im.convert("RGB").save(buf, format="PNG")
+        im.save(buf, format="PNG")
         return buf.getvalue()
     except Exception:  # pragma: no cover - defensive (unsupported/corrupt image)
         return None

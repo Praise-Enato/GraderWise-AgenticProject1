@@ -77,11 +77,24 @@ def grade_with_vision(
                          error="No slide images to grade (vision requires rendered pages).")
     user_text = build_vision_user_text(rubric_str, guideline, calibration_block)
     messages = build_vision_messages(system_prompt, user_text, image_datauris)
-    if llm is None:
-        from backend.src.llm import get_llm
-        llm = get_llm("vision")
     try:
-        resp = llm.invoke(messages)
+        resp = _invoke_vision(messages, llm)
     except Exception as e:
         return GradeData(score=0.0, graded_ok=False, error=f"Vision model call failed: {e}")
     return parse_grader_response(resp.content, rubric)
+
+
+def _invoke_vision(messages, llm=None):
+    """Call the vision model. Requests JSON mode (response_format=json_object) so
+    even lighter models emit valid JSON instead of markdown-fenced/plain prose, and
+    a generous max_tokens so a full-rubric response can't truncate mid-JSON. Falls
+    back to a plain call if a model/endpoint rejects response_format."""
+    if llm is not None:
+        return llm.invoke(messages)
+    from backend.src.llm import get_llm
+    try:
+        strict = get_llm("vision", max_tokens=8192,
+                         model_kwargs={"response_format": {"type": "json_object"}})
+        return strict.invoke(messages)
+    except Exception:
+        return get_llm("vision", max_tokens=8192).invoke(messages)

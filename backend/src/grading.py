@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -57,6 +58,26 @@ def strip_code_fences(text: str) -> str:
     return s.strip()
 
 
+def _loads_lenient(cleaned: str):
+    """json.loads, but tolerant of the ways models wrap/garnish JSON: try strict
+    first, then the outermost {...} object (drops any prose before/after), then a
+    trailing-comma repair. Raises json.JSONDecodeError if none parse. Does NOT fix
+    truncated JSON — that's prevented upstream via a generous max_tokens."""
+    try:
+        return json.loads(cleaned)
+    except (json.JSONDecodeError, ValueError):
+        pass
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        frag = cleaned[start:end + 1]
+        try:
+            return json.loads(frag)
+        except (json.JSONDecodeError, ValueError):
+            repaired = re.sub(r",(\s*[}\]])", r"\1", frag)  # drop trailing commas
+            return json.loads(repaired)
+    return json.loads(cleaned)  # re-raise the original error
+
+
 def _rubric_lookups(rubric: List[RubricItem]):
     by_index = {i + 1: item for i, item in enumerate(rubric)}   # 1-based
     by_name = {item.criteria.strip().lower(): item for item in rubric}
@@ -93,7 +114,7 @@ def parse_grader_response(raw_content: str, rubric: List[RubricItem]) -> GradeDa
 
     cleaned = strip_code_fences(str(raw_content))
     try:
-        parsed = json.loads(cleaned)
+        parsed = _loads_lenient(cleaned)
     except (json.JSONDecodeError, ValueError) as e:
         return GradeData(score=0.0, graded_ok=False, error=f"Unparseable grader JSON: {e}")
 
