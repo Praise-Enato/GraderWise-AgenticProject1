@@ -78,6 +78,26 @@ export interface FewShotScore {
     items: { criteria: string; awarded: number; max_points: number }[];
 }
 
+// A past graded run (row in the Business -> History view).
+export interface HistoryRow {
+    submission_id: number;
+    filename: string;
+    team: string;
+    score: number;
+    total_points: number;
+    eligibility_status: string;
+    graded_ok: boolean;
+    created_at: string;
+    has_file: boolean;
+}
+
+export interface HistoryDetail extends HistoryRow {
+    feedback: string;
+    confidence_score: number;
+    ai_content_flag: boolean;
+    assessments: CriterionAssessment[];
+}
+
 export const GradeWiseAPI = {
     // Member C uses this
     ingestFiles: async (files: File[]) => {
@@ -106,6 +126,16 @@ export const GradeWiseAPI = {
     getBpcRubric: async (): Promise<BpcRubricResponse> => {
         return (await api.get<BpcRubricResponse>('/bpc-rubric')).data;
     },
+
+    // History: past graded plans (persisted server-side, text + vision runs).
+    getGradeHistory: async (limit = 100): Promise<HistoryRow[]> => {
+        return (await api.get<HistoryRow[]>(`/grade-history?limit=${limit}`)).data;
+    },
+    getGradeHistoryDetail: async (submissionId: number): Promise<HistoryDetail> => {
+        return (await api.get<HistoryDetail>(`/grade-history/${submissionId}`)).data;
+    },
+    // Direct URL for downloading a stored plan file (used as an <a href>).
+    planFileUrl: (submissionId: number): string => `${API_URL}/plan-file/${submissionId}`,
 
     // General (non-competition) business-plan rubric (150 pts)
     getGeneralRubric: async (): Promise<{ rubric: RubricItem[]; total: number }> => {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
     LayoutDashboard, LogOut, ChevronLeft, ChevronRight,
-    Briefcase, Trophy, Swords, X, LayoutGrid
+    Briefcase, Trophy, Swords, X, LayoutGrid, History
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { UnsavedChangesModal } from "@/components/UnsavedChangesModal";
@@ -48,6 +48,7 @@ export default function BusinessSidebar({ collapsed, setCollapsed, isMobile = fa
         { icon: Briefcase, label: "Business Plan Grader", href: "/business/grading" },
         { icon: Trophy, label: "Competition Screening", href: "/business/screening" },
         { icon: Swords, label: "AI vs Human", href: "/business/ai-vs-human" },
+        { icon: History, label: "History", href: "/business/history" },
     ];
 
     return (

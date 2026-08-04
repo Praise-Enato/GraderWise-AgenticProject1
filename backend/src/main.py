@@ -1,9 +1,12 @@
 import os
 import re
+import glob
 import json as _json
 import tempfile
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends, Response
+from fastapi.responses import FileResponse
+from sqlalchemy import select
 from sse_starlette.sse import EventSourceResponse
 from backend.src.stream_events import stage_event
 from backend.src import persistence as _persist
@@ -117,6 +120,49 @@ def _persist_grade(session, request: "GradeRequest", result: GradeResult):
         grade_of_record=result.grade_of_record,
     )
     return sub
+
+
+# --- Stored plan files (kept so past runs can be re-opened) ------------------ #
+# Files are named "<submission_id>__<sanitized-original-name>" so the DB needs no
+# extra column. Lives under the bind-mounted ./backend/data, so it persists across
+# container rebuilds on the server.
+UPLOADS_DIR = "./backend/data/uploads"
+
+
+def _store_plan_file(submission_id: int, filename: str, data: bytes) -> None:
+    """Persist the raw uploaded plan file. Best-effort — never fails the grade."""
+    try:
+        os.makedirs(UPLOADS_DIR, exist_ok=True)
+        safe = re.sub(r"[^A-Za-z0-9._-]", "_", filename or "plan")
+        with open(os.path.join(UPLOADS_DIR, f"{submission_id}__{safe}"), "wb") as fh:
+            fh.write(data)
+    except Exception as e:  # pragma: no cover - disk/env dependent
+        print(f"WARN: could not store plan file for submission {submission_id}: {e}")
+
+
+def _find_plan_file(submission_id: int) -> Optional[str]:
+    """Return the stored file path for a submission, or None."""
+    matches = sorted(glob.glob(os.path.join(UPLOADS_DIR, f"{submission_id}__*")))
+    return matches[0] if matches else None
+
+
+def _persist_vision_grade(session, student_id: str, filename: str, text: str,
+                          result: GradeResult, data: bytes):
+    """Persist a vision grade + keep the original plan file (A3, extended to the
+    vision path). Best-effort: a persistence failure never fails the grade."""
+    try:
+        sub = _persist.add_submission(session, team=student_id, filename=filename,
+                                      content=text or "", status="graded")
+        _persist.save_grade(
+            session, sub.id, score=result.score,
+            total_points=sum(a.max_points for a in result.assessments),
+            feedback=result.feedback, assessments=[a.model_dump() for a in result.assessments],
+            confidence_score=result.confidence_score, graded_ok=result.graded_ok,
+            eligibility_status=result.eligibility_status, ai_content_flag=result.ai_content_flag,
+        )
+        _store_plan_file(sub.id, filename, data)
+    except Exception as pe:  # pragma: no cover - persistence must never fail a grade
+        print(f"WARN: could not persist vision grade: {pe}")
 
 class SubmissionFile(BaseModel):
     filename: str
@@ -419,6 +465,7 @@ async def grade_vision(
     guideline: str = Form(""),
     student_id: str = Form("team"),
     use_calibration: str = Form("true"),   # "false" for the general rubric
+    session=Depends(get_session),
 ):
     """Vision grading (Phase 1b): render the uploaded plan PDF to slide images and
     grade them with a multimodal model, so image-based content (financial tables,
@@ -486,7 +533,7 @@ async def grade_vision(
             thinking.append("Note: little extractable text — the eligibility/DQ screen is limited for image-only decks.")
         dq_reasons = list(elig.reasons) + [f"(advisory) {n}" for n in elig.advisory_notes]
 
-        return to_grade_result(
+        result = to_grade_result(
             grade_data,
             feedback=grade_data.general_feedback or "See the per-criterion notes above.",
             thinking_process=thinking,
@@ -495,6 +542,10 @@ async def grade_vision(
             dq_reasons=dq_reasons,
             ai_content_flag=elig.ai_content_flag,
         )
+        # Persist the run + keep the original plan file (best-effort, off the loop).
+        await run_in_threadpool(_persist_vision_grade, session, student_id,
+                                f.filename or "plan", normalized.text, result, data)
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -507,6 +558,72 @@ async def grade_vision(
             pass
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+@app.get("/grade-history")
+def grade_history(limit: int = 100, session=Depends(get_session)):
+    """Recent graded plans (most recent first), each with its latest grade. Powers
+    the Business -> History view. Includes text and vision runs."""
+    subs = session.execute(
+        select(_persist.Submission).order_by(_persist.Submission.created_at.desc()).limit(limit)
+    ).scalars().all()
+    out = []
+    for sub in subs:
+        g = _persist.latest_grade(session, sub.id)
+        if not g:
+            continue
+        out.append({
+            "submission_id": sub.id,
+            "filename": sub.filename,
+            "team": sub.team,
+            "score": g.score,
+            "total_points": g.total_points,
+            "eligibility_status": g.eligibility_status,
+            "graded_ok": g.graded_ok,
+            "created_at": sub.created_at.isoformat(),
+            "has_file": _find_plan_file(sub.id) is not None,
+        })
+    return out
+
+
+@app.get("/grade-history/{submission_id}")
+def grade_history_detail(submission_id: int, session=Depends(get_session)):
+    """Full breakdown for one past run (score, feedback, per-criterion scores)."""
+    sub = _persist.get_submission(session, submission_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found.")
+    g = _persist.latest_grade(session, submission_id)
+    if not g:
+        raise HTTPException(status_code=404, detail="No grade for this submission.")
+    return {
+        "submission_id": sub.id,
+        "filename": sub.filename,
+        "team": sub.team,
+        "created_at": sub.created_at.isoformat(),
+        "score": g.score,
+        "total_points": g.total_points,
+        "feedback": g.feedback,
+        "confidence_score": g.confidence_score,
+        "graded_ok": g.graded_ok,
+        "eligibility_status": g.eligibility_status,
+        "ai_content_flag": g.ai_content_flag,
+        "assessments": [
+            {"criteria_index": a.criteria_index, "criteria_name": a.criteria_name,
+             "awarded_points": a.awarded_points, "max_points": a.max_points, "reason": a.reason}
+            for a in g.assessments
+        ],
+        "has_file": _find_plan_file(sub.id) is not None,
+    }
+
+
+@app.get("/plan-file/{submission_id}")
+def plan_file(submission_id: int):
+    """Download the original uploaded plan file for a past run, if it was kept."""
+    path = _find_plan_file(submission_id)
+    if not path or not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="No stored file for this submission.")
+    original = os.path.basename(path).split("__", 1)[-1]
+    return FileResponse(path, filename=original)
 
 
 @app.get("/bpc-rubric")
