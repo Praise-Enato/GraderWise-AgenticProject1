@@ -522,6 +522,7 @@ async def grade_vision(
             vision_grade.grade_with_vision,
             agent.grader_system(competition=competition_mode), rubric_items, rubric_str,
             guideline or "None provided.", calib, image_uris,
+            submission_text=normalized.text,
         )
 
         thinking = [
