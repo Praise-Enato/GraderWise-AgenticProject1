@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { GradeWiseAPI, RubricItem, GradeResult } from "@/lib/api";
 import { Upload, FileText, Trash2, Sparkles, Loader2, CheckCircle, AlertTriangle, Briefcase, Eye, Download } from "lucide-react";
+import { PdfTip } from "@/components/PdfTip";
 import { motion, AnimatePresence } from "framer-motion";
 import GradeBreakdown from "@/components/GradeBreakdown";
 
@@ -172,6 +173,8 @@ export default function BpcGradingPage() {
                             <input type="file" className="hidden" multiple accept=".pdf,.pptx,.docx,.txt,.md" onChange={handleUpload} />
                         </label>
                     </div>
+
+                    <PdfTip />
 
                     {files.length > 0 ? (
                         <div className="space-y-2">

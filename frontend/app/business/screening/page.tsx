@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import GradeBreakdown from "@/components/GradeBreakdown";
+import { PdfTip } from "@/components/PdfTip";
 
 type Row = {
     id: string;   // stable unique key (filenames can collide in bulk uploads)
@@ -163,6 +164,8 @@ export default function BpcScreeningPage() {
                                 className="w-16 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center" />
                         </div>
                     </div>
+
+                    <PdfTip />
 
                     {files.length > 0 && (
                         <div className="flex flex-wrap gap-2">
