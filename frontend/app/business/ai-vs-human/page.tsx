@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { GradeWiseAPI, RubricItem, GradeResult, FewShotScore, friendlyApiError } from "@/lib/api";
 import { Upload, Loader2, CheckCircle, AlertTriangle, Swords, Eye, FileText, Trash2 } from "lucide-react";
+import { PdfTip } from "@/components/PdfTip";
 import { motion } from "framer-motion";
 import GradeBreakdown, { sectionOf } from "@/components/GradeBreakdown";
 
@@ -119,6 +120,8 @@ export default function BpcHeadToHeadPage() {
                             <span className="text-xs text-slate-400">reference on file: {refs.map((r) => r.filename).join(", ").slice(0, 60)}</span>
                         )}
                     </div>
+
+                    <PdfTip />
                     <label className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer select-none">
                         <input type="checkbox" checked={vision} onChange={(e) => setVision(e.target.checked)} className="mt-0.5 rounded accent-emerald-600" />
                         <span className="flex items-center gap-1.5"><Eye className="w-4 h-4 text-emerald-600" /><span><b>Vision mode</b> — read slide images with Gemini.</span></span>
