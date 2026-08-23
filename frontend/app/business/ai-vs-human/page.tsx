@@ -194,7 +194,7 @@ export default function BpcHeadToHeadPage() {
                         {/* AI detail */}
                         <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
                             <h3 className="font-bold text-slate-900 dark:text-white mb-3">AI grade detail</h3>
-                            <GradeBreakdown result={result} businessName={planBusinessName(ref?.business_name, gradedName)} />
+                            <GradeBreakdown result={result} businessName={planBusinessName(ref?.business_name, result.business_name, gradedName)} />
                         </div>
                     </motion.div>
                 )}

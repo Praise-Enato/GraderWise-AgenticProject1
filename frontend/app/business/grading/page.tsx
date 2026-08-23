@@ -70,9 +70,7 @@ export default function BpcGradingPage() {
         setIsGrading(true);
         setError(null);
         setResult(null);
-        // Resolve the business name up front: it identifies this run on screen, in
-        // the PDF report, and in History (it is sent as the grade's student_id).
-        const business = planBusinessName(teamName, files[0]?.filename || files[0]?.file?.name);
+        const planFile = files[0]?.filename || files[0]?.file?.name;
         try {
             let data;
             if (vision) {
@@ -88,17 +86,19 @@ export default function BpcGradingPage() {
                     return;
                 }
                 // vision MVP grades the first uploaded plan
-                data = await GradeWiseAPI.gradeVision(files[0].file, business || "team", rubric, guideline, rubricMode === "byums");
+                data = await GradeWiseAPI.gradeVision(files[0].file, teamName.trim() || "team", rubric, guideline, rubricMode === "byums");
             } else {
                 data = await GradeWiseAPI.gradeSubmission(
                     files.map((f) => ({ filename: f.filename, content: f.content })),
-                    business || "team",
+                    teamName.trim() || "team",
                     rubric,
                     { guideline, skip_rag: true, max_retries: 1, use_calibration: rubricMode === "byums" }
                 );
             }
             setResult(data);
-            setGradedBusiness(business);
+            // Typed name wins; otherwise the name the backend read out of the plan;
+            // the file name only as a last resort.
+            setGradedBusiness(planBusinessName(teamName, data.business_name, planFile));
         } catch (err: any) {
             setError(err?.response?.data?.detail || err?.message || "Grading failed.");
         } finally {
@@ -170,7 +170,7 @@ export default function BpcGradingPage() {
                     <div className="flex flex-wrap items-center gap-3">
                         <input
                             type="text"
-                            placeholder="Business / team name — heads the results and the PDF report"
+                            placeholder="Business / team name (optional — read from the plan if left blank)"
                             value={teamName}
                             onChange={(e) => setTeamName(e.target.value)}
                             className="flex-1 min-w-[200px] px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 outline-none"

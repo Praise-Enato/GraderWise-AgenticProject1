@@ -166,6 +166,14 @@ def test_to_grade_result_failed_grade_forced_to_review():
     assert gr.eligibility_status == ELIGIBILITY_NEEDS_REVIEW
 
 
+def test_to_grade_result_carries_business_name():
+    gd = GradeData(score=0.0, graded_ok=True)
+    gr = to_grade_result(gd, feedback="", business_name="Acme Ventures")
+    assert gr.business_name == "Acme Ventures"
+    # Absent by default, so callers can tell "not stated" from a real name.
+    assert to_grade_result(gd, feedback="").business_name == ""
+
+
 def test_to_grade_result_carries_dq_info():
     gd = GradeData(score=0.0, graded_ok=True)
     gr = to_grade_result(gd, feedback="", eligibility_status="ineligible",

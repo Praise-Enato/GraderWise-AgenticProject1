@@ -60,6 +60,13 @@ class GradeResult(BaseModel):
     # --- Per-criterion breakdown (enables per-criterion agreement + leaderboard) ---
     assessments: List[CriterionAssessment] = Field(default_factory=list)
 
+    business_name: str = Field(
+        default="",
+        description="Business name read from the plan document itself (not the file name). "
+                    "Heads the on-screen result and the PDF report; empty when the plan "
+                    "never states it credibly, in which case the caller falls back.",
+    )
+
     # --- Grading status: a parse failure must be distinguishable from a real zero ---
     graded_ok: bool = Field(
         default=True,

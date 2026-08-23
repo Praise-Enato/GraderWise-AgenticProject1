@@ -45,11 +45,11 @@ export default function BusinessHistoryPage() {
         try { return new Date(iso).toLocaleString(); } catch { return iso; }
     };
 
-    // `team` is whatever the run was graded under: the business name from the
-    // single-plan grader, the file name from bulk screening, or the legacy "team"
-    // placeholder on older runs — fall back to the file name for the last two.
+    // The backend now files each run under the resolved business name (typed, else
+    // read from the plan). Older rows can still hold the "team" placeholder or a
+    // file name, so those fall through to the file name.
     const businessOf = (r: HistoryRow) =>
-        planBusinessName(r.team && r.team !== "team" && r.team !== r.filename ? r.team : "", r.filename);
+        planBusinessName(r.team && r.team !== "team" && r.team !== r.filename ? r.team : "", "", r.filename);
 
     return (
         <div className="h-screen overflow-y-auto bg-slate-50 dark:bg-background p-6 md:p-8 transition-colors">

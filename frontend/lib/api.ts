@@ -46,6 +46,8 @@ export interface GradeResult {
     thinking_process: string[];
     confidence_score: number;
     // Business Plan Grader fields
+    /** Business name read from the plan document itself; "" if it never states one. */
+    business_name?: string;
     assessments?: CriterionAssessment[];
     graded_ok?: boolean;
     error?: string | null;

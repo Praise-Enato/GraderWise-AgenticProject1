@@ -83,3 +83,27 @@ def test_grade_batch_requires_submissions(client):
 def test_batch_status_unknown_job_404(client):
     tc, _ = client
     assert tc.get("/grade/batch/999999").status_code == 404
+
+
+# --------------------- History record name (_record_team) -------------------- #
+# What a run is filed under in History: the judge's typed name, else the name read
+# out of the plan, else the file name. The client cannot know the middle one (it
+# has not read the document), which is why the server resolves it.
+
+def _res(business_name=""):
+    from backend.src.models import GradeResult
+    return GradeResult(score=1.0, feedback="", business_name=business_name)
+
+
+def test_record_team_prefers_the_typed_name():
+    assert main._record_team("Acme Ventures", _res("Read From Plan"), "plan.pdf") == "Acme Ventures"
+
+
+def test_record_team_uses_the_extracted_name_when_none_typed():
+    # "team" is the placeholder the client sends when the judge typed nothing.
+    assert main._record_team("team", _res("Read From Plan"), "plan.pdf") == "Read From Plan"
+    assert main._record_team("", _res("Read From Plan"), "plan.pdf") == "Read From Plan"
+
+
+def test_record_team_falls_back_to_the_filename():
+    assert main._record_team("team", _res(""), "campus glow salon.docx") == "campus glow salon.docx"

@@ -48,6 +48,7 @@ from backend.src.grading import (
     aggregate_grade_data,
     unsupported_evidence,
 )
+from backend.src.business_name import extract as extract_business_name
 from backend.src.eligibility import screen_eligibility
 from backend.src.injection import detect_injection
 
@@ -556,6 +557,14 @@ def generate_feedback(state: AgentState) -> dict:
         f"(advisory) {n}" for n in elig.get("advisory_notes", [])
     ]
 
+    # The business name comes from the plan's own text, never the uploaded file
+    # name — it heads the on-screen result and the downloadable PDF report. Read
+    # here (rather than in the grader node) so a failed grade is still attributable.
+    _, _raw_submission = _assemble_submission(state["submission_files"])
+    detected = extract_business_name(_raw_submission)
+    if detected:
+        thinking.append(f'Business name read from the plan: "{detected.name}" ({detected.source}).')
+
     if not gd.graded_ok:
         feedback = ("This submission could not be graded automatically and has been flagged "
                     "for human review. No score has been assigned.")
@@ -563,6 +572,7 @@ def generate_feedback(state: AgentState) -> dict:
             gd, feedback, thinking_process=thinking, confidence_score=confidence,
             eligibility_status=elig.get("status", ELIGIBILITY_ELIGIBLE),
             dq_reasons=dq_reasons, ai_content_flag=elig.get("ai_content_flag", False),
+            business_name=detected.name,
         )
         return {"final_feedback": feedback, "grade_result": result, "thinking_process": thinking}
 
@@ -598,6 +608,7 @@ def generate_feedback(state: AgentState) -> dict:
         gd, feedback, thinking_process=thinking, confidence_score=confidence,
         eligibility_status=elig.get("status", ELIGIBILITY_ELIGIBLE),
         dq_reasons=dq_reasons, ai_content_flag=elig.get("ai_content_flag", False),
+        business_name=detected.name,
     )
     return {"final_feedback": feedback, "grade_result": result, "thinking_process": thinking}
 

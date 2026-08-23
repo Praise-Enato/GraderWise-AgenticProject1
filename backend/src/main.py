@@ -26,6 +26,7 @@ from backend.src import rubric_csv
 from backend.src import vision_grade
 from backend.src import calibration
 from backend.src import general_rubric
+from backend.src.business_name import extract as extract_business_name
 from backend.src.input_adapter import get_adapter
 from backend.src.grading import to_grade_result
 from backend.src.eligibility import screen_eligibility, EligibilityResult
@@ -105,11 +106,26 @@ def _grade_of_record_dict(request: "GradeRequest", result: GradeResult) -> dict:
     return rec.to_dict()
 
 
+# The client sends "team" when the judge typed no name (it has no way to know the
+# business until the plan has been read).
+_TEAM_PLACEHOLDER = "team"
+
+
+def _record_team(student_id: str, result: GradeResult, filename: str) -> str:
+    """What to file a run under in History. The judge's typed name wins; otherwise
+    the name read out of the plan; only then the file name. Resolved server-side
+    because the server is what actually read the document."""
+    typed = (student_id or "").strip()
+    if typed and typed.lower() != _TEAM_PLACEHOLDER:
+        return typed
+    return (result.business_name or "").strip() or filename
+
+
 def _persist_grade(session, request: "GradeRequest", result: GradeResult):
     """Record the submission + grade + per-criterion breakdown in the backend
     store (A3). Best-effort: a persistence failure never fails the grade."""
     filename = request.submission_files[0].filename if request.submission_files else "submission.txt"
-    sub = _persist.add_submission(session, team=request.student_id,
+    sub = _persist.add_submission(session, team=_record_team(request.student_id, result, filename),
                                   filename=filename, content=_submission_text(request), status="graded")
     _persist.save_grade(
         session, sub.id, score=result.score,
@@ -151,8 +167,8 @@ def _persist_vision_grade(session, student_id: str, filename: str, text: str,
     """Persist a vision grade + keep the original plan file (A3, extended to the
     vision path). Best-effort: a persistence failure never fails the grade."""
     try:
-        sub = _persist.add_submission(session, team=student_id, filename=filename,
-                                      content=text or "", status="graded")
+        sub = _persist.add_submission(session, team=_record_team(student_id, result, filename),
+                                      filename=filename, content=text or "", status="graded")
         _persist.save_grade(
             session, sub.id, score=result.score,
             total_points=sum(a.max_points for a in result.assessments),
@@ -294,11 +310,14 @@ async def grade_submission(request: GradeRequest, session=Depends(get_session)):
 def grade_report(req: ReportRequest):
     """Render a graded result to a downloadable PDF. Stateless — the client posts
     back the GradeResult it received. Generic across rubrics."""
+    # The client normally sends the name it is displaying; fall back to the name
+    # read out of the plan so a report is attributable even if it doesn't.
+    team = (req.team_name or "").strip() or (req.result.business_name or "").strip()
     try:
-        pdf = build_report_pdf(req.result, team_name=req.team_name or "", rubric_label=req.rubric_label or "")
+        pdf = build_report_pdf(req.result, team_name=team, rubric_label=req.rubric_label or "")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not build the PDF report: {e}")
-    filename = _report_filename(req.team_name or "")
+    filename = _report_filename(team)
     return Response(
         content=pdf,
         media_type="application/pdf",
@@ -525,10 +544,15 @@ async def grade_vision(
             submission_text=normalized.text,
         )
 
+        # Business name from the deck's own extracted slide text, not the file name.
+        detected = extract_business_name(normalized.text)
+
         thinking = [
             f"Rendered {len(image_uris)} slide image(s) and graded with the vision model.",
             f"Eligibility: {elig.status}",
         ]
+        if detected:
+            thinking.append(f'Business name read from the plan: "{detected.name}" ({detected.source}).')
         # The eligibility screen runs on extracted text; warn when a deck is image-only.
         if len((normalized.text or "").strip()) < 200:
             thinking.append("Note: little extractable text — the eligibility/DQ screen is limited for image-only decks.")
@@ -542,6 +566,7 @@ async def grade_vision(
             eligibility_status=elig.status,
             dq_reasons=dq_reasons,
             ai_content_flag=elig.ai_content_flag,
+            business_name=detected.name,
         )
         # Persist the run + keep the original plan file (best-effort, off the loop).
         await run_in_threadpool(_persist_vision_grade, session, student_id,

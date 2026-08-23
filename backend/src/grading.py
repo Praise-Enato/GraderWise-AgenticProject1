@@ -319,6 +319,7 @@ def to_grade_result(
     eligibility_status: str = ELIGIBILITY_ELIGIBLE,
     dq_reasons: Optional[List[str]] = None,
     ai_content_flag: bool = False,
+    business_name: str = "",
 ) -> GradeResult:
     """Assemble the API-facing GradeResult, propagating grade status + eligibility."""
     # A grade that failed to parse should never present as an eligible real score.
@@ -337,4 +338,5 @@ def to_grade_result(
         eligibility_status=status,
         dq_reasons=dq_reasons or [],
         ai_content_flag=ai_content_flag,
+        business_name=business_name,
     )
