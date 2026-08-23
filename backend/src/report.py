@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 import traceback
+import unicodedata
 from datetime import date
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -45,6 +46,10 @@ def _ascii(s: Optional[str]) -> str:
     for k, v in _UNI.items():
         s = s.replace(k, v)
     s = re.sub(r"[*_`#]+", "", s)  # drop markdown emphasis markers
+    # Strip combining accents rather than let them become "?" — the business name
+    # is the report heading, and African/Yoruba names carry diacritics
+    # ("Ọ̀ṣun" -> "Osun" reads; "???un" does not).
+    s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
     return s.encode("latin-1", "replace").decode("latin-1")
 
 
@@ -72,6 +77,25 @@ def _award_color(awarded: float, mx: float) -> Tuple[int, int, int]:
     return _AMBER
 
 
+_DOC_KIND = "Business Plan Evaluation"
+
+
+def _heading(team_name: Optional[str]) -> str:
+    """The report's H1: the business name, or the generic document kind when the
+    judge graded without naming the business."""
+    return _ascii(team_name).strip() or _DOC_KIND
+
+
+def _subtitle_parts(team_name: Optional[str], rubric_label: Optional[str]) -> List[str]:
+    """Meta line under the heading. Carries the document kind only when the
+    heading is the business name — otherwise it would just repeat it."""
+    parts: List[str] = []
+    if _heading(team_name) != _DOC_KIND:
+        parts.append(_DOC_KIND)
+    parts += [p for p in [_ascii(rubric_label).strip(), date.today().isoformat()] if p]
+    return parts
+
+
 def _grouped_sections(result: GradeResult) -> List[Tuple[str, float, float]]:
     """[(section, awarded_sum, max_sum)] preserving first-seen order."""
     order: List[str] = []
@@ -87,6 +111,10 @@ def _grouped_sections(result: GradeResult) -> List[Tuple[str, float, float]]:
 
 
 class _Report(FPDF):
+    # Business name repeated in the page footer, so page 4 of a report still
+    # says whose plan it is. Set before add_page(); "" falls back to no label.
+    footer_label: str = ""
+
     def header(self):  # noqa: D401 - fpdf hook
         pass
 
@@ -94,12 +122,19 @@ class _Report(FPDF):
         self.set_y(-12)
         self.set_font("Helvetica", size=7)
         self.set_text_color(*_MUTE)
-        self.cell(0, 6, f"GradeWise - page {self.page_no()}", align="C")
+        label = self.footer_label or ""
+        if len(label) > 60:
+            label = label[:57].rstrip(" -") + "..."   # a very long name can't push the page number off
+        prefix = f"{label} - " if label else ""
+        self.cell(0, 6, f"{prefix}GradeWise - page {self.page_no()}", align="C")
 
 
-def _new_pdf() -> _Report:
+def _new_pdf(footer_label: str = "") -> _Report:
     pdf = _Report(format="A4", unit="mm")
+    pdf.footer_label = _ascii(footer_label).strip()
     pdf.set_auto_page_break(auto=True, margin=15)
+    # Document title (what a PDF viewer shows in its title bar / tab).
+    pdf.set_title(f"{pdf.footer_label} - {_DOC_KIND}" if pdf.footer_label else _DOC_KIND)
     pdf.add_page()
     return pdf
 
@@ -124,19 +159,24 @@ def build_report_pdf(result: GradeResult, team_name: str = "", rubric_label: str
             return _build_minimal(result, team_name, rubric_label)
         except Exception:
             # Absolute last resort — an empty but valid one-line PDF.
-            pdf = _new_pdf()
+            pdf = _new_pdf(team_name)
             pdf.set_font("Helvetica", size=12)
-            pdf.cell(0, 10, "Business Plan Evaluation")
+            pdf.cell(0, 10, _heading(team_name))
             return bytes(pdf.output())
 
 
 def _build_minimal(result: GradeResult, team_name: str, rubric_label: str) -> bytes:
     total = sum(a.max_points for a in (result.assessments or []))
-    pdf = _new_pdf()
+    pdf = _new_pdf(team_name)
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(*_INK)
-    pdf.cell(0, 10, "Business Plan Evaluation", new_x="LMARGIN", new_y="NEXT")
+    pdf.multi_cell(0, 9, _heading(team_name), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", size=10)
+    pdf.set_text_color(*_MUTE)
+    pdf.cell(0, 6, " | ".join(_subtitle_parts(team_name, rubric_label)), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
     pdf.set_font("Helvetica", "B", 22)
+    pdf.set_text_color(*_INK)
     pdf.cell(0, 12, f"{_fmt(result.score)} / {_fmt(total)}", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", size=10)
     pdf.set_text_color(*_MUTE)
@@ -152,17 +192,18 @@ def _build(result: GradeResult, team_name: str, rubric_label: str) -> bytes:
     score = float(result.score or 0.0)
     pct = (score / total * 100) if total > 0 else 0.0
 
-    pdf = _new_pdf()
+    pdf = _new_pdf(team_name)
     W = pdf.epw  # effective page width
 
     def title():
+        # The business name IS the report heading — a downloaded PDF has to say
+        # whose plan it is without the reader guessing from the file name.
         pdf.set_font("Helvetica", "B", 18)
         pdf.set_text_color(*_INK)
-        pdf.cell(0, 10, "Business Plan Evaluation", new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 9, _heading(team_name), new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("Helvetica", size=10)
         pdf.set_text_color(*_MUTE)
-        meta = " | ".join(p for p in [_ascii(team_name), _ascii(rubric_label), date.today().isoformat()] if p)
-        pdf.cell(0, 6, meta, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, " | ".join(_subtitle_parts(team_name, rubric_label)), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
 
     def score_band():

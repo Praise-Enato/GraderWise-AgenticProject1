@@ -6,6 +6,7 @@ import { Upload, FileText, Trash2, Sparkles, Loader2, CheckCircle, AlertTriangle
 import { PdfTip } from "@/components/PdfTip";
 import { motion, AnimatePresence } from "framer-motion";
 import GradeBreakdown from "@/components/GradeBreakdown";
+import { planBusinessName } from "@/lib/planName";
 
 export default function BpcGradingPage() {
     const [rubric, setRubric] = useState<RubricItem[]>([]);
@@ -22,6 +23,9 @@ export default function BpcGradingPage() {
     const [isGrading, setIsGrading] = useState(false);
     const [result, setResult] = useState<GradeResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // Business the displayed result belongs to, snapshotted at grade time — the
+    // heading must not drift if the name field or the file list is edited after.
+    const [gradedBusiness, setGradedBusiness] = useState("");
 
     // Report delivery (PDF download)
     const [action, setAction] = useState<"" | "pdf">("");
@@ -66,6 +70,9 @@ export default function BpcGradingPage() {
         setIsGrading(true);
         setError(null);
         setResult(null);
+        // Resolve the business name up front: it identifies this run on screen, in
+        // the PDF report, and in History (it is sent as the grade's student_id).
+        const business = planBusinessName(teamName, files[0]?.filename || files[0]?.file?.name);
         try {
             let data;
             if (vision) {
@@ -81,16 +88,17 @@ export default function BpcGradingPage() {
                     return;
                 }
                 // vision MVP grades the first uploaded plan
-                data = await GradeWiseAPI.gradeVision(files[0].file, teamName || "team", rubric, guideline, rubricMode === "byums");
+                data = await GradeWiseAPI.gradeVision(files[0].file, business || "team", rubric, guideline, rubricMode === "byums");
             } else {
                 data = await GradeWiseAPI.gradeSubmission(
                     files.map((f) => ({ filename: f.filename, content: f.content })),
-                    teamName || "team",
+                    business || "team",
                     rubric,
                     { guideline, skip_rag: true, max_retries: 1, use_calibration: rubricMode === "byums" }
                 );
             }
             setResult(data);
+            setGradedBusiness(business);
         } catch (err: any) {
             setError(err?.response?.data?.detail || err?.message || "Grading failed.");
         } finally {
@@ -103,7 +111,7 @@ export default function BpcGradingPage() {
         setAction("pdf");
         setError(null);
         try {
-            await GradeWiseAPI.downloadReport(result, teamName || "", rubricLabel);
+            await GradeWiseAPI.downloadReport(result, gradedBusiness, rubricLabel);
         } catch (err: any) {
             setError(err?.response?.data?.detail || err?.message || "Could not generate the PDF.");
         } finally {
@@ -162,7 +170,7 @@ export default function BpcGradingPage() {
                     <div className="flex flex-wrap items-center gap-3">
                         <input
                             type="text"
-                            placeholder="Team / business name (optional)"
+                            placeholder="Business / team name — heads the results and the PDF report"
                             value={teamName}
                             onChange={(e) => setTeamName(e.target.value)}
                             className="flex-1 min-w-[200px] px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 outline-none"
@@ -230,8 +238,11 @@ export default function BpcGradingPage() {
                             {/* Score header */}
                             <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
                                 <div className="flex items-center justify-between flex-wrap gap-4">
-                                    <div>
-                                        <p className="text-sm text-slate-500">{rubricMode === "byums" ? "Plan score (80% component — excludes the 20% video)" : "Business plan score (general rubric)"}</p>
+                                    <div className="min-w-0">
+                                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white leading-snug break-words">
+                                            {gradedBusiness || "Business plan"}
+                                        </h2>
+                                        <p className="text-sm text-slate-500 mt-0.5">{rubricMode === "byums" ? "Plan score (80% component — excludes the 20% video)" : "Business plan score (general rubric)"}</p>
                                         <div className="text-4xl font-black text-slate-900 dark:text-white mt-1">
                                             {result.score}<span className="text-2xl text-slate-400"> / {planTotal}</span>
                                         </div>
@@ -258,7 +269,7 @@ export default function BpcGradingPage() {
 
                             {/* Eligibility + per-criterion breakdown + feedback + log (shared component) */}
                             <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
-                                <GradeBreakdown result={result} />
+                                <GradeBreakdown result={result} businessName={gradedBusiness} />
                             </div>
                         </motion.div>
                     )}

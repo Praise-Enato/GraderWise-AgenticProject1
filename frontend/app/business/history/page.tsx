@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GradeWiseAPI, HistoryRow, HistoryDetail } from "@/lib/api";
+import { planBusinessName } from "@/lib/planName";
 import {
     History as HistoryIcon, Loader2, AlertTriangle, Download, FileText,
     ChevronDown, ChevronRight, RefreshCw, CheckCircle, Flag,
@@ -44,6 +45,12 @@ export default function BusinessHistoryPage() {
         try { return new Date(iso).toLocaleString(); } catch { return iso; }
     };
 
+    // `team` is whatever the run was graded under: the business name from the
+    // single-plan grader, the file name from bulk screening, or the legacy "team"
+    // placeholder on older runs — fall back to the file name for the last two.
+    const businessOf = (r: HistoryRow) =>
+        planBusinessName(r.team && r.team !== "team" && r.team !== r.filename ? r.team : "", r.filename);
+
     return (
         <div className="h-screen overflow-y-auto bg-slate-50 dark:bg-background p-6 md:p-8 transition-colors">
             <div className="max-w-5xl mx-auto pb-20 space-y-6">
@@ -81,6 +88,9 @@ export default function BusinessHistoryPage() {
                         {rows.map((r) => {
                             const eligible = r.graded_ok && (r.eligibility_status || "eligible") === "eligible";
                             const isOpen = openId === r.submission_id;
+                            const business = businessOf(r);
+                            // Only show the file name when it adds something beyond the business name.
+                            const showFile = !r.filename.startsWith(`${business}.`);
                             return (
                                 <div key={r.submission_id}>
                                     <button
@@ -89,7 +99,10 @@ export default function BusinessHistoryPage() {
                                     >
                                         {isOpen ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
                                         <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
-                                        <span className="flex-1 min-w-0 truncate font-medium text-slate-800 dark:text-slate-200">{r.filename}</span>
+                                        <span className="flex-1 min-w-0 truncate">
+                                            <span className="font-medium text-slate-800 dark:text-slate-200">{business}</span>
+                                            {showFile && <span className="text-slate-400 dark:text-slate-500"> · {r.filename}</span>}
+                                        </span>
                                         {eligible ? (
                                             <span className="hidden sm:inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300"><CheckCircle className="w-3.5 h-3.5" /> eligible</span>
                                         ) : (
@@ -129,7 +142,10 @@ export default function BusinessHistoryPage() {
                                                         <>
                                                             {detail.feedback && (
                                                                 <div className="text-sm text-slate-600 dark:text-slate-300">
-                                                                    <div className="font-semibold text-slate-800 dark:text-slate-200 mb-1">Summary</div>
+                                                                    <div className="mb-2">
+                                                                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Participant feedback</p>
+                                                                        <div className="font-bold text-slate-900 dark:text-white text-base leading-snug break-words">{business}</div>
+                                                                    </div>
                                                                     {detail.feedback}
                                                                 </div>
                                                             )}

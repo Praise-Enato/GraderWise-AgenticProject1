@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import GradeBreakdown from "@/components/GradeBreakdown";
+import { planBusinessName } from "@/lib/planName";
 import { PdfTip } from "@/components/PdfTip";
 
 type Row = {
@@ -223,7 +224,7 @@ export default function BpcScreeningPage() {
                                         <AnimatePresence>
                                             {open && (
                                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                                    <div className="p-4 pt-0"><GradeBreakdown result={r.result!} /></div>
+                                                    <div className="p-4 pt-0"><GradeBreakdown result={r.result!} businessName={planBusinessName("", r.name)} /></div>
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
@@ -253,7 +254,7 @@ export default function BpcScreeningPage() {
                                         <AnimatePresence>
                                             {open && (
                                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                                    <div className="p-4 pt-0"><GradeBreakdown result={r.result!} /></div>
+                                                    <div className="p-4 pt-0"><GradeBreakdown result={r.result!} businessName={planBusinessName("", r.name)} /></div>
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>

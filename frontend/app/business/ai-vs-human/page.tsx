@@ -6,6 +6,7 @@ import { Upload, Loader2, CheckCircle, AlertTriangle, Swords, Eye, FileText, Tra
 import { PdfTip } from "@/components/PdfTip";
 import { motion } from "framer-motion";
 import GradeBreakdown, { sectionOf } from "@/components/GradeBreakdown";
+import { planBusinessName } from "@/lib/planName";
 
 type SectionMap = Record<string, { awarded: number; max: number }>;
 
@@ -193,7 +194,7 @@ export default function BpcHeadToHeadPage() {
                         {/* AI detail */}
                         <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
                             <h3 className="font-bold text-slate-900 dark:text-white mb-3">AI grade detail</h3>
-                            <GradeBreakdown result={result} />
+                            <GradeBreakdown result={result} businessName={planBusinessName(ref?.business_name, gradedName)} />
                         </div>
                     </motion.div>
                 )}

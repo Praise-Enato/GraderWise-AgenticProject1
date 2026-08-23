@@ -7,3 +7,4 @@
 #   .venv/bin/python -m pytest
 pytest>=8
 pydantic>=2
+fpdf2          # pure-python; the PDF report tests need it

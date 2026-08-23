@@ -67,8 +67,11 @@ function pctClasses(pct: number): { bar: string; text: string } {
  * per-criterion breakdown, and the agent log. Everything is derived from the
  * GradeResult data, so it renders identically for any rubric (BYUMS or general).
  * Shared by the single-plan grader and the screening dashboard drill-down.
+ *
+ * `businessName` heads the feedback card so a reader always knows whose plan the
+ * feedback belongs to (it mirrors the heading of the downloadable PDF report).
  */
-export default function GradeBreakdown({ result }: { result: GradeResult }) {
+export default function GradeBreakdown({ result, businessName = "" }: { result: GradeResult; businessName?: string }) {
     // Detail sections collapse by default — the scorecard is the at-a-glance entry
     // point, so we no longer auto-expand weak sections (that was the "overwhelming" view).
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
@@ -144,10 +147,18 @@ export default function GradeBreakdown({ result }: { result: GradeResult }) {
                 </div>
             )}
 
-            {/* Participant summary — moved up to sit under the scorecard as the cover letter */}
+            {/* Participant summary — moved up to sit under the scorecard as the cover letter.
+                Headed by the business name; "Participant feedback" drops to the eyebrow. */}
             {result.feedback && (
                 <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-xl p-4">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-2 text-sm">Participant feedback</h4>
+                    <div className="mb-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Participant feedback
+                        </p>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-base leading-snug break-words">
+                            {businessName || "Business plan"}
+                        </h4>
+                    </div>
                     <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
                         <ReactMarkdown components={{
                             p: ({ node, ...props }) => <p className="mb-2 leading-relaxed" {...props} />,
