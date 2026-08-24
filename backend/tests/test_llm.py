@@ -3,6 +3,8 @@
 Covers the pure selection logic and the api-key guard. Client construction
 (get_llm) needs langchain + a real key and is not exercised here.
 """
+import os
+
 import pytest
 
 from backend.src import llm as L
@@ -68,11 +70,29 @@ def test_get_llm_missing_key_raises_before_import(monkeypatch):
 
 
 def test_with_model_copies_config():
+    # Tests COPY SEMANTICS, so it compares the original against itself rather than
+    # against a literal model id. It previously asserted the id, which meant
+    # changing the default broke a test about immutability — and left the real
+    # signal (an invalid default) looking like a stale assertion.
+    before = L.GEMINI_MULTIMODAL.model
     cfg = L.with_model(L.GEMINI_MULTIMODAL, "gemini-2.5-pro")
     assert cfg.model == "gemini-2.5-pro"
     assert cfg.provider == "gemini"
-    # original untouched
-    assert L.GEMINI_MULTIMODAL.model == "gemini-2.5-flash"
+    assert L.GEMINI_MULTIMODAL.model == before      # original untouched
+
+
+@pytest.mark.skipif(os.getenv("GEMINI_MODEL") is not None,
+                    reason="GEMINI_MODEL is set, so the code default is not in play")
+def test_gemini_default_model_is_pinned():
+    """The default Gemini id is pinned ON PURPOSE.
+
+    If you change it, change it deliberately and confirm the new id is CALLABLE with
+    a real request — not merely present in the models listing. `gemini-3-flash` was
+    a default that 404s, and `gemini-2.5-flash` is listed but rejected for new keys.
+    A wrong value here is invisible in tests and surfaces to judges as
+    "Could not grade automatically".
+    """
+    assert L.GEMINI_MULTIMODAL.model == "gemini-3.5-flash-lite"
 
 
 def test_gemini_config_uses_openai_compat_base():

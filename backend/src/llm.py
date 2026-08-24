@@ -37,11 +37,17 @@ DEEPSEEK_TEXT = ModelConfig(
 GEMINI_MULTIMODAL = ModelConfig(
     provider="gemini",
     # Model id is env-overridable (GEMINI_MODEL) because Google retires model ids
-    # over time and availability varies by API key/account — e.g. gemini-2.5-flash
-    # was pulled for new keys ("no longer available to new users"). Set GEMINI_MODEL
-    # in .env to swap without a code change (a wrong id 404s, so it's the safety net
-    # if this default is ever unavailable for a given key).
-    model=os.getenv("GEMINI_MODEL", "gemini-3-flash"),
+    # over time and availability varies by API key/account. Two traps found the hard
+    # way (2026-08-24): `gemini-3-flash` — the previous default here — is not a real
+    # id at all and 404s; and `gemini-2.5-flash` IS listed by the models API yet is
+    # not callable ("no longer available to new users"), so being listed does not
+    # mean usable. Verify a new id with a real call before changing this.
+    #
+    # The default deliberately matches what the deployed server sets, so a fresh
+    # deploy that forgets the override behaves the same as production rather than
+    # failing with "Vision model call failed" (which users see as "Could not grade
+    # automatically — needs human review").
+    model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
     api_key_env="GEMINI_API_KEY",
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",  # OpenAI-compatible endpoint
     supports_vision=True, supports_video=True,
