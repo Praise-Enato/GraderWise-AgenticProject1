@@ -103,6 +103,10 @@ _PROSE_START_RE = re.compile(
 )
 
 _YEAR_RE = re.compile(r"^\s*(?:19|20)\d{2}\s*$")
+# Location markers the extractors themselves insert ("[Slide 1]" from
+# extract_pptx_text) — furniture from OUR pipeline, not content from the document.
+# Without this a .pptx plan is named "[Slide 1]".
+_MARKER_RE = re.compile(r"^\[\s*(?:slide|page)\s*\d+\s*\]$", re.IGNORECASE)
 _VOWEL_RE = re.compile(r"[AEIOUaeiou]")
 
 
@@ -146,7 +150,7 @@ def _usable_lines(text: str) -> List[str]:
     out: List[str] = []
     for raw in head.splitlines():
         line = _collapse(_despace(raw.strip()))
-        if line:
+        if line and not _MARKER_RE.match(line):
             out.append(line)
         if len(out) >= _SEARCH_LINES:
             break
@@ -200,6 +204,11 @@ def _plausible(candidate: str) -> bool:
         return False
     # Bullet/heading punctuation that never appears in a name.
     if re.search(r"[•·\|\*]", c):
+        return False
+    # Brackets mean a marker ("[Slide 1]") or an unfilled template placeholder
+    # ("[Your business name here]") — never a real name. Parentheses are allowed:
+    # "Acme (Nigeria) Ltd" is a legitimate name.
+    if re.search(r"[\[\]<>{}]", c):
         return False
     return True
 

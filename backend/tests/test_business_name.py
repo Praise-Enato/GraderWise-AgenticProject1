@@ -73,6 +73,22 @@ def test_continuation_does_not_absorb_mixed_case_body_text():
     assert extract_business_name(text) == "Acme Ventures"
 
 
+def test_pipeline_slide_markers_are_not_the_business_name():
+    # extract_pptx_text prefixes each slide "[Slide N]". That is furniture from our
+    # own extractor, not content — without skipping it, every .pptx plan was named
+    # "[Slide 1]" (found by running the real adapters over the corpus).
+    text = "[Slide 1]\nPROJECT PROPOSAL  ·  2024\nLIGHT REACH\nLIBERIA\nLighting Liberia\n"
+    assert extract_business_name(text) == "Light Reach Liberia"
+
+
+def test_marker_alone_yields_nothing():
+    assert extract_business_name("[Slide 1]\n[Slide 2]\n") == ""
+
+
+def test_bracketed_placeholder_rejected():
+    assert extract_business_name("[Your business name here]\n") == ""
+
+
 # --- PDF text layer with no spaces ----------------------------------------- #
 
 def test_despaced_pdf_run():
