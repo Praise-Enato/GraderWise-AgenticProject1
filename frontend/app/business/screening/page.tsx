@@ -60,7 +60,7 @@ export default function BpcScreeningPage() {
     const removeFile = (i: number) => setFiles((prev) => prev.filter((_, j) => j !== i));
 
     const screenAll = async () => {
-        if (files.length === 0) { setError("Add at least one plan PDF."); return; }
+        if (files.length === 0) { setError("Add at least one plan."); return; }
         if (rubric.length === 0) { setError("Rubric not loaded yet."); return; }
         setError(null);
         setRunning(true);
@@ -155,7 +155,7 @@ export default function BpcScreeningPage() {
                     <div className="flex flex-wrap items-center gap-3">
                         <label className="cursor-pointer px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                             <Upload className="w-4 h-4" /> Add plans (PDF, PPTX, DOCX)
-                            <input type="file" className="hidden" multiple accept=".pdf,.pptx,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={addFiles} />
+                            <input type="file" className="hidden" multiple accept=".pdf,.pptx,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" onChange={addFiles} />
                         </label>
                         <span className="text-sm text-slate-500">{files.length} plan{files.length === 1 ? "" : "s"} queued</span>
                         <span className="text-xs text-slate-400 hidden sm:inline">or drag &amp; drop here</span>
@@ -182,7 +182,7 @@ export default function BpcScreeningPage() {
 
                     <label className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer select-none">
                         <input type="checkbox" checked={vision} onChange={(e) => setVision(e.target.checked)} className="mt-0.5 rounded accent-emerald-600" />
-                        <span className="flex items-center gap-1.5"><Eye className="w-4 h-4 text-emerald-600" /><span><b>Vision mode</b> — read slide images with Gemini (sees financials/license/bank; slower).</span></span>
+                        <span className="flex items-center gap-1.5"><Eye className="w-4 h-4 text-emerald-600" /><span><b>Vision mode</b> — read each plan with Gemini: page images where the document has them, otherwise its text (sees financials/licence/bank; slower). Handles a mixed batch — PDF, PPTX, DOCX, TXT and MD can all be screened in one pass.</span></span>
                     </label>
 
                     {error && <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> {error}</div>}

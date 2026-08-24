@@ -24,25 +24,41 @@ def pngs_to_datauris(pngs: List[bytes]) -> List[str]:
 
 
 def build_vision_user_text(rubric_str: str, guideline: str, calibration_block: str,
-                           prior_feedback: str = "", submission_text: str = "") -> str:
+                           prior_feedback: str = "", submission_text: str = "",
+                           has_images: bool = True) -> str:
     """The text portion of the multimodal message (rubric + guideline + calibration
     + the financial-consistency emphasis + strict JSON instruction).
 
-    submission_text is the deck's extracted text (all slide text + table cells). It
-    matters for PPTX: without LibreOffice a .pptx yields only embedded image blobs
-    (no rendered slides), so the images alone omit the on-slide text/financials and
-    the model under-grades. Supplying the extracted text alongside the images gives
-    the grader the full content. Harmless for PDFs (whose images already carry it)."""
+    submission_text is the plan's extracted text (slide text + table cells, or the
+    body of a .docx/.txt/.md). It matters for PPTX: without LibreOffice a .pptx
+    yields only embedded image blobs (no rendered slides), so the images alone omit
+    the on-slide text/financials and the model under-grades. Supplying the extracted
+    text alongside the images gives the grader the full content. Harmless for PDFs
+    (whose images already carry it).
+
+    has_images=False is the text-only document case (a .docx with no pictures, or a
+    .txt/.md, which has nothing to render). The instruction changes rather than
+    pretending there are slides to look at — telling the model to read images that
+    do not exist invites it to speculate about unseen visuals."""
     parts: List[str] = []
     if prior_feedback:
         parts.append(prior_feedback)
-    parts.append(
-        "Grade this business plan STRICTLY, criterion by criterion, using ALL the evidence "
-        "below: the SLIDE IMAGES (tables, charts, photos, business licenses/registration, "
-        "bank statements) and — when present — the extracted SLIDE TEXT. They are the same "
-        "plan from two sources: the text carries the wording and table values, the images "
-        "carry the visuals. Grade on the combined evidence, never on one alone."
-    )
+    if has_images:
+        parts.append(
+            "Grade this business plan STRICTLY, criterion by criterion, using ALL the evidence "
+            "below: the SLIDE IMAGES (tables, charts, photos, business licenses/registration, "
+            "bank statements) and — when present — the extracted SLIDE TEXT. They are the same "
+            "plan from two sources: the text carries the wording and table values, the images "
+            "carry the visuals. Grade on the combined evidence, never on one alone."
+        )
+    else:
+        parts.append(
+            "Grade this business plan STRICTLY, criterion by criterion, from the DOCUMENT TEXT "
+            "below. This is a text document with no images to read, so the text is the whole of "
+            "the evidence: judge only what it actually says. Do NOT assume a licence, bank "
+            "statement, chart or photo exists because it is not shown — if a criterion requires "
+            "evidence the text does not provide, award little or no credit and say so."
+        )
     parts.append("RUBRIC:\n" + rubric_str)
     parts.append("JUDGES' GUIDELINE (apply throughout; may be empty):\n" + (guideline or "None provided."))
     if calibration_block:
@@ -51,7 +67,10 @@ def build_vision_user_text(rubric_str: str, guideline: str, calibration_block: s
         txt = submission_text.strip()
         if len(txt) > 20000:  # bound the prompt; the images carry the rest
             txt = txt[:20000] + "\n…[truncated]"
-        parts.append("SLIDE TEXT (extracted from the deck — grade using this TOGETHER with the images):\n" + txt)
+        label = ("SLIDE TEXT (extracted from the deck — grade using this TOGETHER with the images)"
+                 if has_images else
+                 "DOCUMENT TEXT (the full extracted plan — this is all the evidence there is)")
+        parts.append(label + ":\n" + txt)
     parts.append(
         "FINANCIAL CHECK: read the actual numbers in any financial tables and verify they are "
         "internally consistent (profit should equal revenue minus expenses; profit cannot exceed "
@@ -84,14 +103,21 @@ def grade_with_vision(
     llm=None,
     submission_text: str = "",
 ) -> GradeData:
-    """Grade a plan from its slide images (plus its extracted text, if provided).
-    Returns parse-safe GradeData (graded_ok False if there are no images or the
-    model output is unparseable)."""
-    if not image_datauris:
+    """Grade a plan with the vision model from whatever evidence the document has:
+    its slide images plus its extracted text, or — for a document with nothing to
+    render (.docx without pictures, .txt, .md) — its text alone.
+
+    Requires text OR images, not images. Rejecting a text-only plan here would mean
+    a mixed batch (a few PDFs and a few DOCX) could not be screened in one pass.
+    Returns parse-safe GradeData (graded_ok False if there is no evidence at all or
+    the model output is unparseable)."""
+    has_images = bool(image_datauris)
+    if not has_images and not (submission_text or "").strip():
         return GradeData(score=0.0, graded_ok=False,
-                         error="No slide images to grade (vision requires rendered pages).")
+                         error="Nothing to grade: the file yielded no images and no text.")
     user_text = build_vision_user_text(rubric_str, guideline, calibration_block,
-                                       submission_text=submission_text)
+                                       submission_text=submission_text,
+                                       has_images=has_images)
     messages = build_vision_messages(system_prompt, user_text, image_datauris)
     try:
         resp = _invoke_vision(messages, llm)

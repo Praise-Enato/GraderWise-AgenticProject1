@@ -21,6 +21,23 @@ export function friendlyApiError(e: any, fallback = "Something went wrong."): st
     return e?.response?.data?.detail || e?.message || fallback;
 }
 
+/**
+ * Document types the backend can grade — BOTH paths (text and vision). Kept in
+ * step with input_adapter.ADAPTER_SUFFIXES on the backend; used for the file
+ * pickers' `accept` and for the pre-upload check.
+ *
+ * Vision mode accepts all of these: PDF pages render to images, PPTX/DOCX give up
+ * their embedded pictures plus text, and .txt/.md are graded from text alone
+ * (there is nothing to render). It no longer refuses a file for having no images.
+ */
+export const SUPPORTED_PLAN_TYPES = [".pdf", ".pptx", ".docx", ".txt", ".md"] as const;
+
+/** ".docx" -> true. Accepts a filename or a bare suffix. */
+export function isSupportedPlanFile(name: string): boolean {
+    const suffix = "." + (name.split(".").pop() || "").toLowerCase();
+    return (SUPPORTED_PLAN_TYPES as readonly string[]).includes(suffix);
+}
+
 export interface RubricItem {
     criteria: string;
     max_points: number;

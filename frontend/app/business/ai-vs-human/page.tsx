@@ -109,7 +109,7 @@ export default function BpcHeadToHeadPage() {
                     <div className="flex flex-wrap items-center gap-3">
                         <label className="cursor-pointer px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
                             <Upload className="w-4 h-4" /> Upload a scored plan (PDF, PPTX, DOCX)
-                            <input type="file" className="hidden" accept=".pdf,.pptx,.docx,.txt" onChange={upload} />
+                            <input type="file" className="hidden" accept=".pdf,.pptx,.docx,.txt,.md" onChange={upload} />
                         </label>
                         {file && (
                             <span className="inline-flex items-center gap-2 text-sm bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-lg px-2.5 py-1.5">

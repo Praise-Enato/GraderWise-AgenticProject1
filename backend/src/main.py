@@ -27,7 +27,7 @@ from backend.src import vision_grade
 from backend.src import calibration
 from backend.src import general_rubric
 from backend.src.business_name import extract as extract_business_name
-from backend.src.input_adapter import get_adapter
+from backend.src.input_adapter import ADAPTER_SUFFIXES, get_adapter
 from backend.src.grading import to_grade_result
 from backend.src.eligibility import screen_eligibility, EligibilityResult
 from backend.src.report import build_report_pdf
@@ -498,8 +498,12 @@ async def grade_vision(
 
     f = files[0]  # MVP: one plan per call
     suffix = os.path.splitext(f.filename or "plan.pdf")[1].lower()
-    if suffix not in (".pdf", ".pptx"):
-        raise HTTPException(status_code=422, detail="Vision grading requires a PDF or PPTX file.")
+    if suffix not in ADAPTER_SUFFIXES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported plan file '{suffix or '(no extension)'}'. "
+                   f"Supported: {', '.join(ADAPTER_SUFFIXES)}.",
+        )
 
     MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # keep in sync with nginx client_max_body_size
     if getattr(f, "size", None) and f.size > MAX_UPLOAD_BYTES:
@@ -517,11 +521,17 @@ async def grade_vision(
         # Render + text-extract are CPU-bound; run off the event loop.
         normalized = await run_in_threadpool(get_adapter(tmp_path).load, tmp_path)
         image_uris = vision_grade.pngs_to_datauris(normalized.page_images)
-        if not image_uris:
-            detail = ("Could not render slide images from the PDF (is pypdfium2 installed?)."
+        has_text = bool((normalized.text or "").strip())
+        # Images are evidence, not a precondition. A .docx without pictures and a
+        # .txt/.md have nothing to render, and refusing them here would mean a mixed
+        # batch (some PDFs, some DOCX) could not be screened in one pass. Fail only
+        # when the file yielded NOTHING to grade.
+        if not image_uris and not has_text:
+            detail = ("Could not render slide images from the PDF and extracted no text "
+                      "(is pypdfium2 installed? is the PDF a scan?)."
                       if suffix == ".pdf" else
-                      "No embedded images found in the .pptx — grade this deck via the text "
-                      "path (/grade) instead, which reads its slide text and tables.")
+                      f"Extracted neither text nor images from this {suffix} file — "
+                      "nothing to grade. Check the file opens correctly.")
             raise HTTPException(status_code=422, detail=detail)
 
         # Competition mode (use_calibration) gates BOTH the few-shot calibration and
@@ -547,14 +557,18 @@ async def grade_vision(
         # Business name from the deck's own extracted slide text, not the file name.
         detected = extract_business_name(normalized.text)
 
-        thinking = [
-            f"Rendered {len(image_uris)} slide image(s) and graded with the vision model.",
-            f"Eligibility: {elig.status}",
-        ]
+        if image_uris:
+            read_as = f"Rendered {len(image_uris)} image(s) from the plan"
+            read_as += (" plus its extracted text; graded with the vision model."
+                        if has_text else "; graded with the vision model.")
+        else:
+            read_as = ("No images in this document (nothing to render) — graded from its "
+                       "extracted text with the vision model.")
+        thinking = [read_as, f"Eligibility: {elig.status}"]
         if detected:
             thinking.append(f'Business name read from the plan: "{detected.name}" ({detected.source}).')
         # The eligibility screen runs on extracted text; warn when a deck is image-only.
-        if len((normalized.text or "").strip()) < 200:
+        if image_uris and len((normalized.text or "").strip()) < 200:
             thinking.append("Note: little extractable text — the eligibility/DQ screen is limited for image-only decks.")
         dq_reasons = list(elig.reasons) + [f"(advisory) {n}" for n in elig.advisory_notes]
 

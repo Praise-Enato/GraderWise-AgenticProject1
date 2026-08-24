@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GradeWiseAPI, RubricItem, GradeResult } from "@/lib/api";
+import { GradeWiseAPI, RubricItem, GradeResult, SUPPORTED_PLAN_TYPES, isSupportedPlanFile } from "@/lib/api";
 import { Upload, FileText, Trash2, Sparkles, Loader2, CheckCircle, AlertTriangle, Briefcase, Eye, Download } from "lucide-react";
 import { PdfTip } from "@/components/PdfTip";
 import { motion, AnimatePresence } from "framer-motion";
@@ -79,9 +79,8 @@ export default function BpcGradingPage() {
                     setIsGrading(false);
                     return;
                 }
-                const vsuf = (files[0].file.name.split(".").pop() || "").toLowerCase();
-                if (vsuf !== "pdf" && vsuf !== "pptx") {
-                    setError("Vision mode reads slide images — it needs a PDF or PPTX. For DOCX, uncheck vision to grade the text.");
+                if (!isSupportedPlanFile(files[0].file.name)) {
+                    setError(`Vision mode can't read this file type. Supported: ${SUPPORTED_PLAN_TYPES.join(", ")}.`);
                     setIsGrading(false);
                     return;
                 }
@@ -131,7 +130,7 @@ export default function BpcGradingPage() {
                         </h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-1">
                             {rubricMode === "byums"
-                                ? "BYU Africa BPC 2026 — plan component (80 pts). Text grading, or vision mode to read slide images."
+                                ? "BYU Africa BPC 2026 — plan component (80 pts). Text grading, or vision mode to also read page images."
                                 : "General business-plan rubric (100 pts) — grades any business plan; no competition guideline."}
                         </p>
                     </div>
@@ -216,7 +215,7 @@ export default function BpcGradingPage() {
                         <input type="checkbox" checked={vision} onChange={(e) => setVision(e.target.checked)} className="mt-0.5 rounded accent-emerald-600" />
                         <span className="flex items-center gap-1.5">
                             <Eye className="w-4 h-4 text-emerald-600" />
-                            <span><b>Vision mode</b> — read the slide images (financial tables, license, bank) with Gemini. Sees more, catches inconsistent numbers; slower, grades the first plan only.</span>
+                            <span><b>Vision mode</b> — read the plan with Gemini: page images where the document has them (PDF, and pictures embedded in PPTX/DOCX), and its text. Sees financial tables, licences and bank statements; catches inconsistent numbers. Text-only files (.docx without pictures, .txt, .md) are graded from their text. Slower, and grades the first plan only.</span>
                         </span>
                     </label>
 

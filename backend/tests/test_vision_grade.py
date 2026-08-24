@@ -83,10 +83,53 @@ def test_grade_with_vision_parses_model_json():
     assert gd.assessments[0].reason == "numbers inconsistent"
 
 
-def test_grade_with_vision_no_images_flagged():
+def test_grade_with_vision_grades_text_only_documents():
+    # No images is NOT a refusal any more: a .docx without pictures, a .txt or a
+    # .md has nothing to render, and refusing it meant a mixed batch (some PDFs,
+    # some DOCX) could not be screened in one Vision pass.
+    payload = json.dumps({"assessments": [
+        {"criteria_index": 1, "criteria_name": "Financials - Detailed Breakdown",
+         "awarded_points": 2, "reason": "no projections in the text"}],
+        "general_feedback": "add unit economics"})
+    gd = VG.grade_with_vision("SYS", rubric(), "RSTR", "G", "", [],
+                              llm=_FakeLLM(payload),
+                              submission_text="Acme Ventures. Revenue $50,000.")
+    assert gd.graded_ok is True
+    assert gd.score == 2.0
+    assert gd.general_feedback == "add unit economics"
+
+
+def test_grade_with_vision_needs_text_or_images():
+    # Only a file that yielded nothing at all is refused.
     gd = VG.grade_with_vision("SYS", rubric(), "RSTR", "G", "", [], llm=_FakeLLM("{}"))
     assert gd.graded_ok is False
-    assert "No slide images" in gd.error
+    assert "Nothing to grade" in gd.error
+
+    blank = VG.grade_with_vision("SYS", rubric(), "RSTR", "G", "", [], llm=_FakeLLM("{}"),
+                                 submission_text="   \n\t ")
+    assert blank.graded_ok is False
+
+
+def test_text_only_prompt_does_not_ask_the_model_to_read_images():
+    # Telling a model to read slides that do not exist invites it to invent them.
+    txt = VG.build_vision_user_text("RSTR", "G", "", submission_text="body",
+                                    has_images=False)
+    assert "DOCUMENT TEXT" in txt
+    assert "SLIDE IMAGES" not in txt
+    assert "no images to read" in txt
+    assert "FINANCIAL CHECK" in txt          # still graded strictly on the numbers
+
+    withimg = VG.build_vision_user_text("RSTR", "G", "", submission_text="body",
+                                        has_images=True)
+    assert "SLIDE IMAGES" in withimg
+    assert "SLIDE TEXT" in withimg
+
+
+def test_messages_carry_only_text_when_there_are_no_images():
+    msgs = VG.build_vision_messages("SYS", "USER_TEXT", [])
+    content = msgs[1].content
+    assert len(content) == 1
+    assert content[0]["type"] == "text"
 
 
 def test_grade_with_vision_model_error_flagged():
