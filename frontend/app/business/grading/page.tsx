@@ -110,7 +110,9 @@ export default function BpcGradingPage() {
         setAction("pdf");
         setError(null);
         try {
-            await GradeWiseAPI.downloadReport(result, gradedBusiness, rubricLabel);
+            // planTotal is the rubric's real total; without it the PDF's denominator
+            // is just the sum of the criteria the grader returned.
+            await GradeWiseAPI.downloadReport(result, gradedBusiness, rubricLabel, planTotal);
         } catch (err: any) {
             setError(err?.response?.data?.detail || err?.message || "Could not generate the PDF.");
         } finally {

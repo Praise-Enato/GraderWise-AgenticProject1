@@ -153,8 +153,10 @@ export const GradeWiseAPI = {
     getGradeHistoryDetail: async (submissionId: number): Promise<HistoryDetail> => {
         return (await api.get<HistoryDetail>(`/grade-history/${submissionId}`)).data;
     },
-    // Direct URL for downloading a stored plan file (used as an <a href>).
+    // Direct URLs for the two downloads a past run offers (used as <a href>):
+    // the original plan file, and the PDF report re-rendered from the stored grade.
     planFileUrl: (submissionId: number): string => `${API_URL}/plan-file/${submissionId}`,
+    reportFileUrl: (submissionId: number): string => `${API_URL}/grade-history/${submissionId}/report`,
 
     // General (non-competition) business-plan rubric (150 pts)
     getGeneralRubric: async (): Promise<{ rubric: RubricItem[]; total: number }> => {
@@ -224,9 +226,10 @@ export const GradeWiseAPI = {
 
     // Download the graded result as a server-rendered PDF. Generic across rubrics —
     // the client posts back the GradeResult it already received.
-    downloadReport: async (result: GradeResult, teamName: string = "", rubricLabel: string = ""): Promise<void> => {
+    downloadReport: async (result: GradeResult, teamName: string = "", rubricLabel: string = "",
+                           totalPoints?: number): Promise<void> => {
         const resp = await api.post('/grade/report',
-            { result, team_name: teamName, rubric_label: rubricLabel },
+            { result, team_name: teamName, rubric_label: rubricLabel, total_points: totalPoints },
             { responseType: 'blob' });
         const base = (teamName || 'business-plan').replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'business-plan';
         const url = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));

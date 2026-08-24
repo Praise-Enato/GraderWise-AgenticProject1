@@ -97,6 +97,29 @@ def test_footer_label_is_the_business_name():
     assert _new_pdf("").footer_label == ""
 
 
+# --- Score denominator ----------------------------------------------------- #
+
+def test_denominator_uses_the_rubric_total_when_supplied():
+    # 4 criteria x 5 pts = 20 summed, but the rubric is 80. Without the total the
+    # report renders "37.5 / 20 (188%)".
+    from backend.src.report import _denominator
+    r = _result(4)
+    assert _denominator(r, 80.0) == 80.0
+    assert _denominator(r, None) == 20.0      # fallback: sum of what came back
+    assert _denominator(r, 0) == 20.0         # 0/None both mean "not supplied"
+
+
+def test_report_renders_the_supplied_total(tmp_path):
+    r = _result(4)
+    r.score = 37.5
+    pdf = build_report_pdf(r, team_name="Acme", rubric_label=RUBRIC_LABEL, total_points=80.0)
+    assert pdf.startswith(b"%PDF")
+    # Cannot grep the compressed page stream, so assert via the pure helper plus a
+    # successful render; the percentage is score/total and 37.5/80 = 47%.
+    from backend.src.report import _denominator
+    assert round(r.score / _denominator(r, 80.0) * 100) == 47
+
+
 @pytest.mark.parametrize("name", [
     "",
     "Jideofor Enterprise",

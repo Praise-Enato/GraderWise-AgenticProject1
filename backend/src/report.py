@@ -148,15 +148,31 @@ def _guard(section: str, fn: Callable[[], None]) -> None:
         print(f"WARN: report section '{section}' skipped: {type(e).__name__}: {e}")
 
 
-def build_report_pdf(result: GradeResult, team_name: str = "", rubric_label: str = "") -> bytes:
+def _denominator(result: GradeResult, total_points: Optional[float]) -> float:
+    """The score's denominator.
+
+    Prefer the rubric total supplied by the caller. Summing the assessments is only
+    a fallback: if the grader dropped criteria (the Judge retries on that but
+    accepts best effort after MAX_RETRIES), the sum is smaller than the rubric and
+    the report renders an inflated percentage — "37.5 / 30 (125%)".
+    """
+    if total_points and float(total_points) > 0:
+        return float(total_points)
+    return sum(a.max_points for a in (result.assessments or []))
+
+
+def build_report_pdf(result: GradeResult, team_name: str = "", rubric_label: str = "",
+                     total_points: Optional[float] = None) -> bytes:
     """Render a GradeResult to PDF bytes. Never raises on content: the full build
-    is attempted, and any unexpected failure falls back to a minimal valid PDF."""
+    is attempted, and any unexpected failure falls back to a minimal valid PDF.
+
+    total_points is the rubric's total; pass it whenever known (see _denominator)."""
     try:
-        return _build(result, team_name, rubric_label)
+        return _build(result, team_name, rubric_label, total_points)
     except Exception:
         print("WARN: full PDF build failed; returning minimal report:\n" + traceback.format_exc())
         try:
-            return _build_minimal(result, team_name, rubric_label)
+            return _build_minimal(result, team_name, rubric_label, total_points)
         except Exception:
             # Absolute last resort — an empty but valid one-line PDF.
             pdf = _new_pdf(team_name)
@@ -165,8 +181,9 @@ def build_report_pdf(result: GradeResult, team_name: str = "", rubric_label: str
             return bytes(pdf.output())
 
 
-def _build_minimal(result: GradeResult, team_name: str, rubric_label: str) -> bytes:
-    total = sum(a.max_points for a in (result.assessments or []))
+def _build_minimal(result: GradeResult, team_name: str, rubric_label: str,
+                   total_points: Optional[float] = None) -> bytes:
+    total = _denominator(result, total_points)
     pdf = _new_pdf(team_name)
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(*_INK)
@@ -187,8 +204,9 @@ def _build_minimal(result: GradeResult, team_name: str, rubric_label: str) -> by
     return bytes(pdf.output())
 
 
-def _build(result: GradeResult, team_name: str, rubric_label: str) -> bytes:
-    total = sum(a.max_points for a in (result.assessments or []))
+def _build(result: GradeResult, team_name: str, rubric_label: str,
+           total_points: Optional[float] = None) -> bytes:
+    total = _denominator(result, total_points)
     score = float(result.score or 0.0)
     pct = (score / total * 100) if total > 0 else 0.0
 

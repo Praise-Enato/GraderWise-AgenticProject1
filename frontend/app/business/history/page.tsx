@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { GradeWiseAPI, HistoryRow, HistoryDetail } from "@/lib/api";
 import { planBusinessName } from "@/lib/planName";
 import {
-    History as HistoryIcon, Loader2, AlertTriangle, Download, FileText,
+    History as HistoryIcon, Loader2, AlertTriangle, Download, FileDown, FileText,
     ChevronDown, ChevronRight, RefreshCw, CheckCircle, Flag,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -124,10 +124,18 @@ export default function BusinessHistoryPage() {
                                             >
                                                 <div className="p-4 space-y-4">
                                                     <div className="flex flex-wrap items-center gap-3">
+                                                        {/* The report is always available — it is re-rendered from the
+                                                            stored grade, so it does not depend on the plan file being kept. */}
+                                                        <a
+                                                            href={GradeWiseAPI.reportFileUrl(r.submission_id)}
+                                                            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-3 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                                        >
+                                                            <FileDown className="w-4 h-4" /> Download PDF report
+                                                        </a>
                                                         {r.has_file ? (
                                                             <a
                                                                 href={GradeWiseAPI.planFileUrl(r.submission_id)}
-                                                                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-3 py-2 text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                                                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                                                             >
                                                                 <Download className="w-4 h-4" /> Download plan
                                                             </a>

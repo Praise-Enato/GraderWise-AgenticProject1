@@ -18,7 +18,9 @@ from backend.src.llm import get_model_config
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from backend.src.models import RubricItem, GradeResult, IngestResponse, ChatRequest, ChatResponse
+from backend.src.models import (
+    CriterionAssessment, RubricItem, GradeResult, IngestResponse, ChatRequest, ChatResponse,
+)
 from backend.src import rag
 from backend.src import agent
 from backend.src import rubric_parser
@@ -205,6 +207,12 @@ class ReportRequest(BaseModel):
     result: GradeResult
     team_name: Optional[str] = ""
     rubric_label: Optional[str] = ""
+    total_points: Optional[float] = Field(
+        None,
+        description="Rubric total, for the score denominator. Without it the report "
+                    "sums the assessments present, which under-counts when the grader "
+                    "dropped criteria and yields an inflated percentage.",
+    )
 
 
 def _report_filename(team_name: str) -> str:
@@ -314,7 +322,8 @@ def grade_report(req: ReportRequest):
     # read out of the plan so a report is attributable even if it doesn't.
     team = (req.team_name or "").strip() or (req.result.business_name or "").strip()
     try:
-        pdf = build_report_pdf(req.result, team_name=team, rubric_label=req.rubric_label or "")
+        pdf = build_report_pdf(req.result, team_name=team, rubric_label=req.rubric_label or "",
+                               total_points=req.total_points)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not build the PDF report: {e}")
     filename = _report_filename(team)
@@ -654,6 +663,75 @@ def grade_history_detail(submission_id: int, session=Depends(get_session)):
         ],
         "has_file": _find_plan_file(sub.id) is not None,
     }
+
+
+def _rubric_label_for(total_points: float) -> str:
+    """Best-effort rubric name for a historical report.
+
+    Which rubric was used is not persisted — only its total — so this maps the two
+    totals the app ships and otherwise just states the total. The report omits the
+    label entirely when this returns "", rather than guessing wrong."""
+    t = round(float(total_points or 0), 2)
+    if t == 80.0:
+        return "BYUMS Competition (80)"
+    if t == 100.0:
+        return "General Business (100)"
+    if t <= 0:
+        return ""
+    return f"{int(t) if t == int(t) else t} pts"
+
+
+@app.get("/grade-history/{submission_id}/report")
+def grade_history_report(submission_id: int, session=Depends(get_session)):
+    """Re-render the PDF report for a PAST run, so History offers the report and
+    not just the original plan file.
+
+    The report builder is stateless — it takes a GradeResult — so the stored grade
+    is rehydrated into one here and rendered by the SAME builder the post-grading
+    download uses. A report pulled from History is therefore the same document the
+    judge saw at grading time, headed by the same business name.
+
+    One known fidelity gap: dq_reasons are not persisted, so a re-rendered report
+    states the eligibility status without re-listing the reasons behind it.
+    """
+    sub = _persist.get_submission(session, submission_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found.")
+    g = _persist.latest_grade(session, submission_id)
+    if not g:
+        raise HTTPException(status_code=404, detail="No grade for this submission.")
+
+    result = GradeResult(
+        score=g.score,
+        feedback=g.feedback or "",
+        citations=[],
+        thinking_process=[],
+        confidence_score=g.confidence_score,
+        assessments=[
+            CriterionAssessment(
+                criteria_index=a.criteria_index, criteria_name=a.criteria_name,
+                awarded_points=a.awarded_points, max_points=a.max_points,
+                reason=a.reason or "", evidence=a.evidence or "",
+            )
+            for a in g.assessments
+        ],
+        graded_ok=g.graded_ok,
+        eligibility_status=g.eligibility_status,
+        dq_reasons=[],
+        ai_content_flag=g.ai_content_flag,
+        business_name=(sub.team or "").strip(),
+    )
+    # `team` holds the resolved business name (see _record_team); fall back to the
+    # plan's file name so a historical report is never anonymous either.
+    team = (sub.team or "").strip() or os.path.splitext(sub.filename or "")[0]
+    pdf = build_report_pdf(result, team_name=team,
+                           rubric_label=_rubric_label_for(g.total_points),
+                           total_points=g.total_points)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{_report_filename(team)}"'},
+    )
 
 
 @app.get("/plan-file/{submission_id}")
