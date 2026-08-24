@@ -7,6 +7,7 @@ import json
 
 from backend.src.grading import (
     GradeData,
+    aggregate_grade_data,
     parse_grader_response,
     strip_code_fences,
     to_grade_result,
@@ -144,6 +145,33 @@ def test_critique_points_marks_zero_and_low():
     gd = parse_grader_response(j, rubric())
     assert any(c.startswith("❌") for c in gd.critique_points)
     assert any(c.startswith("⚠️") for c in gd.critique_points)
+
+
+def test_parse_grader_response_reads_the_business_name():
+    import json as _json
+    payload = _json.loads(_good_json())
+    payload["business_name"] = "  Kingsley Electronic Business  "
+    gd = parse_grader_response(_json.dumps(payload), rubric())
+    assert gd.graded_ok is True
+    assert gd.business_name == "Kingsley Electronic Business"   # trimmed
+
+
+def test_parse_grader_response_business_name_absent_is_empty():
+    # An older/terser grader response must not break, and "" means "not stated".
+    gd = parse_grader_response(_good_json(), rubric())
+    assert gd.graded_ok is True
+    assert gd.business_name == ""
+
+
+def test_aggregate_carries_the_business_name():
+    import json as _json
+    payload = _json.loads(_good_json())
+    a = parse_grader_response(_json.dumps(payload), rubric())
+    payload["business_name"] = "Acme Ventures"
+    b = parse_grader_response(_json.dumps(payload), rubric())
+    # First run that reported one wins — a median is meaningless for a string.
+    assert aggregate_grade_data([a, b]).business_name == "Acme Ventures"
+    assert aggregate_grade_data([a, a]).business_name == ""
 
 
 # --------------------------- to_grade_result -------------------------------- #

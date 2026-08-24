@@ -9,7 +9,9 @@ The most important tests here are the negative ones. This extractor feeds a
 report heading, so a confidently WRONG name is worse than none: the caller falls
 back to the file name on "", and a judge seeing a file name knows to check.
 """
-from backend.src.business_name import extract, extract_business_name
+import pytest
+
+from backend.src.business_name import extract, extract_business_name, from_model
 
 
 # --- Explicit label -------------------------------------------------------- #
@@ -107,10 +109,28 @@ def test_despaced_pdf_run():
 # --- Negative cases: "" is the right answer -------------------------------- #
 
 def test_prose_narrative_yields_nothing():
-    # A real corpus plan opens like this and never states a business name.
+    # A real corpus plan OPENS like this. Nothing in this excerpt is a business name,
+    # so "" is right for it. (That plan does name itself further down, under a
+    # "1. Business Name" label — see test_numbered_label. An earlier comment here
+    # claimed it never named itself, which was wrong.)
     text = ("My name is patience comfort kollie. I was born February 4,1997 in fendell.\n"
             "I grew up with my uncle in harbel, Division 45, Firestone Liberia.\n")
     assert extract_business_name(text) == ""
+
+
+def test_numbered_label():
+    # Real plan: "1. Business Name" partway down a prose document, value beneath it.
+    # The label pass matched only at line start, so the list marker hid it and the
+    # plan read as unnamed.
+    text = ("My name is patience comfort kollie and I grew up in harbel.\n"
+            "FULL BUSINESS PLAN\n1. Business Name\nPckollie Campus Glow Salon\n"
+            "2. Location\nNear a college\n")
+    assert extract_business_name(text) == "Pckollie Campus Glow Salon"
+
+
+@pytest.mark.parametrize("marker", ["1.", "2)", "(3)", "-", "*", "•", "##"])
+def test_list_markers_before_a_label(marker):
+    assert extract_business_name(f"{marker} Business Name: Acme Ventures\n") == "Acme Ventures"
 
 
 def test_empty_and_whitespace():
@@ -168,3 +188,65 @@ def test_source_is_reported_for_the_agent_log():
 
 def test_falsey_when_nothing_found():
     assert not extract("2026\n")
+
+
+# --- The grader's own reading (from_model) --------------------------------- #
+# The model reads the whole plan, so it can name a venture whose title page is a
+# slogan or is simply wrong. It can also invent one, so its answer is gated on
+# plausibility AND on actually appearing in the submission.
+
+_PLAN = (
+    "G & V Salon Business Salon\n1. Executive Summary\n"
+    "G&V Beauty Salon, located in Kakata, Margibi County, is a professional salon "
+    "dedicated to providing quality beauty services to women and children in the area, "
+    "with a strong focus on hygiene and professional standards. Ownership is a "
+    "partnership between Gifty and Vera, who bring years of experience to Kakata."
+)
+
+
+def test_from_model_beats_the_documents_own_wrong_title():
+    # The plan's heading reads "G & V Salon Business Salon"; the business is
+    # "G&V Beauty Salon". This is the case the deterministic reader gets wrong.
+    got = from_model("G&V Beauty Salon", _PLAN)
+    assert got.name == "G&V Beauty Salon"
+    assert "found in the plan text" in got.source
+    assert extract_business_name(_PLAN) == "G & V Salon Business Salon"   # for contrast
+
+
+def test_from_model_tolerates_spacing_and_punctuation_drift():
+    # The model may render the same name differently from the document.
+    assert from_model("G & V Beauty Salon", _PLAN).name == "G & V Beauty Salon"
+
+
+def test_from_model_rejects_a_name_not_in_the_plan():
+    assert from_model("Acme Ventures Ltd", _PLAN).name == ""
+    # Plausible-sounding but never stated — still rejected.
+    assert from_model("Gifty and Vera Salon", _PLAN).name == ""
+
+
+def test_from_model_rejects_implausible_answers():
+    for bad in ("This business will sell beauty services to women.", "[Slide 1]",
+                "business plan", "", None, "   "):
+        assert from_model(bad, _PLAN).name == ""
+
+
+def test_from_model_accepts_an_image_only_deck_without_grounding():
+    # Nothing to verify against, and the only case the model can solve alone.
+    got = from_model("Light Reach Liberia", "")
+    assert got.name == "Light Reach Liberia"
+    assert "image-only" in got.source
+    assert from_model("Light Reach Liberia", "   \n  ").name == "Light Reach Liberia"
+
+
+def test_from_model_grounds_against_a_despaced_pdf_layer():
+    # The PDF text layer lost its spaces; the name is still "in" the document.
+    glued = ("BUSINESSWORKPLANBusinessNameKindnessMobilePhoneTradingandRefurbishment"
+             "EnterpriseOwnerRolandKindnessGaysueLocationPaynesvilleMontserradoCounty"
+             "LiberiaTypeofBusinessPurchaseandrefurbishmentofusedsmartphonesforresale")
+    assert from_model("Kindness Mobile Phone Trading and Refurbishment Enterprise",
+                      glued).name.startswith("Kindness Mobile Phone")
+
+
+def test_from_model_softens_a_shouted_answer():
+    plan = "JIDEOFOR RAYMOND ENTERPRISE\n" + ("increasing sales through alternative trade. " * 8)
+    assert from_model("JIDEOFOR RAYMOND ENTERPRISE", plan).name == "Jideofor Raymond Enterprise"

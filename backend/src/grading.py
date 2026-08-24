@@ -36,6 +36,9 @@ class GradeData:
     graded_ok: bool = True
     error: Optional[str] = None
     general_feedback: str = ""
+    # The venture's name as the GRADER read it. Validated (plausibility + grounded
+    # in the submission) by business_name.from_model before it reaches a report.
+    business_name: str = ""
 
 
 def _safe_int(value, default: int) -> int:
@@ -192,6 +195,7 @@ def parse_grader_response(raw_content: str, rubric: List[RubricItem]) -> GradeDa
         graded_ok=True,
         error=None,
         general_feedback=str(parsed.get("general_feedback", "")),
+        business_name=str(parsed.get("business_name") or "").strip(),
     )
 
 
@@ -260,6 +264,9 @@ def aggregate_grade_data(grade_datas: List["GradeData"], flag_threshold: float =
         rubric_performance=rubric_performance,
         graded_ok=True,
         general_feedback=usable[0].general_feedback,
+        # Every ensemble run read the same document, so the first name that came back
+        # is as good as any; a median makes no sense for a string.
+        business_name=next((g.business_name for g in usable if g.business_name), ""),
     )
 
 

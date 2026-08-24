@@ -48,7 +48,7 @@ from backend.src.grading import (
     aggregate_grade_data,
     unsupported_evidence,
 )
-from backend.src.business_name import extract as extract_business_name
+from backend.src import business_name as _bname
 from backend.src.eligibility import screen_eligibility
 from backend.src.injection import detect_injection
 
@@ -216,8 +216,17 @@ SCORING DISPOSITION (how expert human graders actually score — apply to every 
 - COMPLETENESS: you MUST return exactly one assessment object for EVERY rubric criterion, in order.
   Never omit a criterion; if it is absent from the submission, still include it with awarded_points 0.
 
+BUSINESS NAME: also report the actual NAME OF THE BUSINESS this plan is for, exactly as
+  the plan states it. This is the trading name of the venture — NOT the document's title,
+  NOT a heading like "BUSINESS PLAN" or "Business Work Plan", NOT a slogan or tagline, and
+  NOT a person's name unless the business genuinely trades under it. A title page may be
+  wrong or generic while the real name appears in the executive summary or company
+  overview; prefer the name the plan uses to refer to itself throughout. Use "" if the
+  plan never names the business.
+
 OUTPUT FORMAT — return a single JSON object (one assessment PER criterion, all of them):
 {{
+    "business_name": "<the venture's actual name, or \"\" if the plan never states it>",
     "assessments": [
         {{
             "criteria_index": 1,
@@ -557,11 +566,17 @@ def generate_feedback(state: AgentState) -> dict:
         f"(advisory) {n}" for n in elig.get("advisory_notes", [])
     ]
 
-    # The business name comes from the plan's own text, never the uploaded file
-    # name — it heads the on-screen result and the downloadable PDF report. Read
-    # here (rather than in the grader node) so a failed grade is still attributable.
+    # The business name comes from the plan itself, never the uploaded file name —
+    # it heads the on-screen result and the downloadable PDF report. Read here
+    # (rather than in the grader node) so a failed grade is still attributable.
+    #
+    # The GRADER's reading wins when it is trustworthy: it read the whole plan, so it
+    # can name a venture whose title page is a slogan or is simply wrong. from_model
+    # gates that on plausibility + actually appearing in the submission, and returns
+    # nothing when it doesn't — then the deterministic reader takes over.
     _, _raw_submission = _assemble_submission(state["submission_files"])
-    detected = extract_business_name(_raw_submission)
+    detected = (_bname.from_model(gd.business_name, _raw_submission)
+                or _bname.extract(_raw_submission))
     if detected:
         thinking.append(f'Business name read from the plan: "{detected.name}" ({detected.source}).')
 

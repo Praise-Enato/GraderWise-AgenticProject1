@@ -78,7 +78,14 @@ def build_vision_user_text(rubric_str: str, guideline: str, calibration_block: s
         "for the affected criteria and say so in the reason."
     )
     parts.append(
-        'Return ONLY a JSON object: {"assessments":[{"criteria_index":<int>,'
+        "BUSINESS NAME: also report the actual NAME OF THE BUSINESS this plan is for, exactly "
+        "as the plan gives it — the venture's trading name, NOT the document title, NOT a "
+        "heading or slogan. It is often on the title slide or in a logo; read the images for "
+        'it. Use "" if the plan never names the business.'
+    )
+    parts.append(
+        'Return ONLY a JSON object: {"business_name":"<the venture\'s actual name, or empty>",'
+        '"assessments":[{"criteria_index":<int>,'
         '"criteria_name":"<exact rubric name>","awarded_points":<number>,'
         '"reason":"<why, citing what you saw in the slides>"}],"general_feedback":"<summary>"}'
     )

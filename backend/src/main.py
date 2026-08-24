@@ -28,7 +28,7 @@ from backend.src import rubric_csv
 from backend.src import vision_grade
 from backend.src import calibration
 from backend.src import general_rubric
-from backend.src.business_name import extract as extract_business_name
+from backend.src import business_name as _bname
 from backend.src.input_adapter import ADAPTER_SUFFIXES, get_adapter
 from backend.src.grading import to_grade_result
 from backend.src.eligibility import screen_eligibility, EligibilityResult
@@ -563,8 +563,11 @@ async def grade_vision(
             submission_text=normalized.text,
         )
 
-        # Business name from the deck's own extracted slide text, not the file name.
-        detected = extract_business_name(normalized.text)
+        # Business name from the plan itself, not the file name. The vision model saw
+        # the slide IMAGES, so it can read a name that lives only in a logo — prefer
+        # its answer when it holds up, else fall back to the deterministic reader.
+        detected = (_bname.from_model(grade_data.business_name, normalized.text)
+                    or _bname.extract(normalized.text))
 
         if image_uris:
             read_as = f"Rendered {len(image_uris)} image(s) from the plan"

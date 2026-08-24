@@ -24,8 +24,16 @@ PRECISION OVER RECALL. A confidently wrong name on a report is worse than no
 name: a judge who sees a blank falls back on the file name and knows to check,
 whereas a plausible wrong name is believed. So every candidate must pass
 `_plausible`, and anything doubtful yields "" for the caller to fall back on.
-Some plans genuinely never state their name (one corpus plan opens "My name is
-..." and is a personal narrative) — "" is the correct answer there.
+
+This module is the FALLBACK. The grader reads the whole plan (and its images), so
+its answer is preferred when it holds up — see `from_model`. Measured on the real
+corpus, the grader was right on all 8 plans and better than this reader on three:
+it gave the venture's own name where the title page was wrong ("G&V Beauty Salon",
+not the document's "G & V Salon Business Salon"), it un-glued a name mangled by a
+PDF text layer ("Trading and", not "Tradingand"), and it found a name stated deep
+in a document. Every plan in the corpus does name itself somewhere — an earlier
+comment here claimed one never did, which was wrong: it labels it "1. Business
+Name" partway down, which this reader missed until `_delist` was added.
 """
 from __future__ import annotations
 
@@ -107,6 +115,11 @@ _YEAR_RE = re.compile(r"^\s*(?:19|20)\d{2}\s*$")
 # extract_pptx_text) — furniture from OUR pipeline, not content from the document.
 # Without this a .pptx plan is named "[Slide 1]".
 _MARKER_RE = re.compile(r"^\[\s*(?:slide|page)\s*\d+\s*\]$", re.IGNORECASE)
+# A leading list/section marker before a label: "1. Business Name", "2) Location",
+# "- Business Name", "## Business Name". Stripped only for LABEL matching, so a name
+# that legitimately begins with a number is not altered. Missing this is why one real
+# plan's "1. Business Name" label was skipped and the plan read as unnamed.
+_LIST_MARKER_RE = re.compile(r"^\s*(?:\(?\d{1,2}[.)]|[-*•·–]|#{1,6})\s+")
 _VOWEL_RE = re.compile(r"[AEIOUaeiou]")
 
 
@@ -155,6 +168,11 @@ def _usable_lines(text: str) -> List[str]:
         if len(out) >= _SEARCH_LINES:
             break
     return out
+
+
+def _delist(line: str) -> str:
+    """Drop a leading list/section marker so a numbered label can be matched."""
+    return _LIST_MARKER_RE.sub("", line or "", count=1).strip()
 
 
 def _is_boilerplate(line: str) -> bool:
@@ -277,11 +295,12 @@ def extract(text: str) -> ExtractedName:
 
     # 1. An explicit label wins: the entrant told us outright.
     for i, line in enumerate(lines):
-        low = line.lower()
+        probe = _delist(line)          # "1. Business Name" -> "Business Name"
+        low = probe.lower()
         for label in _NAME_LABELS:
             if not low.startswith(label):
                 continue
-            rest = line[len(label):].lstrip(" :–-—\t")
+            rest = probe[len(label):].lstrip(" :–-—\t")
             if rest:
                 got = _finalize(_truncate_at_stopword(rest), f"label '{label}'")
                 if got:
@@ -339,3 +358,66 @@ def extract(text: str) -> ExtractedName:
 def extract_business_name(text: str) -> str:
     """`extract`, as a plain string ("" when nothing credible was found)."""
     return extract(text).name
+
+
+# Below this much extractable text a document is treated as image-only (the same
+# threshold /grade-vision uses to warn that its eligibility screen is limited).
+_MIN_TEXT_FOR_GROUNDING = 200
+
+
+def from_model(candidate: Optional[str], submission_text: str = "") -> ExtractedName:
+    """Validate a business name the GRADER reported, so the model's reading wins
+    over this module's when it is trustworthy.
+
+    The model reads the whole plan — and on the vision path its images — so it can
+    name a business the deterministic reader cannot: when the title is a slogan,
+    when the name is stated only in the prose, when the document's own heading is
+    wrong ("G & V Salon Business Salon"), or when the name exists only in a logo.
+
+    But it can also invent one, and a confidently wrong name on a report is exactly
+    what this module exists to prevent. So a model-supplied name must:
+
+      - pass the same `_plausible` gate as any other candidate, and
+      - actually APPEAR in the submission text, checked fuzzily with the same
+        grounding the Judge applies to evidence quotes (evidence.evidence_supported).
+
+    The one exception is a document with little or no extractable text — an
+    image-only deck. Grounding cannot be checked there, and it is precisely the case
+    only the model can solve, so a plausible name is accepted on its own and the
+    source says so.
+
+    Returns an empty ExtractedName when the model gave nothing usable, so callers
+    can fall back to `extract`.
+    """
+    c = _clean(candidate or "")
+    if not _plausible(c):
+        return ExtractedName()
+    name = _soften_caps(c)
+
+    text = submission_text or ""
+    if len(text.strip()) < _MIN_TEXT_FOR_GROUNDING:
+        # Nothing to verify against; the model saw more than the text did.
+        return ExtractedName(name=name, source="grader (image-only plan, not text-verifiable)")
+
+    if _appears_in(name, text):
+        return ExtractedName(name=name, source="grader (found in the plan text)")
+    return ExtractedName()   # not in the document -> distrust it, fall back
+
+
+def _appears_in(name: str, text: str) -> bool:
+    """Is `name` really present in `text`?
+
+    Compares both with everything but letters and digits removed. That absorbs the
+    ways a name legitimately drifts between the document and the model's reading —
+    spacing, punctuation, hyphens, case, and the PDF text layer that loses spaces
+    entirely ("KindnessMobilePhoneTrading...") — while still rejecting a name the
+    document simply does not contain.
+
+    Deliberately NOT evidence.evidence_supported: that is tuned for long quotes and
+    its 0.85 fuzzy coverage ratio is easy for a SHORT string to reach against a long
+    document by matching scattered characters. It accepted "Acme Ventures Ltd"
+    against a salon plan, which is precisely the hallucination this guards.
+    """
+    squash = lambda x: re.sub(r"[^a-z0-9]+", "", (x or "").lower())
+    n, t = squash(name), squash(text)
+    return bool(n) and bool(t) and n in t

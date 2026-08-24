@@ -10,8 +10,8 @@
  *
  * The file name is genuinely last: entrants submit things like "Copy of Africa
  * Business Plan Competition - 2026  (1).pdf", which names the competition rather
- * than the business. It stays as a fallback because a few plans never state
- * their name anywhere in the document, and there the file name is the only clue.
+ * than the business. It stays only as a defensive fallback — every plan in the
+ * corpus does name itself somewhere, so in practice this should rarely be reached.
  *
  * Returns "" when nothing is available — callers fall back to their own generic
  * label (the PDF builder falls back to "Business Plan Evaluation").
