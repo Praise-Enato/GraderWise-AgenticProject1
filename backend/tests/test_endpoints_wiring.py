@@ -172,6 +172,28 @@ def test_history_report_404s_for_unknown_submission(client):
     assert tc.get("/grade-history/99999/report").status_code == 404
 
 
+def test_display_team_normalizes_a_filename_stored_as_team():
+    # Bulk screening sends the file name as student_id, and rows predating the
+    # business-name change stored it too — both must read as a name, keeping any
+    # underscore (a name is not markdown).
+    assert main._display_team("LightReachLiberia_Proposal.pptx", "x.pptx") == "LightReachLiberia_Proposal"
+    assert main._display_team("plan.docx", "plan.docx") == "plan"
+    assert main._display_team("Jideofor Enterprise", "plan.pdf") == "Jideofor Enterprise"
+    # Not a plan extension -> left alone ("Acme Ltd." must not lose anything).
+    assert main._display_team("Acme Ltd.", "plan.pdf") == "Acme Ltd."
+    assert main._display_team("", "campus glow salon.docx") == "campus glow salon"
+
+
+def test_history_report_keeps_underscores_in_the_heading(client):
+    tc, Factory = client
+    s = Factory()
+    sid = _seed_graded(s, team="LightReachLiberia_Proposal.pptx", filename="LightReachLiberia_Proposal.pptx")
+    s.close()
+    r = tc.get(f"/grade-history/{sid}/report")
+    assert r.status_code == 200
+    assert b"/Title (LightReachLiberia_Proposal - Business Plan Evaluation)" in r.content
+
+
 def test_rubric_label_inference():
     assert main._rubric_label_for(80.0) == "BYUMS Competition (80)"
     assert main._rubric_label_for(100.0) == "General Business (100)"

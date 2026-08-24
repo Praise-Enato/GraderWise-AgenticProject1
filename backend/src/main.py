@@ -665,6 +665,22 @@ def grade_history_detail(submission_id: int, session=Depends(get_session)):
     }
 
 
+def _display_team(team: str, filename: str) -> str:
+    """The name to head a historical report with.
+
+    `team` normally holds the resolved business name, but rows graded before that
+    change — and every bulk screening run, which sends the file name as student_id
+    — stored a FILE NAME. Strip a plan extension so those read as a name, matching
+    what the History list already displays.
+    """
+    t = (team or "").strip()
+    stem = os.path.splitext(filename or "")[0]
+    if not t:
+        return stem
+    base, ext = os.path.splitext(t)
+    return base if ext.lower() in ADAPTER_SUFFIXES else t
+
+
 def _rubric_label_for(total_points: float) -> str:
     """Best-effort rubric name for a historical report.
 
@@ -719,11 +735,9 @@ def grade_history_report(submission_id: int, session=Depends(get_session)):
         eligibility_status=g.eligibility_status,
         dq_reasons=[],
         ai_content_flag=g.ai_content_flag,
-        business_name=(sub.team or "").strip(),
+        business_name=_display_team(sub.team, sub.filename),
     )
-    # `team` holds the resolved business name (see _record_team); fall back to the
-    # plan's file name so a historical report is never anonymous either.
-    team = (sub.team or "").strip() or os.path.splitext(sub.filename or "")[0]
+    team = _display_team(sub.team, sub.filename)
     pdf = build_report_pdf(result, team_name=team,
                            rubric_label=_rubric_label_for(g.total_points),
                            total_points=g.total_points)

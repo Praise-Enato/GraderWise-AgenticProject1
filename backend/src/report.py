@@ -40,12 +40,20 @@ _UNI = {
 }
 
 
-def _ascii(s: Optional[str]) -> str:
+def _ascii(s: Optional[str], *, strip_markdown: bool = True) -> str:
+    """Latin-1-safe text for fpdf2's core fonts.
+
+    strip_markdown=False for a NAME: the grader's prose carries markdown emphasis
+    worth removing, but a business name is not markdown, and stripping it turned
+    "LightReachLiberia_Proposal" into "LightReachLiberiaProposal" in a report
+    heading (seen on a live history row).
+    """
     if not s:
         return ""
     for k, v in _UNI.items():
         s = s.replace(k, v)
-    s = re.sub(r"[*_`#]+", "", s)  # drop markdown emphasis markers
+    if strip_markdown:
+        s = re.sub(r"[*_`#]+", "", s)  # drop markdown emphasis markers
     # Strip combining accents rather than let them become "?" — the business name
     # is the report heading, and African/Yoruba names carry diacritics
     # ("Ọ̀ṣun" -> "Osun" reads; "???un" does not).
@@ -83,7 +91,7 @@ _DOC_KIND = "Business Plan Evaluation"
 def _heading(team_name: Optional[str]) -> str:
     """The report's H1: the business name, or the generic document kind when the
     judge graded without naming the business."""
-    return _ascii(team_name).strip() or _DOC_KIND
+    return _ascii(team_name, strip_markdown=False).strip() or _DOC_KIND
 
 
 def _subtitle_parts(team_name: Optional[str], rubric_label: Optional[str]) -> List[str]:
@@ -131,7 +139,7 @@ class _Report(FPDF):
 
 def _new_pdf(footer_label: str = "") -> _Report:
     pdf = _Report(format="A4", unit="mm")
-    pdf.footer_label = _ascii(footer_label).strip()
+    pdf.footer_label = _ascii(footer_label, strip_markdown=False).strip()
     pdf.set_auto_page_break(auto=True, margin=15)
     # Document title (what a PDF viewer shows in its title bar / tab).
     pdf.set_title(f"{pdf.footer_label} - {_DOC_KIND}" if pdf.footer_label else _DOC_KIND)
