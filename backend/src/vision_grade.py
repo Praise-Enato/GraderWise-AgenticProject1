@@ -14,7 +14,9 @@ from __future__ import annotations
 import base64
 from typing import List, Optional
 
-from backend.src.grading import GradeData, parse_grader_response
+from backend.src.grading import (
+    DEFAULT_ENSEMBLE_TEMPERATURE, GradeData, aggregate_grade_data, parse_grader_response,
+)
 from backend.src.models import RubricItem
 
 
@@ -109,6 +111,7 @@ def grade_with_vision(
     image_datauris: List[str],
     llm=None,
     submission_text: str = "",
+    temperature: float = 0.0,
 ) -> GradeData:
     """Grade a plan with the vision model from whatever evidence the document has:
     its slide images plus its extracted text, or — for a document with nothing to
@@ -127,13 +130,13 @@ def grade_with_vision(
                                        has_images=has_images)
     messages = build_vision_messages(system_prompt, user_text, image_datauris)
     try:
-        resp = _invoke_vision(messages, llm)
+        resp = _invoke_vision(messages, llm, temperature=temperature)
     except Exception as e:
         return GradeData(score=0.0, graded_ok=False, error=f"Vision model call failed: {e}")
     return parse_grader_response(resp.content, rubric)
 
 
-def _invoke_vision(messages, llm=None):
+def _invoke_vision(messages, llm=None, temperature: float = 0.0):
     """Call the vision model. Requests JSON mode (response_format=json_object) so
     even lighter models emit valid JSON instead of markdown-fenced/plain prose, and
     a generous max_tokens so a full-rubric response can't truncate mid-JSON. Falls
@@ -142,8 +145,51 @@ def _invoke_vision(messages, llm=None):
         return llm.invoke(messages)
     from backend.src.llm import get_llm
     try:
-        strict = get_llm("vision", max_tokens=8192,
+        strict = get_llm("vision", temperature=temperature, max_tokens=8192,
                          model_kwargs={"response_format": {"type": "json_object"}})
         return strict.invoke(messages)
     except Exception:
-        return get_llm("vision", max_tokens=8192).invoke(messages)
+        return get_llm("vision", temperature=temperature, max_tokens=8192).invoke(messages)
+
+
+def grade_with_vision_ensemble(
+    system_prompt: str,
+    rubric: List[RubricItem],
+    rubric_str: str,
+    guideline: str,
+    calibration_block: str,
+    image_datauris: List[str],
+    llm=None,
+    submission_text: str = "",
+    ensemble_n: int = 1,
+    ensemble_temperature: float = DEFAULT_ENSEMBLE_TEMPERATURE,
+) -> GradeData:
+    """Grade N times and aggregate per criterion by median.
+
+    The vision path previously graded once, so it had no defence against the
+    grader's own run-to-run disagreement — measured at sd ~2.9 and a 16.5-point
+    range over 40 identical runs of one plan (80-point rubric, temperature 0).
+    That is wider than most shortlist margins, and the vision path is the one PDF
+    and PPTX take, i.e. the format entrants are told to prefer.
+
+    Mirrors the text path (agent.grade_submission): n == 1 keeps the single
+    deterministic pass unchanged; n > 1 samples at one fixed MODERATE temperature
+    (not a spread) and lets aggregate_grade_data take the per-criterion median,
+    which also surfaces high disagreement in the critique.
+    """
+    n = max(1, int(ensemble_n or 1))
+    if n == 1:
+        return grade_with_vision(system_prompt, rubric, rubric_str, guideline,
+                                 calibration_block, image_datauris, llm=llm,
+                                 submission_text=submission_text)
+    runs = [
+        grade_with_vision(system_prompt, rubric, rubric_str, guideline,
+                          calibration_block, image_datauris, llm=llm,
+                          submission_text=submission_text,
+                          # NOT `or`: that would turn an explicit 0.0 into a fallback.
+                          temperature=float(DEFAULT_ENSEMBLE_TEMPERATURE
+                                            if ensemble_temperature is None
+                                            else ensemble_temperature))
+        for _ in range(n)
+    ]
+    return aggregate_grade_data(runs)

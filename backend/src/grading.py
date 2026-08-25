@@ -26,6 +26,39 @@ from backend.src.models import (
 # in the critique list, matching the previous agent behaviour.
 _LOW_AWARD_THRESHOLD = 5.0
 
+# How many times to grade each plan by default, aggregated per criterion by median.
+#
+# Measured over 40 identical runs of one plan (80-point rubric, temperature 0): the
+# grader disagrees with ITSELF by sd ~2.9 with a 16.5-point range (24.0 - 40.5) —
+# wider than most shortlist margins, which makes a single pass a poor basis for
+# ranking. Bootstrapped from those runs, median-of-3 roughly halves the spread
+# (95% of runs within 5.0 points vs 11.5 for a single pass) for 3x the tokens.
+#
+# Both grading paths read this, so the text and vision defaults cannot drift apart.
+DEFAULT_ENSEMBLE_N = 3
+
+# Sampling temperature for those runs. ZERO, not the 0.4 the ensemble was written
+# for, because 0.4 measurably wastes the median's benefit:
+#
+#   single run       temp 0.0: sd 2.91, 95% width 16.5   temp 0.4: sd 3.92, width 13.5
+#   median-of-3      temp 0.0: sd 1.54, 95% width  5.0   temp 0.4: sd 2.56, width 12.5
+#   median-of-5      temp 0.0: sd 1.15, 95% width  4.5   temp 0.4: sd 1.81, width 10.5
+#
+# (bootstrapped from 40 real runs at 0.0 and 20 at 0.4, one plan, 80-point rubric)
+#
+# Median-of-3 at 0.4 is barely tighter than a SINGLE pass at 0.0 — the extra sampling
+# temperature injects more variance than the median removes — and 0.4 also scores
+# ~1.35 points more generous, the wrong direction given the grader already over-scores.
+#
+# The design intent behind a moderate temperature was that disagreement across samples
+# is the signal. That survives at 0.0: the API is nondeterministic even there, with
+# those 40 runs spanning 24.0-40.5, so there is ample disagreement to aggregate and
+# flag — just less of it manufactured by us.
+#
+# N=3 rather than 5 because the returns flatten immediately after it (width 5.0 -> 4.5)
+# while the cost is linear in model calls.
+DEFAULT_ENSEMBLE_TEMPERATURE = 0.0
+
 
 @dataclass
 class GradeData:

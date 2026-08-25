@@ -30,7 +30,9 @@ from backend.src import calibration
 from backend.src import general_rubric
 from backend.src import business_name as _bname
 from backend.src.input_adapter import ADAPTER_SUFFIXES, get_adapter
-from backend.src.grading import to_grade_result
+from backend.src.grading import (
+    DEFAULT_ENSEMBLE_N, DEFAULT_ENSEMBLE_TEMPERATURE, to_grade_result,
+)
 from backend.src.eligibility import screen_eligibility, EligibilityResult
 from backend.src.report import build_report_pdf
 from langchain_core.prompts import ChatPromptTemplate
@@ -99,7 +101,9 @@ def _grade_of_record_dict(request: "GradeRequest", result: GradeResult) -> dict:
     """Pin the canonical grade for dispute defense (X4). Temperatures reflect the
     ensemble settings; the input hash is derived from the exact rubric + text."""
     n = request.ensemble_n or 1
-    temps = [request.ensemble_temperature or 0.4] * n if n > 1 else [0.0]
+    # `or` would turn an explicit 0.0 into the default; be explicit about None.
+    t = request.ensemble_temperature if request.ensemble_temperature is not None else DEFAULT_ENSEMBLE_TEMPERATURE
+    temps = [t] * n if n > 1 else [0.0]
     rec = _gr.record_for(
         _rubric_dicts(request), _submission_text(request),
         model=get_model_config("grade").model, temperatures=temps,
@@ -197,8 +201,8 @@ class GradeRequest(BaseModel):
     use_calibration: Optional[bool] = Field(None, description="Apply few-shot calibration (BYUMS-specific). Set False for the general rubric.")
     use_grounding: Optional[bool] = Field(None, description="Ground the grader in the static reference corpus (financial/market/quality guides). No-op if the corpus is not ingested.")
     use_evidence: Optional[bool] = Field(None, description="Ask the grader for a verbatim evidence quote per criterion; the Judge rejects quotes not found in the submission. Opt-in (default off).")
-    ensemble_n: Optional[int] = Field(None, description="Grade N times and aggregate per criterion by median; reports grader disagreement. Default 1 (single pass).")
-    ensemble_temperature: Optional[float] = Field(None, description="Fixed sampling temperature for ensemble runs (default 0.4). Ignored when ensemble_n <= 1.")
+    ensemble_n: Optional[int] = Field(None, description=f"Grade N times and aggregate per criterion by median; reports grader disagreement. Defaults to {DEFAULT_ENSEMBLE_N}; set 1 for a single fast pass.")
+    ensemble_temperature: Optional[float] = Field(None, description=f"Fixed sampling temperature for ensemble runs (default {DEFAULT_ENSEMBLE_TEMPERATURE}). Ignored when ensemble_n <= 1.")
 
 
 class ReportRequest(BaseModel):
@@ -493,6 +497,7 @@ async def grade_vision(
     guideline: str = Form(""),
     student_id: str = Form("team"),
     use_calibration: str = Form("true"),   # "false" for the general rubric
+    ensemble_n: Optional[int] = Form(None),  # grade N times, median per criterion
     session=Depends(get_session),
 ):
     """Vision grading (Phase 1b): render the uploaded plan PDF to slide images and
@@ -556,11 +561,14 @@ async def grade_vision(
             calib = ""
         rubric_str = agent._format_rubric(rubric_items)
 
+        # Median-aggregated over N runs by default; the grader's disagreement with
+        # itself is wider than most shortlist margins (see DEFAULT_ENSEMBLE_N).
+        n_runs = max(1, int(ensemble_n or DEFAULT_ENSEMBLE_N))
         grade_data = await run_in_threadpool(
-            vision_grade.grade_with_vision,
+            vision_grade.grade_with_vision_ensemble,
             agent.grader_system(competition=competition_mode), rubric_items, rubric_str,
             guideline or "None provided.", calib, image_uris,
-            submission_text=normalized.text,
+            None, normalized.text, n_runs, DEFAULT_ENSEMBLE_TEMPERATURE,
         )
 
         # Business name from the plan itself, not the file name. The vision model saw
@@ -569,6 +577,10 @@ async def grade_vision(
         detected = (_bname.from_model(grade_data.business_name, normalized.text)
                     or _bname.extract(normalized.text))
 
+        if n_runs > 1:
+            thinking_extra = f"Graded {n_runs}x and aggregated per criterion by median."
+        else:
+            thinking_extra = ""
         if image_uris:
             read_as = f"Rendered {len(image_uris)} image(s) from the plan"
             read_as += (" plus its extracted text; graded with the vision model."
@@ -576,7 +588,7 @@ async def grade_vision(
         else:
             read_as = ("No images in this document (nothing to render) — graded from its "
                        "extracted text with the vision model.")
-        thinking = [read_as, f"Eligibility: {elig.status}"]
+        thinking = [read_as] + ([thinking_extra] if thinking_extra else []) + [f"Eligibility: {elig.status}"]
         if detected:
             thinking.append(f'Business name read from the plan: "{detected.name}" ({detected.source}).')
         # The eligibility screen runs on extracted text; warn when a deck is image-only.

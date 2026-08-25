@@ -46,6 +46,8 @@ from backend.src.grading import (
     find_missing_criteria,
     summarize_performance,
     aggregate_grade_data,
+    DEFAULT_ENSEMBLE_N,
+    DEFAULT_ENSEMBLE_TEMPERATURE,
     unsupported_evidence,
 )
 from backend.src import business_name as _bname
@@ -469,14 +471,14 @@ def grade_submission(state: AgentState) -> dict:
         response = (prompt | llm).invoke(invoke_inputs)
         return parse_grader_response(response.content, rubric)
 
-    n = max(1, int(state.get("ensemble_n", 1)))
+    n = max(1, int(state.get("ensemble_n", DEFAULT_ENSEMBLE_N)))
     try:
         if n == 1:
             grade_data = _run_once(0.0)  # single deterministic pass — unchanged default behavior
         else:
             # X1: a fixed MODERATE temperature x N (not a temperature spread); the
             # disagreement across samples is the signal, aggregated by median.
-            temp = float(state.get("ensemble_temperature", 0.4))
+            temp = float(state.get("ensemble_temperature", DEFAULT_ENSEMBLE_TEMPERATURE))
             grade_data = aggregate_grade_data([_run_once(temp) for _ in range(n)])
         log_agent_action("GRADER", f"score={grade_data.score} graded_ok={grade_data.graded_ok} runs={n}")
     except Exception as e:

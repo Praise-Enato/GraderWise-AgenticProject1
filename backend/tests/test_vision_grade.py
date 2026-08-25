@@ -145,3 +145,60 @@ def test_grade_with_vision_unparseable_flagged():
     gd = VG.grade_with_vision("SYS", rubric(), "RSTR", "G", "", ["data:image/png;base64,AAA"],
                               llm=_FakeLLM("not json"))
     assert gd.graded_ok is False
+
+
+# --------------------------- ensemble (vision path) ------------------------- #
+# The vision path graded ONCE, so PDF/PPTX — the formats entrants are told to
+# prefer — had no defence against the grader disagreeing with itself (measured
+# sd ~2.9, 16.5-point range over 40 identical runs of one plan).
+
+class _SeqLLM:
+    """Returns a different score per call, so aggregation is observable."""
+    def __init__(self, scores):
+        self._scores = list(scores)
+        self.calls = 0
+        self.temperatures = []
+    def invoke(self, messages):
+        s = self._scores[self.calls % len(self._scores)]
+        self.calls += 1
+        class R:
+            content = json.dumps({"assessments": [
+                {"criteria_index": 1, "criteria_name": "Financials - Detailed Breakdown",
+                 "awarded_points": s, "max_points": 5}], "general_feedback": "f"})
+        return R()
+
+
+def test_ensemble_takes_the_per_criterion_median():
+    llm = _SeqLLM([1, 5, 2])          # median 2, NOT the mean (2.67) or the outlier 5
+    gd = VG.grade_with_vision_ensemble("SYS", rubric(), "RSTR", "G", "",
+                                       ["data:image/png;base64,AAA"], llm=llm,
+                                       submission_text="body", ensemble_n=3)
+    assert llm.calls == 3
+    assert gd.graded_ok is True
+    assert gd.score == 2.0
+
+
+def test_ensemble_n_1_is_a_single_unchanged_pass():
+    llm = _SeqLLM([3])
+    gd = VG.grade_with_vision_ensemble("SYS", rubric(), "RSTR", "G", "",
+                                       ["data:image/png;base64,AAA"], llm=llm,
+                                       submission_text="body", ensemble_n=1)
+    assert llm.calls == 1
+    assert gd.score == 3.0
+
+
+def test_ensemble_defaults_are_shared_with_the_text_path():
+    # One constant, so the two paths cannot drift apart.
+    from backend.src.grading import DEFAULT_ENSEMBLE_N, DEFAULT_ENSEMBLE_TEMPERATURE
+    assert DEFAULT_ENSEMBLE_N == 3
+    # ZERO on purpose: 0.4 measurably wasted the median's benefit (median-of-3 at
+    # 0.4 was barely tighter than a single pass at 0.0). Changing this needs a
+    # re-measurement, not a preference.
+    assert DEFAULT_ENSEMBLE_TEMPERATURE == 0.0
+
+
+def test_explicit_zero_temperature_is_not_coerced_to_a_fallback():
+    # `x or default` silently turns 0.0 into the default; this pins that it doesn't.
+    import inspect
+    src = inspect.getsource(VG.grade_with_vision_ensemble)
+    assert "ensemble_temperature or" not in src
