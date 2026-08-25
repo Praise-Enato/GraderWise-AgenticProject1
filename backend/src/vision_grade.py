@@ -16,6 +16,7 @@ from typing import List, Optional
 
 from backend.src.grading import (
     DEFAULT_ENSEMBLE_TEMPERATURE, GradeData, aggregate_grade_data, parse_grader_response,
+    run_ensemble,
 )
 from backend.src.models import RubricItem
 
@@ -182,14 +183,14 @@ def grade_with_vision_ensemble(
         return grade_with_vision(system_prompt, rubric, rubric_str, guideline,
                                  calibration_block, image_datauris, llm=llm,
                                  submission_text=submission_text)
-    runs = [
-        grade_with_vision(system_prompt, rubric, rubric_str, guideline,
-                          calibration_block, image_datauris, llm=llm,
-                          submission_text=submission_text,
-                          # NOT `or`: that would turn an explicit 0.0 into a fallback.
-                          temperature=float(DEFAULT_ENSEMBLE_TEMPERATURE
-                                            if ensemble_temperature is None
-                                            else ensemble_temperature))
-        for _ in range(n)
-    ]
-    return aggregate_grade_data(runs)
+    # NOT `or`: that would turn an explicit 0.0 into a fallback.
+    temp = float(DEFAULT_ENSEMBLE_TEMPERATURE if ensemble_temperature is None
+                 else ensemble_temperature)
+
+    def _one() -> GradeData:
+        return grade_with_vision(system_prompt, rubric, rubric_str, guideline,
+                                 calibration_block, image_datauris, llm=llm,
+                                 submission_text=submission_text, temperature=temp)
+
+    # Concurrent: n times the tokens, ~one call's wall-clock (see run_ensemble).
+    return aggregate_grade_data(run_ensemble(_one, n))

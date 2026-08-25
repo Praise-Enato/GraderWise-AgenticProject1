@@ -48,6 +48,7 @@ from backend.src.grading import (
     aggregate_grade_data,
     DEFAULT_ENSEMBLE_N,
     DEFAULT_ENSEMBLE_TEMPERATURE,
+    run_ensemble,
     unsupported_evidence,
 )
 from backend.src import business_name as _bname
@@ -479,7 +480,8 @@ def grade_submission(state: AgentState) -> dict:
             # X1: a fixed MODERATE temperature x N (not a temperature spread); the
             # disagreement across samples is the signal, aggregated by median.
             temp = float(state.get("ensemble_temperature", DEFAULT_ENSEMBLE_TEMPERATURE))
-            grade_data = aggregate_grade_data([_run_once(temp) for _ in range(n)])
+            # Concurrent: n times the tokens, ~one call's wall-clock (see run_ensemble).
+            grade_data = aggregate_grade_data(run_ensemble(lambda: _run_once(temp), n))
         log_agent_action("GRADER", f"score={grade_data.score} graded_ok={grade_data.graded_ok} runs={n}")
     except Exception as e:
         log_agent_action("GRADER", f"grader call failed: {e}")

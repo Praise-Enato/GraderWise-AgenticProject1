@@ -11,8 +11,9 @@ from __future__ import annotations
 import json
 import math
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from backend.src.models import (
     CriterionAssessment,
@@ -230,6 +231,32 @@ def parse_grader_response(raw_content: str, rubric: List[RubricItem]) -> GradeDa
         general_feedback=str(parsed.get("general_feedback", "")),
         business_name=str(parsed.get("business_name") or "").strip(),
     )
+
+
+def run_ensemble(run_once: Callable[[], "GradeData"], n: int) -> List["GradeData"]:
+    """Run `run_once` n times CONCURRENTLY and return every result.
+
+    The runs are independent — identical inputs, no shared state, no ordering — and
+    each is a blocking network call to the model API. Overlapping them makes an
+    ensemble cost n times the TOKENS but roughly the wall-clock of ONE call rather
+    than n. Done sequentially, the ensemble_n=3 default tripled grading latency
+    (~6s -> ~17s per plan on the deployed model) for no reason at all.
+
+    Threads rather than processes: the work is a blocking HTTP request, which
+    releases the GIL, and there is nothing CPU-bound to parallelise. Both graders
+    already return a parse-safe GradeData instead of raising, so a failed run
+    arrives as graded_ok=False and aggregate_grade_data drops it.
+
+    NOTE on rate limits: this multiplies IN-FLIGHT requests, not just total ones.
+    Bulk screening runs 2 plans at once, so the default becomes 6 concurrent calls.
+    get_llm already retries (max_retries=3), which covers transient 429s; a hard
+    per-minute cap would need a shared semaphore, which is deliberately not here.
+    """
+    if n <= 1:
+        return [run_once()]
+    with ThreadPoolExecutor(max_workers=n) as pool:
+        futures = [pool.submit(run_once) for _ in range(n)]
+        return [f.result() for f in futures]
 
 
 def unsupported_evidence(assessments: List[CriterionAssessment], submission_text: str) -> List[str]:

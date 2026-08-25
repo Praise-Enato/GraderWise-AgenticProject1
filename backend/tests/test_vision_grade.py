@@ -1,6 +1,8 @@
 """Tests for vision grading (pure builders + orchestration with a fake model)."""
 import base64
 import json
+import threading
+import time
 
 from backend.src import vision_grade as VG
 from backend.src.models import RubricItem
@@ -153,14 +155,19 @@ def test_grade_with_vision_unparseable_flagged():
 # sd ~2.9, 16.5-point range over 40 identical runs of one plan).
 
 class _SeqLLM:
-    """Returns a different score per call, so aggregation is observable."""
+    """Returns a different score per call, so aggregation is observable.
+
+    Thread-safe: ensemble runs are CONCURRENT, so an unsynchronised counter would
+    hand the same score to two threads and make the median assertion flaky.
+    """
     def __init__(self, scores):
         self._scores = list(scores)
+        self._lock = threading.Lock()
         self.calls = 0
-        self.temperatures = []
     def invoke(self, messages):
-        s = self._scores[self.calls % len(self._scores)]
-        self.calls += 1
+        with self._lock:
+            s = self._scores[self.calls % len(self._scores)]
+            self.calls += 1
         class R:
             content = json.dumps({"assessments": [
                 {"criteria_index": 1, "criteria_name": "Financials - Detailed Breakdown",
@@ -202,3 +209,65 @@ def test_explicit_zero_temperature_is_not_coerced_to_a_fallback():
     import inspect
     src = inspect.getsource(VG.grade_with_vision_ensemble)
     assert "ensemble_temperature or" not in src
+
+
+def test_ensemble_runs_concurrently_not_serially():
+    """An ensemble must cost n times the TOKENS, not n times the WALL-CLOCK.
+
+    The runs were originally a list comprehension, which tripled grading latency
+    (~6s -> ~17s per plan) for no reason: they are independent network calls.
+    """
+    DELAY = 0.4
+
+    class _SlowLLM:
+        def __init__(self):
+            self._lock = threading.Lock()
+            self.peak = 0
+            self._inflight = 0
+        def invoke(self, messages):
+            with self._lock:
+                self._inflight += 1
+                self.peak = max(self.peak, self._inflight)
+            time.sleep(DELAY)
+            with self._lock:
+                self._inflight -= 1
+            class R:
+                content = json.dumps({"assessments": [
+                    {"criteria_index": 1, "criteria_name": "Financials - Detailed Breakdown",
+                     "awarded_points": 3, "max_points": 5}], "general_feedback": "f"})
+            return R()
+
+    llm = _SlowLLM()
+    t0 = time.perf_counter()
+    gd = VG.grade_with_vision_ensemble("SYS", rubric(), "RSTR", "G", "",
+                                       ["data:image/png;base64,AAA"], llm=llm,
+                                       submission_text="body", ensemble_n=3)
+    elapsed = time.perf_counter() - t0
+    assert gd.graded_ok is True
+    assert llm.peak == 3, f"runs did not overlap (peak in-flight {llm.peak})"
+    # Serial would be >= 3 * DELAY; concurrent is ~1 * DELAY.
+    assert elapsed < DELAY * 2, f"took {elapsed:.2f}s, serial would be ~{DELAY*3:.2f}s"
+
+
+def test_run_ensemble_helper_is_shared_by_both_paths():
+    from backend.src.grading import run_ensemble
+    calls = []
+    lock = threading.Lock()
+
+    def one():
+        with lock:
+            calls.append(1)
+        return GradeDataStub()
+
+    class GradeDataStub:
+        graded_ok = True
+        assessments = []
+        general_feedback = ""
+        business_name = ""
+        score = 0.0
+    assert len(run_ensemble(one, 4)) == 4
+    assert len(calls) == 4
+    # n <= 1 must not spin up a pool at all.
+    calls.clear()
+    assert len(run_ensemble(one, 1)) == 1
+    assert len(calls) == 1
